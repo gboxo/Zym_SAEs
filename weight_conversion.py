@@ -99,7 +99,7 @@ def convert_GPT_weights(gpt, cfg: GPT2Config) -> dict:
     return state_dict
 
 
-def get_ht_model(gpt:AutoModelForCausalLM,cfg: GPT2Config) -> HookedTransformer:
+def get_ht_model(gpt:AutoModelForCausalLM,cfg: GPT2Config, tokenizer=None) -> HookedTransformer:
     state_dict = convert_GPT_weights(gpt, cfg)
 
     cfg_dict = {
@@ -129,7 +129,7 @@ def get_ht_model(gpt:AutoModelForCausalLM,cfg: GPT2Config) -> HookedTransformer:
 
 
 
-    model = HookedTransformer(cfg_ht,tokenizer=None)
+    model = HookedTransformer(cfg_ht,tokenizer=tokenizer)
     model.load_and_process_state_dict(
         state_dict,
         fold_ln = False,
@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
     cfg = model_ht.config
     cfg.d_mlp = 5120
-    model_tl = get_ht_model(model_ht,cfg)
+    model_tl = get_ht_model(model_ht,cfg, tokenizer=tokenizer)
 
 
 
@@ -166,9 +166,6 @@ if __name__ == "__main__":
 
     logits_ht = model_ht.forward(input_ids)["logits"]
     logits_tl, cache = model_tl.run_with_cache(input_ids)
-
-
-
 
     assert torch.allclose(logits_tl,logits_ht,atol=1e-5), "Logits not equal"
 
