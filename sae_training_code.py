@@ -76,7 +76,8 @@ cfg = LanguageModelSAERunnerConfig(
     dtype="float32",
 )
 # look at the next cell to see some instruction for what to do while this is running.
-sparse_autoencoder = SAETrainingRunner(cfg,override_model = model_ht).run()
+sparse_autoencoder = SAETrainingRunner(cfg,override_model = model_ht)
+sparse_autoencoder.run()
 
 
 
