@@ -144,3 +144,34 @@ plt.title("Mean Cosine Similarity in Sliding Window")
 plt.show()
 
 
+import subprocess
+import os
+
+def compute_pairwise_similarity_mmseqs2(sequences, tmp_dir="tmp_mmseqs2"):
+    """
+    Compute pairwise similarity of sequences using MMseqs2.
+
+    Parameters:
+    sequences (list of str): List of protein sequences.
+    tmp_dir (str): Temporary directory to store MMseqs2 files.
+
+    Returns:
+    str: Path to the MMseqs2 result file.
+    """
+    if not os.path.exists(tmp_dir):
+        os.makedirs(tmp_dir)
+
+    input_fasta = os.path.join(tmp_dir, "input.fasta")
+    db_dir = os.path.join(tmp_dir, "db")
+    result_file = os.path.join(tmp_dir, "result.m8")
+
+    # Write sequences to a FASTA file
+    with open(input_fasta, "w") as f:
+        for i, seq in enumerate(sequences):
+            f.write(f">seq{i}\n{seq}\n")
+
+    # Run MMseqs2 commands
+    subprocess.run(["mmseqs", "createdb", input_fasta, db_dir])
+    subprocess.run(["mmseqs", "search", db_dir, db_dir, result_file, tmp_dir])
+
+    return result_file
