@@ -122,3 +122,17 @@ def mean_cosine_similarity_sliding_window(one_hot_sequences, window_size):
         mean_similarities.append(np.mean(window_similarities))
 
     return mean_similarities
+
+
+
+
+mean_similarities = mean_cosine_similarity_sliding_window(one_hot_sequences, window_size=3)
+
+plt.figure(figsize=(10, 6))
+plt.plot(mean_similarities)
+plt.xlabel("Window")
+plt.ylabel("Mean Cosine Similarity")
+plt.title("Mean Cosine Similarity in Sliding Window")
+plt.show()
+
+
