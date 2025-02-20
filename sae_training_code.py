@@ -26,7 +26,7 @@ l1_warm_up_steps = total_training_steps // 20  # 5% of training
 cfg = LanguageModelSAERunnerConfig(
     # Data Generating Function (Model + Training Distibuion)
     model_name="nferruz/ProtGPT2",  # our model (more options here: https://neelnanda-io.github.io/TransformerLens/generated/model_properties_table.html)
-    hook_name="blocks.10.hook_resi_pre",  # A valid hook point (see more details here: https://neelnanda-io.github.io/TransformerLens/generated/demos/Main_Demo.html#Hook-Points)
+    hook_name="blocks.10.hook_resid_pre",  # A valid hook point (see more details here: https://neelnanda-io.github.io/TransformerLens/generated/demos/Main_Demo.html#Hook-Points)
     hook_layer=10,  # Only one layer in the model.
     d_in=1280,  # the width of the mlp output.
     dataset_path="nferruz/UR50_2021_04",  # this is a tokenized language dataset on Huggingface for the Tiny Stories corpus.
