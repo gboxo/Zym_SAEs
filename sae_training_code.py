@@ -1,3 +1,4 @@
+from platform import architecture
 from sae_lens.training.sae_trainer import LanguageModelSAERunnerConfig
 from sae_lens.sae_training_runner import SAETrainingRunner
 from weight_conversion import get_ht_model
@@ -33,6 +34,7 @@ cfg = LanguageModelSAERunnerConfig(
     is_dataset_tokenized=True,
     streaming=True,  # we could pre-download the token dataset if it was small.
     # SAE Parameters
+    architecture = "topk",
     mse_loss_normalization=None,  # We won't normalize the mse loss,
     expansion_factor=16,  # the width of the SAE. Larger will result in better stats but slower training.
     b_dec_init_method="zeros",  # The geometric median can be used to initialize the decoder weights.
