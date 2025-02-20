@@ -99,3 +99,26 @@ for i in range(len(one_hot_sequences)):
 
 
 
+def mean_cosine_similarity_sliding_window(one_hot_sequences, window_size):
+    """
+    Calculate the mean cosine similarity between sequences in a sliding window fashion.
+
+    Parameters:
+    one_hot_sequences (list of np.ndarray): List of one-hot encoded sequences.
+    window_size (int): The size of the sliding window.
+
+    Returns:
+    list: Mean cosine similarity for each window.
+    """
+    num_sequences = len(one_hot_sequences)
+    mean_similarities = []
+
+    for start in range(num_sequences - window_size + 1):
+        window_similarities = []
+        for i in range(start, start + window_size):
+            for j in range(i + 1, start + window_size):
+                similarity = compute_cosine_similarity(one_hot_sequences[i], one_hot_sequences[j])
+                window_similarities.append(similarity)
+        mean_similarities.append(np.mean(window_similarities))
+
+    return mean_similarities
