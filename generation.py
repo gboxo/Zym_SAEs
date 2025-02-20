@@ -181,3 +181,25 @@ resuling_file = compute_pairwise_similarity_mmseqs2(sequences_content)
 
 
 
+import pandas as pd
+
+def parse_similarity_data(result_file):
+    """
+    Parse the similarity data from MMseqs2 result file into a pandas DataFrame.
+
+    Parameters:
+    result_file (str): Path to the MMseqs2 result file.
+
+    Returns:
+    pd.DataFrame: DataFrame containing the similarity data.
+    """
+    columns = ["query", "target", "identity", "alignment_length", "mismatches", "gap_opens", "q_start", "q_end", "t_start", "t_end", "e_value", "bit_score"]
+    data = []
+
+    with open(result_file, "r") as f:
+        for line in f:
+            parts = line.strip().split("\t")
+            data.append(parts)
+
+    df = pd.DataFrame(data, columns=columns)
+    return df
