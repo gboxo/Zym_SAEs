@@ -111,13 +111,18 @@ def mean_cosine_similarity_sliding_window(one_hot_sequences, window_size):
     list: Mean cosine similarity for each window.
     """
     num_sequences = len(one_hot_sequences)
+    sequence_length = one_hot_sequences[0].shape[0]
     mean_similarities = []
 
-    for start in range(num_sequences - window_size + 1):
+    for start in range(sequence_length - window_size + 1):
         window_similarities = []
-        for i in range(start, start + window_size):
-            for j in range(i + 1, start + window_size):
-                similarity = compute_cosine_similarity(one_hot_sequences[i], one_hot_sequences[j])
+        for i in range(num_sequences):
+            for j in range(i + 1, num_sequences):
+                # Extract the window for each sequence
+                window_seq1 = one_hot_sequences[i][start:start + window_size]
+                window_seq2 = one_hot_sequences[j][start:start + window_size]
+                # Compute similarity for the window
+                similarity = compute_cosine_similarity(window_seq1, window_seq2)
                 window_similarities.append(similarity)
         mean_similarities.append(np.mean(window_similarities))
 
