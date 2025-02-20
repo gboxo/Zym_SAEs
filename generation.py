@@ -175,3 +175,9 @@ def compute_pairwise_similarity_mmseqs2(sequences, tmp_dir="tmp_mmseqs2"):
     subprocess.run(["mmseqs", "search", db_dir, db_dir, result_file, tmp_dir])
 
     return result_file
+
+
+resuling_file = compute_pairwise_similarity_mmseqs2(sequences_content)
+
+
+
