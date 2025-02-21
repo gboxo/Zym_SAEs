@@ -33,7 +33,7 @@ sequences = protgpt2("<|endoftext|>", max_length=100, do_sample=True, top_k=950,
 
 # We measure the diversity of the sequences using 
 
-sequences_content = [s["generated_text"] for s in sequences]
+sequences_content = [s["generated_text"].replace("<|endoftext|>","").replace("\n","") for s in sequences]
 
 
 
@@ -80,7 +80,7 @@ def compute_cosine_similarity(encoded_seq1, encoded_seq2):
 
 # Example usage
 
-one_hot_sequences = [one_hot_encode_sequence(seq.replace("<|endoftext|>","")) for seq in sequences_content]
+one_hot_sequences = [one_hot_encode_sequence(seq) for seq in sequences_content]
 
 similarities = np.zeros((len(one_hot_sequences), len(one_hot_sequences)))
 for i in range(len(one_hot_sequences)):
@@ -193,7 +193,6 @@ def parse_similarity_data(result_file):
     Returns:
     pd.DataFrame: DataFrame containing the similarity data.
     """
-    columns = ["query", "target", "identity", "alignment_length", "mismatches", "gap_opens", "q_start", "q_end", "t_start", "t_end", "e_value", "bit_score"]
     data = []
 
     with open(result_file, "r") as f:
@@ -201,5 +200,8 @@ def parse_similarity_data(result_file):
             parts = line.strip().split("\t")
             data.append(parts)
 
-    df = pd.DataFrame(data, columns=columns)
+    df = pd.DataFrame(data)
     return df
+
+
+df = parse_similarity_data(resuling_file+".0")

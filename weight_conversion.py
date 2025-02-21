@@ -6,7 +6,6 @@ import torch
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-torch.set_grad_enabled(False)
 from transformer_lens.HookedTransformerConfig import HookedTransformerConfig
 from transformer_lens import HookedTransformer
 
