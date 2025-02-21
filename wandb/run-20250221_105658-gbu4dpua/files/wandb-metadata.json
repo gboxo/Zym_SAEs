@@ -1,0 +1,42 @@
+{
+  "os":  "Linux-6.11.0-17-generic-x86_64-with-glibc2.39",
+  "python":  "CPython 3.12.3",
+  "startedAt":  "2025-02-21T09:56:59.061192Z",
+  "program":  "/users/nferruz/gboxo/crg_boxo/sae_training_code.py",
+  "codePath":  "sae_training_code.py",
+  "git":  {
+    "remote":  "https://github.com/gboxo/crg_boxo",
+    "commit":  "4502a82e90eadec155adbffddc505efa7ed68ede"
+  },
+  "email":  "gerardboxocorominas@gmail.com",
+  "root":  "/users/nferruz/gboxo/crg_boxo",
+  "host":  "tic-HP-Z4-G5-Workstation-Desktop-PC",
+  "executable":  "/users/nferruz/gboxo/pSAE/bin/python3",
+  "codePathLocal":  "sae_training_code.py",
+  "cpu_count":  6,
+  "cpu_count_logical":  12,
+  "gpu":  "NVIDIA RTX A2000 12GB",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "1005867986944",
+      "used":  "44333281280"
+    }
+  },
+  "memory":  {
+    "total":  "33278070784"
+  },
+  "cpu":  {
+    "count":  6,
+    "countLogical":  12
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA RTX A2000 12GB",
+      "memoryTotal":  "12878610432",
+      "cudaCores":  3328,
+      "architecture":  "Ampere"
+    }
+  ],
+  "cudaVersion":  "12.4"
+}
