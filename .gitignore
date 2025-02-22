@@ -1,7 +1,7 @@
 # Large folders
 tmp_mmseqs2/
 checkpoints/
-
+pSAE/
 
 # Byte-compiled / optimized / DLL files
 
