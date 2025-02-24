@@ -28,6 +28,7 @@ cfg['l1_coeff'] = 0.
 cfg['act_size'] = 1280
 cfg['device'] = 'cuda'
 cfg["checkpoint_freq"] = 100000
+cfg["checkpoint_dir"] = "/home/woody/b114cb/b113cb23/protGPT_SAE/"
 sae = BatchTopKSAE(cfg)
 
 cfg = post_init_cfg(cfg)

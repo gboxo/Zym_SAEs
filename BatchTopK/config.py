@@ -28,6 +28,7 @@ def get_default_cfg():
         "sae_type": "topk",
         "checkpoint_freq": 10000,
         "n_batches_to_dead": 5,
+        "checkpoint_dir": "",
 
         # (Batch)TopKSAE specific
         "top_k": 32,

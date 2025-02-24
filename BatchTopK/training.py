@@ -17,7 +17,7 @@ def train_sae(sae, activation_store, model, cfg):
             log_model_performance(wandb_run, i, model, activation_store, sae)
 
         if i % cfg["checkpoint_freq"] == 0:
-            save_checkpoint(wandb_run, sae, cfg, i)
+            save_checkpoint(cfg["checkpoint_dir"],wandb_run, sae, cfg, i)
 
         loss = sae_output["loss"]
         pbar.set_postfix({"Loss": f"{loss.item():.4f}", "L0": f"{sae_output['l0_norm']:.4f}", "L2": f"{sae_output['l2_loss']:.4f}", "L1": f"{sae_output['l1_loss']:.4f}", "L1_norm": f"{sae_output['l1_norm']:.4f}"})
@@ -27,7 +27,7 @@ def train_sae(sae, activation_store, model, cfg):
         optimizer.step()
         optimizer.zero_grad()
 
-    save_checkpoint(wandb_run, sae, cfg, i)
+    save_checkpoint(cfg["checkpoint_dir"],wandb_run, sae, cfg, i)
     
 
 def train_sae_group(saes, activation_store, model, cfgs):
@@ -50,7 +50,7 @@ def train_sae_group(saes, activation_store, model, cfgs):
                 log_model_performance(wandb_run, i, model, activation_store, sae, index=counter, batch_tokens=batch_tokens)
 
             if i % cfg["checkpoint_freq"] == 0:
-                save_checkpoint(wandb_run, sae, cfg, i)
+                save_checkpoint(cfg["checkpoint_dir"],wandb_run, sae, cfg, i)
 
             pbar.set_postfix({"Loss": f"{loss.item():.4f}", "L0": f"{sae_output['l0_norm']:.4f}", "L2": f"{sae_output['l2_loss']:.4f}", "L1": f"{sae_output['l1_loss']:.4f}", "L1_norm": f"{sae_output['l1_norm']:.4f}"})
             loss.backward()
@@ -61,4 +61,4 @@ def train_sae_group(saes, activation_store, model, cfgs):
             counter += 1
    
     for sae, cfg, optimizer in zip(saes, cfgs, optimizers):
-        save_checkpoint(wandb_run, sae, cfg, i)
+        save_checkpoint(cfg["checkpoint_dir"],wandb_run, sae, cfg, i)
