@@ -148,9 +148,9 @@ def get_ht_model(gpt:AutoModelForCausalLM,cfg: GPT2Config, tokenizer=None) -> Ho
 
 if __name__ == "__main__":
 
-    tokenizer = AutoTokenizer.from_pretrained("nferruz/ProtGPT2")
-    config_ht = AutoConfig.from_pretrained("nferruz/ProtGPT2")
-    model_ht = AutoModelForCausalLM.from_pretrained("nferruz/ProtGPT2",
+    tokenizer = AutoTokenizer.from_pretrained("nferruz/zymctrl-zfns")
+    config_ht = AutoConfig.from_pretrained("nferruz/zymctrl-zfns")
+    model_ht = AutoModelForCausalLM.from_pretrained("nferruz/zymctrl-zfns", config=config_ht,
                                                     attn_implementation="eager")
 
     cfg = model_ht.config
@@ -159,7 +159,7 @@ if __name__ == "__main__":
 
 
 
-    sequence = "<|endoftext|>\nMGEAMGLTQPAVSRAVARLEERVGIRIFNRTARAITLTDEGRRFYEAVAPLLAGIEMHGY\nRVNVEGVAQLLELYARDILAEGRLVQLLPEWAD\n<|endoftext|>"
+    
 
     input_ids = torch.tensor(tokenizer.encode(sequence)).unsqueeze(0) 
 

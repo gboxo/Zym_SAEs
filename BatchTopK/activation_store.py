@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from transformer_lens.hook_points import HookedRootModule
-from datasets import Dataset, load_dataset
+from datasets import Dataset, load_from_disk
 import tqdm
 
 class ActivationsStore:
@@ -11,7 +11,8 @@ class ActivationsStore:
         cfg: dict,
     ):
         self.model = model
-        self.dataset = iter(load_dataset(cfg["dataset_path"], split="train", streaming=True))
+        
+        self.dataset = iter(load_from_disk(cfg["dataset_path"]))
         self.hook_point = cfg["hook_point"]
         self.context_size = min(cfg["seq_len"], model.cfg.n_ctx)
         self.model_batch_size = cfg["model_batch_size"]
