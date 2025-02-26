@@ -1,4 +1,5 @@
 # Large folders
+wandb/
 tmp_mmseqs2/
 checkpoints/
 pSAE/

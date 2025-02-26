@@ -1,0 +1,33 @@
+  seed: 49
+  batch_size: 4096
+  lr: 0.0003
+  num_tokens: 1000000000
+  l1_coeff: 0
+  beta1: 0.9
+  beta2: 0.99
+  max_grad_norm: 100000
+  seq_len: 128
+  dtype: torch.float32
+  model_name: ZymCTRL
+  site: resid_pre
+  layer: 26
+  act_size: 1280
+  dict_size: 10240
+  device: cuda:0
+  model_batch_size: 256
+  dataset_path: /users/nferruz/gboxo/ZymCTRL_Dataset/final_dataset_big/
+  wandb_project: ZymCTRL_SAE
+  input_unit_norm: true
+  perf_log_freq: 1000
+  sae_type: topk
+  checkpoint_freq: 10000
+  n_batches_to_dead: 5
+  checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/
+  wandb_dir: /users/nferruz/gboxo/wandb/
+
+  # (Batch)TopKSAE specific
+  top_k: 32
+  top_k_aux: 512
+  aux_penalty: 0.03125  # 1/32
+  # for jumprelu
+  bandwidth: 0.001
