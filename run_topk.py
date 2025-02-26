@@ -3,7 +3,7 @@ from datetime import datetime
 from weight_conversion import get_ht_model
 from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2LMHeadModel
 import os
-from utils import load_config
+from utils import load_config, load_model
 
 import torch
 from training import train_sae
@@ -86,10 +86,8 @@ sae = BatchTopKSAE(cfg)
 
 cfg = post_init_cfg(cfg)
 
-tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-model_ht = GPT2LMHeadModel.from_pretrained(args.model_path,
-                                                attn_implementation="eager",
-                                                torch_dtype=torch.float32)
+
+tokenizer, model_ht = load_model(args.model_path)
 
 config = model_ht.config
 config.d_mlp = 5120

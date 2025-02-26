@@ -13,7 +13,7 @@ To perform inference with batch topk SAEs we need to:
 
 def convert_to_jumprelu(sae: BatchTopKSAE, thresholds: torch.tensor) -> JumpReLUSAE:
     sae_state_dict = sae.state_dict()
-    sae_state_dict["jumprelu.log_threshold"] = torch.log(sae.thresholds)
+    sae_state_dict["jumprelu.log_threshold"] = torch.log(thresholds)
     jump_relu = JumpReLUSAE(sae.cfg)
     jump_relu.load_state_dict(sae_state_dict, strict=False)
     return jump_relu

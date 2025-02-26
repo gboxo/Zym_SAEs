@@ -12,6 +12,22 @@ import matplotlib.pyplot as plt
 import json
 from transformer_lens.HookedTransformerConfig import HookedTransformerConfig
 from transformer_lens import HookedTransformer
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+
+def load_model(model_name):
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = "<pad>"
+    model_ht = AutoModelForCausalLM.from_pretrained(model_name,
+                                                    attn_implementation="eager",
+                                                    torch_dtype=torch.float32)
+
+
+    return tokenizer, model_ht
+
+
 
 
 def load_sae(sae_path, load_thresholds=False):

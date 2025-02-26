@@ -6,7 +6,7 @@ from config import get_default_cfg
 import torch
 from sae import BatchTopKSAE
 from activation_store import ActivationsStore
-from utils import get_ht_model, load_config, load_sae
+from utils import get_ht_model, load_config, load_sae, load_model
 from tqdm import tqdm
 
 
@@ -62,13 +62,7 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
     return feature_thresholds
 
 
-
-
-
-if __name__ == "__main__":
-
-    # Define the path of the SAE and load it
-    path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_RAW_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000/"
+def main(path, model_path):
     _,sae = load_sae(path)
 
     # Load the configuration file
@@ -78,10 +72,7 @@ if __name__ == "__main__":
 
 
     # Load the model and tokenizer
-    tokenizer = AutoTokenizer.from_pretrained("AI4PD/ZymCTRL")
-    model_ht = GPT2LMHeadModel.from_pretrained("AI4PD/ZymCTRL",
-                                                    attn_implementation="eager",
-                                                    torch_dtype=torch.float32)
+    tokenizer, model_ht = load_model(model_path)
 
 
     # Get the transformer lens model and compute the threshold
@@ -90,9 +81,18 @@ if __name__ == "__main__":
     model = get_ht_model(model_ht,config, tokenizer=tokenizer)
     del model_ht
     # Compute the threshold and save it in the same directory as the SAE
-    threshold = compute_threshold(model, sae, cfg, num_batches=100)
-    torch.save(threshold, f"{path}/thresholds.pt")
+    threshold = compute_threshold(model, sae, cfg, num_batches=1000)
+    return threshold
 
+
+
+
+if __name__ == "__main__":
+
+    # Define the path of the SAE and load it
+    path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_RAW_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000/"
+    threshold = main(path, model_path="AI4PD/ZymCTRL")
+    torch.save(threshold, f"{path}/thresholds.pt")
 
 
 

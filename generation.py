@@ -3,12 +3,7 @@
 Code to generat protein sequences and measure key metrics like diversity, and othe stuff.
 
 """
-
-from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Config, GPT2LMHeadModel
-from transformers import AutoConfig
-
-import einops
-import torch
+from utils import load_model
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -16,11 +11,7 @@ from transformer_lens.HookedTransformerConfig import HookedTransformerConfig
 from transformer_lens import HookedTransformer
 
 
-
-tokenizer = AutoTokenizer.from_pretrained("nferruz/ProtGPT2")
-config_ht = AutoConfig.from_pretrained("nferruz/ProtGPT2")
-model_ht = AutoModelForCausalLM.from_pretrained("nferruz/ProtGPT2",
-                                                    attn_implementation="eager")
+tokeizer, model_ht = load_model("nferruz/ProtGPT2")
 
 
 # We generate from nothing 10 sequences of length 100
