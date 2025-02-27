@@ -18,5 +18,12 @@ source activate /home/woody/b114cb/b114cb23/boxo/pSAE/
 
 
 # Run the Python script and redirect output to a log file
-python3 crg_boxo/BatchTopK/run_relu.py
-~                                       
+python3 -m run_topk.py  --is_alex True --config configs/alex.yaml 
+
+
+
+
+python3 -m compute_threshold.py --sae_path /home/woody/b114cb/b114cb23/boxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000 --model_path /home/woody/b114cb/b114cb23/models/ZymCTRL/ --n_batches 1000
+
+
+python3 -m sae_eval.py --sae_path /home/woody/b114cb/b114cb23/boxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000 --model_path /home/woody/b114cb/b114cb23/models/ZymCTRL/ --test_set_path micro_brenda.txt --is_tokenized False

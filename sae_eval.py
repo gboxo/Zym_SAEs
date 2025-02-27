@@ -25,6 +25,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from prettytable import PrettyTable
+import argparse
 
 
 
@@ -76,7 +77,7 @@ class SAEEval:
 
     def evaluation_loop(self):
         metrics = []
-        for seq in tqdm(self.test_set[:100]):
+        for seq in tqdm(self.test_set[:10]):
             with torch.no_grad():
                 names_filter = lambda x: self.hook_point in x
                 _, cache = self.model.run_with_cache(seq, names_filter=names_filter)
@@ -175,12 +176,43 @@ class SAEEval:
         print(table)
 
 
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sae_path", type=str, required=False)
+    parser.add_argument("--model_path", type=str, required=False)
+    parser.add_argument("--test_set_path", type=str, required=False)
+    parser.add_argument("--is_tokenized", type=bool, required=False)
+    args = parser.parse_args()
+
+    if args.sae_path is None:
+        sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_RAW_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000"
+    else:
+        sae_path = args.sae_path
+
+    if args.model_path is None:
+        model_path = "AI4PD/ZymCTRL"
+    else:
+        model_path = args.model_path
+
+    if args.test_set_path is None:
+        test_set_path = "micro_brenda.txt"
+    else:
+        test_set_path = args.test_set_path
+    
+    if args.is_tokenized is None:
+        is_tokenized = False
+    else:
+        is_tokenized = args.is_tokenized
+
+    
+    
+
     cfg = EvalConfig()
-    cfg.model_path = "AI4PD/ZymCTRL"
-    cfg.sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_RAW_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000"
-    cfg.test_set_path = "/users/nferruz/gboxo/Downloads/micro_brenda.txt"
-    cfg.is_tokenized = False
+    cfg.model_path = model_path
+    cfg.sae_path = sae_path
+    cfg.test_set_path = test_set_path
+    cfg.is_tokenized = is_tokenized
 
     eval = SAEEval(cfg)
     test_set = eval.load_test_set()

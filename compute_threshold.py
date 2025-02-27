@@ -8,7 +8,7 @@ from sae import BatchTopKSAE
 from activation_store import ActivationsStore
 from utils import get_ht_model, load_config, load_sae, load_model
 from tqdm import tqdm
-
+import argparse
 
 
 torch.set_grad_enabled(False)
@@ -62,7 +62,7 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
     return feature_thresholds
 
 
-def main(path, model_path):
+def main(path, model_path, n_batches):
     _,sae = load_sae(path)
 
     # Load the configuration file
@@ -81,7 +81,7 @@ def main(path, model_path):
     model = get_ht_model(model_ht,config, tokenizer=tokenizer)
     del model_ht
     # Compute the threshold and save it in the same directory as the SAE
-    threshold = compute_threshold(model, sae, cfg, num_batches=1000)
+    threshold = compute_threshold(model, sae, cfg, num_batches=n_batches)
     return threshold
 
 
@@ -90,8 +90,28 @@ def main(path, model_path):
 if __name__ == "__main__":
 
     # Define the path of the SAE and load it
-    path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_RAW_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000/"
-    threshold = main(path, model_path="AI4PD/ZymCTRL")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sae_path", type=str, required=False)
+    parser.add_argument("--model_path", type=str, required=False)
+    parser.add_argument("--n_batches", type=int, required=False)
+    args = parser.parse_args()
+
+    if args.sae_path is None:
+        path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_RAW_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000"
+    else:
+        path = args.sae_path
+
+    if args.model_path is None:
+        model_path = "AI4PD/ZymCTRL"
+    else:
+        model_path = args.model_path
+
+    if args.n_batches is None:
+        n_batches = 1000
+    else:
+        n_batches = args.n_batches
+
+    threshold = main(path, model_path=model_path, n_batches = n_batches)
     torch.save(threshold, f"{path}/thresholds.pt")
 
 
