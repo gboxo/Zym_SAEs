@@ -42,7 +42,7 @@ activations, max_len = get_acts()
 
 sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
 cfg, sae = load_sae(sae_path)
-thresholds = torch.load(sae_path+"/thresholds.pt")
+thresholds = torch.load(sae_path+"/feature_decile_7.pt")
 sae.to("cuda")
 
 jump_relu = convert_to_jumprelu(sae, thresholds)

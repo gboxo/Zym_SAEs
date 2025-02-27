@@ -58,7 +58,11 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
 
     all_feature_min_activations = torch.stack(all_feature_min_activations)
     all_feature_min_activations = torch.where(all_feature_min_activations > 0, all_feature_min_activations, 0)
-    feature_thresholds = torch.mean(all_feature_min_activations, dim=0)
+    # Compute the deciles of the activations
+    feature_deciles = torch.quantile(all_feature_min_activations, torch.linspace(0, 1, 11).to("cuda"), dim=0)
+    for i in range(feature_deciles.shape[0]):
+        torch.save(feature_deciles[i], f"{path}/feature_decile_{i}.pt")
+    feature_thresholds = torch.mean(feature_deciles, dim=0)
     return feature_thresholds
 
 
@@ -109,7 +113,7 @@ if __name__ == "__main__":
         model_path = args.model_path
 
     if args.n_batches is None:
-        n_batches = 5000
+        n_batches = 100
     else:
         n_batches = args.n_batches
 
