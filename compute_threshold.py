@@ -1,3 +1,4 @@
+import os
 # %%
 from transformers import AutoTokenizer, GPT2LMHeadModel
 from config import update_cfg, post_init_cfg, get_default_cfg
@@ -59,9 +60,11 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
     all_feature_min_activations = torch.stack(all_feature_min_activations)
     all_feature_min_activations = torch.where(all_feature_min_activations > 0, all_feature_min_activations, 0)
     # Compute the deciles of the activations
-    feature_deciles = torch.quantile(all_feature_min_activations, torch.linspace(0, 1, 11).to("cuda"), dim=0)
+    feature_deciles = torch.quantile(all_feature_min_activations, torch.linspace(0, 1, 101).to("cuda"), dim=0)
+    os.makedirs(path+"/percentiles", exist_ok=True)
     for i in range(feature_deciles.shape[0]):
-        torch.save(feature_deciles[i], f"{path}/feature_decile_{i}.pt")
+        
+        torch.save(feature_deciles[i], f"{path}/percentiles/feature_percentile_{i}.pt")
     feature_thresholds = torch.mean(feature_deciles, dim=0)
     return feature_thresholds
 
