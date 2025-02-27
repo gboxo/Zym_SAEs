@@ -15,7 +15,7 @@
   dict_size: 10240
   device: cuda:0
   model_batch_size: 256
-  dataset_path: /home/woody/b114cb/b114cb23/gboxo/final_dataset_big/
+  dataset_path: /home/woody/b114cb/b114cb23/boxo/final_dataset_big/
   wandb_project: ZymCTRL_SAE
   input_unit_norm: true
   perf_log_freq: 1000

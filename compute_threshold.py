@@ -66,7 +66,7 @@ def main(path, model_path, n_batches):
     _,sae = load_sae(path)
 
     # Load the configuration file
-    cfg = load_config("configs/workstation.yaml")
+    cfg = load_config("configs/alex.yaml")
     cfg["ctx_len"] = 256
     cfg["model_batch_size"] = 64 
 
@@ -81,6 +81,7 @@ def main(path, model_path, n_batches):
     model = get_ht_model(model_ht,config, tokenizer=tokenizer)
     del model_ht
     # Compute the threshold and save it in the same directory as the SAE
+    print(cfg)
     threshold = compute_threshold(model, sae, cfg, num_batches=n_batches)
     return threshold
 

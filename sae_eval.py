@@ -50,7 +50,7 @@ class SAEEval:
             sae_cfg, sae, thresholds = load_sae(cfg.sae_path, load_thresholds=True)
         else:
             sae_cfg, sae = load_sae(cfg.sae_path, load_thresholds=False)
-            thresholds = main(cfg.sae_path, cfg.model_path)
+            thresholds = main(cfg.sae_path, cfg.model_path, n_batches = 1000)
         self.sae_cfg = sae_cfg
         self.hook_point = sae_cfg["hook_point"]
 
@@ -71,9 +71,9 @@ class SAEEval:
             test_set = test_set.split("\n")
             test_set = [seq.strip("<pad>") for seq in test_set]
             test_set_tokenized = [self.tokenizer.encode(elem, padding=True, truncation=True, return_tensors="pt", max_length=256) for elem in test_set]
+            print(test_set_tokenized)
             self.test_set = test_set_tokenized
 
-        return self.test_set
 
     def evaluation_loop(self):
         metrics = []
