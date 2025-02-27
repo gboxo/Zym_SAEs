@@ -71,7 +71,6 @@ class SAEEval:
             test_set = test_set.split("\n")
             test_set = [seq.strip("<pad>") for seq in test_set]
             test_set_tokenized = [self.tokenizer.encode(elem, padding=True, truncation=True, return_tensors="pt", max_length=256) for elem in test_set]
-            print(test_set_tokenized)
             self.test_set = test_set_tokenized
 
 
@@ -95,6 +94,7 @@ class SAEEval:
         else:
             pass
         feature_acts = sae_out["feature_acts"]
+        seq_len, n_features = feature_acts.shape
         binary_acts = torch.where(feature_acts > 0, 1, 0)
         total_fires = torch.sum(binary_acts)
         total_fires_per_feat = torch.sum(binary_acts, dim=0)
@@ -183,6 +183,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str, required=False)
     parser.add_argument("--test_set_path", type=str, required=False)
     parser.add_argument("--is_tokenized", type=bool, required=False)
+    parser.add_argument("--config",type=str, required=False)
     args = parser.parse_args()
 
     if args.sae_path is None:
@@ -205,7 +206,10 @@ if __name__ == "__main__":
     else:
         is_tokenized = args.is_tokenized
 
-    
+    if args.config is None:
+        config_path = "configs/workstation.yaml"
+    else:
+        config_path = args.config
     
 
     cfg = EvalConfig()

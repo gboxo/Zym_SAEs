@@ -62,11 +62,11 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
     return feature_thresholds
 
 
-def main(path, model_path, n_batches):
+def main(path, model_path, n_batches, config_path):
     _,sae = load_sae(path)
 
     # Load the configuration file
-    cfg = load_config("configs/alex.yaml")
+    cfg = load_config(config_path)
     cfg["ctx_len"] = 256
     cfg["model_batch_size"] = 64 
 
@@ -95,6 +95,7 @@ if __name__ == "__main__":
     parser.add_argument("--sae_path", type=str, required=False)
     parser.add_argument("--model_path", type=str, required=False)
     parser.add_argument("--n_batches", type=int, required=False)
+    parser.add_argument("--config_path", type=str, required=False)
     args = parser.parse_args()
 
     if args.sae_path is None:
@@ -108,11 +109,16 @@ if __name__ == "__main__":
         model_path = args.model_path
 
     if args.n_batches is None:
-        n_batches = 1000
+        n_batches = 5000
     else:
         n_batches = args.n_batches
 
-    threshold = main(path, model_path=model_path, n_batches = n_batches)
+    if args.config_path is None:
+        config_path = "configs/workstation.yaml"
+    else:
+        config_path = args.config_path
+
+    threshold = main(path, model_path=model_path, n_batches = n_batches, config_path=config_path)
     torch.save(threshold, f"{path}/thresholds.pt")
 
 
