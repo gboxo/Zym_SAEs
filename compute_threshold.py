@@ -97,7 +97,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.sae_path is None:
-        path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_RAW_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000"
+        path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000"
     else:
         path = args.sae_path
 

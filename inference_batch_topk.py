@@ -1,5 +1,4 @@
 # %%
-from sae_lens import SAE, SAEConfig
 from utils import load_sae
 from sae import BatchTopKSAE, JumpReLUSAE
 import torch

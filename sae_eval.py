@@ -82,7 +82,7 @@ class SAEEval:
                 names_filter = lambda x: self.hook_point in x
                 _, cache = self.model.run_with_cache(seq, names_filter=names_filter)
                 activations = cache[self.hook_point]
-                sae_out = self.jump_relu(activations)
+                sae_out = self.jump_relu.forward(activations, use_pre_enc_bias=True)
                 metrics.append(self.get_metrics(activations, sae_out))
         self.final_metrics = metrics
 
