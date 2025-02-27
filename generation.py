@@ -1,198 +1,75 @@
-
-"""
-Code to generat protein sequences and measure key metrics like diversity, and othe stuff.
-
-"""
-from utils import load_model
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-from transformer_lens.HookedTransformerConfig import HookedTransformerConfig
-from transformer_lens import HookedTransformer
-
-
-tokeizer, model_ht = load_model("nferruz/ProtGPT2")
-
-
-# We generate from nothing 10 sequences of length 100
-
-from transformers import pipeline
-protgpt2 = pipeline('text-generation', model="nferruz/ProtGPT2")
-sequences = protgpt2("<|endoftext|>", max_length=100, do_sample=True, top_k=950, repetition_penalty=1.2, num_return_sequences=10, eos_token_id=0)
-
-
-
-# We measure the diversity of the sequences using 
-
-sequences_content = [s["generated_text"].replace("<|endoftext|>","").replace("\n","") for s in sequences]
-
-
-
-
-
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-
-def one_hot_encode_sequence(sequence, amino_acids="ACDEFGHIKLMNPQRSTVWY"):
-    """
-    One-hot encode an amino acid sequence.
-
-    Parameters:
-    sequence (str): Amino acid sequence.
-    amino_acids (str): String of all possible amino acids.
-
-    Returns:
-    np.ndarray: One-hot encoded matrix of the sequence.
-    """
-    encoding = np.zeros((len(sequence), len(amino_acids)), dtype=int)
-    aa_to_index = {aa: idx for idx, aa in enumerate(amino_acids)}
-    
-    for i, aa in enumerate(sequence):
-        if aa in aa_to_index:
-            encoding[i, aa_to_index[aa]] = 1
-    
-    return encoding
-
-def compute_cosine_similarity(encoded_seq1, encoded_seq2):
-    """
-    Compute the cosine similarity of two amino acid sequences.
-
-    Returns:
-    float: Cosine similarity score between the two sequences.
-    """
-    # One-hot encode the sequences
-    
-    # Compute cosine similarity
-    similarity = cosine_similarity(encoded_seq1, encoded_seq2)
-    
-    # Return the average similarity score
-    return np.mean(similarity)
-
-
-# Example usage
-
-one_hot_sequences = [one_hot_encode_sequence(seq) for seq in sequences_content]
-
-similarities = np.zeros((len(one_hot_sequences), len(one_hot_sequences)))
-for i in range(len(one_hot_sequences)):
-    for j in range(i + 1, len(one_hot_sequences)):
-        similarity = compute_cosine_similarity(one_hot_sequences[i], one_hot_sequences[j])
-        similarities[i, j] = similarity
-
-
-
-
-
-
-
-
-
-
-
-
-def mean_cosine_similarity_sliding_window(one_hot_sequences, window_size):
-    """
-    Calculate the mean cosine similarity between sequences in a sliding window fashion.
-
-    Parameters:
-    one_hot_sequences (list of np.ndarray): List of one-hot encoded sequences.
-    window_size (int): The size of the sliding window.
-
-    Returns:
-    list: Mean cosine similarity for each window.
-    """
-    num_sequences = len(one_hot_sequences)
-    sequence_length = one_hot_sequences[0].shape[0]
-    mean_similarities = []
-
-    for start in range(sequence_length - window_size + 1):
-        window_similarities = []
-        for i in range(num_sequences):
-            for j in range(i + 1, num_sequences):
-                # Extract the window for each sequence
-                window_seq1 = one_hot_sequences[i][start:start + window_size]
-                window_seq2 = one_hot_sequences[j][start:start + window_size]
-                if window_seq1.shape[0] < window_size or window_seq2.shape[0] < window_size:
-                    similarity = 0
-                else:
-                    # Compute similarity for the window
-                    similarity = compute_cosine_similarity(window_seq1, window_seq2)
-                window_similarities.append(similarity)
-        mean_similarities.append(np.mean(window_similarities))
-
-    return mean_similarities
-
-
-
-
-mean_similarities = mean_cosine_similarity_sliding_window(one_hot_sequences, window_size=3)
-
-plt.figure(figsize=(10, 6))
-plt.plot(mean_similarities)
-plt.xlabel("Window")
-plt.ylabel("Mean Cosine Similarity")
-plt.title("Mean Cosine Similarity in Sliding Window")
-plt.show()
-
-
-import subprocess
+import torch
+from transformers import GPT2LMHeadModel, AutoTokenizer
 import os
+from tqdm import tqdm
+import math
 
-def compute_pairwise_similarity_mmseqs2(sequences, tmp_dir="tmp_mmseqs2"):
-    """
-    Compute pairwise similarity of sequences using MMseqs2.
+def remove_characters(sequence, char_list):
+    "This function removes special tokens used during training."
+    columns = sequence.split('<sep>')
+    seq = columns[1]
+    for char in char_list:
+        seq = seq.replace(char, '')
+    return seq
 
-    Parameters:
-    sequences (list of str): List of protein sequences.
-    tmp_dir (str): Temporary directory to store MMseqs2 files.
+def calculatePerplexity(input_ids,model,tokenizer):
+    "This function computes perplexities for the generated sequences"
+    with torch.no_grad():
+        outputs = model(input_ids, labels=input_ids)
+    loss, logits = outputs[:2]
+    return math.exp(loss)
+        
+def main(label, model,special_tokens,device,tokenizer):
+    # Generating sequences
+    input_ids = tokenizer.encode(label,return_tensors='pt').to(device)
+    outputs = model.generate(
+        input_ids, 
+        top_k=9, #tbd
+        repetition_penalty=1.2,
+        max_length=512,
+        eos_token_id=1,
+        pad_token_id=0,
+           do_sample=True,
+           num_return_sequences=10) # Depending non your GPU, you'll be able to generate fewer or more sequences. This runs in an A40.
+    
+    # Check sequence sanity, ensure sequences are not-truncated.
+    # The model will truncate sequences longer than the specified max_length (1024 above). We want to avoid those sequences.
+    new_outputs = [ output for output in outputs if output[-1] == 0]
+    if not new_outputs:
+        print("not enough sequences with short lengths!!")
 
-    Returns:
-    str: Path to the MMseqs2 result file.
-    """
-    if not os.path.exists(tmp_dir):
-        os.makedirs(tmp_dir)
+    # Compute perplexity for every generated sequence in the batch
+    ppls = [(tokenizer.decode(output), calculatePerplexity(output, model, tokenizer)) for output in new_outputs ]
 
-    input_fasta = os.path.join(tmp_dir, "input.fasta")
-    db_dir = os.path.join(tmp_dir, "db")
-    result_file = os.path.join(tmp_dir, "result.m8")
+    # Sort the batch by perplexity, the lower the better
+    ppls.sort(key=lambda i:i[1]) # duplicated sequences?
 
-    # Write sequences to a FASTA file
-    with open(input_fasta, "w") as f:
-        for i, seq in enumerate(sequences):
-            f.write(f">seq{i}\n{seq}\n")
+    # Final dictionary with the results
+    sequences={}
+    sequences[label] = [(remove_characters(x[0], special_tokens), x[1]) for x in ppls]
 
-    # Run MMseqs2 commands
-    subprocess.run(["mmseqs", "createdb", input_fasta, db_dir])
-    subprocess.run(["mmseqs", "search", db_dir, db_dir, result_file, tmp_dir])
+    return sequences
 
-    return result_file
+if __name__=='__main__':
+    device = torch.device("cuda") # Replace with 'cpu' if you don't have a GPU - but it will be slow
+    print('Reading pretrained model and tokenizer')
+    tokenizer = AutoTokenizer.from_pretrained('AI4PD/zymCTRL') # change to ZymCTRL location
+    model = GPT2LMHeadModel.from_pretrained('AI4PD/zymCTRL').to(device) # change to ZymCTRL location
+    model.eval()
+    special_tokens = ['<start>', '<end>', '<|endoftext|>','<pad>',' ', '<sep>']
 
+    # change to the appropriate EC classes
 
-resuling_file = compute_pairwise_similarity_mmseqs2(sequences_content)
+    labels = ["3.6.4.12"]
 
-
-
-import pandas as pd
-
-def parse_similarity_data(result_file):
-    """
-    Parse the similarity data from MMseqs2 result file into a pandas DataFrame.
-
-    Parameters:
-    result_file (str): Path to the MMseqs2 result file.
-
-    Returns:
-    pd.DataFrame: DataFrame containing the similarity data.
-    """
-    data = []
-
-    with open(result_file, "r") as f:
-        for line in f:
-            parts = line.strip().split("\t")
-            data.append(parts)
-
-    df = pd.DataFrame(data)
-    return df
-
-
-df = parse_similarity_data(resuling_file+".0")
+    for label in tqdm(labels):
+        # We'll run 100 batches per label. 20 sequences will be generated per batch.
+        for i in tqdm(range(0,100)): 
+            sequences = main(label, model, special_tokens, device, tokenizer)
+            for key,value in sequences.items():
+                for index, val in enumerate(value):
+                    # Sequences will be saved with the name of the label followed by the batch index,
+                    # and the order of the sequence in that batch.           
+                    fn = open(f"DNA_helicase_generation/{label}_{i}_{index}.fasta", "w")
+                    fn.write(f'>{label}_{i}_{index}\t{val[1]}\n{val[0]}')
+                    fn.close()

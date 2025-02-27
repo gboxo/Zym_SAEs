@@ -1,6 +1,5 @@
 from inference_batch_topk import convert_to_jumprelu
 from utils import load_sae, load_model, get_ht_model
-from sae import BatchTopKSAE, JumpReLUSAE
 import torch
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -43,7 +42,10 @@ activations, max_len = get_acts()
 sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
 cfg, sae = load_sae(sae_path)
 
-thresholds = torch.load(sae_path+"/feature_decile_9.pt")
+thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
+thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
+print(thresholds.shape)
+print(thresholds.min(), thresholds.max())
 
 
 sae.to("cuda")

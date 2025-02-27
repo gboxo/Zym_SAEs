@@ -47,7 +47,8 @@ class SAEEval:
 
         self.load_test_set()
         if "thresholds.pt" in os.listdir(cfg.sae_path):
-            sae_cfg, sae, thresholds = load_sae(cfg.sae_path, load_thresholds=True)
+            sae_cfg, sae = load_sae(cfg.sae_path, load_thresholds=False)
+            thresholds = torch.load(cfg.sae_path+"/percentiles/feature_percentile_9.pt")
         else:
             sae_cfg, sae = load_sae(cfg.sae_path, load_thresholds=False)
             thresholds = main(cfg.sae_path, cfg.model_path, n_batches = 1000)
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.sae_path is None:
-        sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_RAW_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000"
+        sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000"
     else:
         sae_path = args.sae_path
 
