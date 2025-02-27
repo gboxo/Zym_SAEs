@@ -12,9 +12,11 @@ import scipy.cluster.hierarchy as hierarchy
 from scipy.sparse import coo_matrix, csr_matrix, csc_matrix
 
 # %%
-tokenizer, model = load_model("AI4PD/ZymCTRL")
+model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
+tokenizer, model = load_model(model_path)
 model = get_ht_model(model, model.config).to("cuda")
-sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
+#sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
+sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
 cfg, sae = load_sae(sae_path)
 thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
 thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
@@ -72,7 +74,7 @@ def get_activations( model, tokenizer, sequence):
     sequence = "3.6.4.12<sep>" + sequence
     inputs = tokenizer.encode(sequence, return_tensors="pt").to("cuda")
     names_filter = lambda x: x.endswith("26.hook_resid_post")
-    logits, cache = model.run_with_cache(inputs, names_filter=names_filter)
+    _, cache = model.run_with_cache(inputs, names_filter=names_filter)
     activations = cache["blocks.26.hook_resid_post"]
     return activations
 
@@ -87,7 +89,7 @@ def get_all_features(model, sae, tokenizer, sequences):
     for sequence in sequences:
         activations = get_activations(model, tokenizer, sequence)
         features = get_features(sae, activations)
-        all_features.append(features)
+        all_features.append(features.detach().cpu().numpy())
     return all_features
 
 
@@ -102,6 +104,8 @@ with open("synth_sequences.txt", "r") as f:
 natural_features = get_all_features(model,jump_relu, tokenizer, natural_sequences)
 synth_features = get_all_features(model,jump_relu, tokenizer, synth_sequences)
 
+np.save("natural_features.npy",natural_features)
+np.save("synth_features.npy",synth_features)
 
 
 
