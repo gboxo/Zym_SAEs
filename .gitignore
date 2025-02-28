@@ -1,4 +1,5 @@
 # Large folders
+.jupyter/
 wandb/
 tmp_mmseqs2/
 checkpoints/
@@ -11,6 +12,9 @@ pSAE/
 *.pickle
 *.json
 *.csv
+*.err
+*.out 
+
 
 # Byte-compiled / optimized / DLL files
 
