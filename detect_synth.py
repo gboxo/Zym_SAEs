@@ -9,25 +9,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from collections import Counter
 import scipy.cluster.hierarchy as hierarchy
-from scipy.sparse import coo_matrix, csr_matrix, csc_matrix
+from sklearn.linear_model import LogisticRegressionCV
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
+from scipy.sparse import coo_matrix, csr_matrix, csc_matrix, vstack
+from prettytable import PrettyTable
+from sklearn.metrics import roc_auc_score, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 
-# %%
-model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
-tokenizer, model = load_model(model_path)
-model = get_ht_model(model, model.config).to("cuda")
-#sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-cfg, sae = load_sae(sae_path)
-thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
-thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
-sae.to("cuda")
-jump_relu = convert_to_jumprelu(sae, thresholds)
-jump_relu.eval()
-del sae
-
-# %%
-
-# We want to detect synthetic sequences for DNA Helicase (3.6.4.12)
 
 def get_natural_and_synth_sequences():
 
@@ -42,7 +30,6 @@ def get_natural_and_synth_sequences():
     indices = [i for i,elem in enumerate(ec_numbers) if elem == "3.6.4.12"]
     natural_sequences = [sequences[i].strip("<start>").strip("<end>").strip("<|endoftext|").strip("<end>") for i in indices]
 
-    # %%
 
     files = os.listdir("DNA_helicase_generation")
     files = [file for file in files if file.endswith(".fasta")]
@@ -53,7 +40,6 @@ def get_natural_and_synth_sequences():
             seq = seq.split("\n")[1]
         synth_sequences.append(seq)
 
-    # %%
 
     with open("nautral_sequenecs.txt", "w") as f:
         for seq in natural_sequences:
@@ -66,10 +52,6 @@ def get_natural_and_synth_sequences():
     return natural_sequences, synth_sequences
 
 
-# %%
-
-# ======= GET THE ACTIVAIONS ============
-
 def get_activations( model, tokenizer, sequence):
     sequence = "3.6.4.12<sep>" + sequence
     inputs = tokenizer.encode(sequence, return_tensors="pt").to("cuda")
@@ -81,31 +63,230 @@ def get_activations( model, tokenizer, sequence):
 def get_features(sae: JumpReLUSAE, activations):
     feature_acts = sae.forward(activations, use_pre_enc_bias=True)["feature_acts"]
     sparse_feature_acts = coo_matrix(feature_acts[0].detach().cpu().numpy())
-    return feature_acts
+    del feature_acts
+    torch.cuda.empty_cache()
+    return sparse_feature_acts
 
 
 def get_all_features(model, sae, tokenizer, sequences):
     all_features = []
     for sequence in sequences:
-        activations = get_activations(model, tokenizer, sequence)
+        activations = get_activations(model, tokenizer, sequence[:10])
         features = get_features(sae, activations)
-        all_features.append(features.detach().cpu().numpy())
+        all_features.append(features)
+        del activations, features
+        torch.cuda.empty_cache()
     return all_features
 
-
-# ======= GET THE FEATURES ============
-with open("nautral_sequenecs.txt", "r") as f:
-    natural_sequences = f.read()
-    natural_sequences = natural_sequences.split("\n")
-with open("synth_sequences.txt", "r") as f:
-    synth_sequences = f.read()
-    synth_sequences = synth_sequences.split("\n")
-
-natural_features = get_all_features(model,jump_relu, tokenizer, natural_sequences)
-synth_features = get_all_features(model,jump_relu, tokenizer, synth_sequences)
-
-np.save("natural_features.npy",natural_features)
-np.save("synth_features.npy",synth_features)
+def obtain_features(text_path):
+    """
+    Obtain features from natural sequences
+    """
+    assert text_path.endswith(".txt"), "Text file must end with .txt"
+    file_name = text_path.split("/")[-1].split(".")[0].split("_")[0]
+    assert len(file_name) > 0, "File name is empty"
 
 
+    with open(text_path, "r") as f:
+        natural_sequences = f.read()
+        natural_sequences = natural_sequences.split("\n")
 
+    natural_features = get_all_features(model,jump_relu, tokenizer, natural_sequences[:100])
+    random_indices = np.random.permutation(len(natural_features))
+    train_indices = random_indices[:int(len(random_indices)*0.8)]
+    test_indices = random_indices[int(len(random_indices)*0.8):]
+
+    train_features = [natural_features[i] for i in train_indices]
+    test_features = [natural_features[i] for i in test_indices]
+
+    train_features = vstack(train_features)
+    np.savez(f"{file_name}_features_train.npz",train_features)
+    np.save(f"{file_name}_features_test.npy",test_features)
+    del natural_features, train_features, test_features, random_indices, train_indices, test_indices
+    torch.cuda.empty_cache()
+
+def load_features(train_path, test_path):
+    """
+    Load features from a file
+    """
+    assert train_path.endswith(".npz") or train_path.endswith(".npy"), "File must end with .npz or .npy"
+    assert test_path.endswith(".npz") or test_path.endswith(".npy"), "File must end with .npz or .npy"
+    file_name = train_path.split("/")[-1].split(".")[0]
+    assert len(file_name) > 0, "File name is empty"
+
+    train_natural_features = np.load(train_path, allow_pickle=True)
+    test_natural_features = np.load(test_path, allow_pickle=True)
+
+    train_natural_features = train_natural_features["arr_0"].tolist()
+    test_natural_features = test_natural_features.tolist()
+    return train_natural_features, test_natural_features
+
+def train_linear_probe(train_natural_features, train_synth_features, test_natural_features, test_synth_features):
+    # Concatennate  COO
+
+    X_train = vstack((train_natural_features, train_synth_features))
+    X_test = vstack((vstack(test_natural_features), vstack(test_synth_features)))
+
+    y_train = np.concatenate((np.zeros(train_natural_features.shape[0]), np.ones(train_synth_features.shape[0])), axis=0)
+    y_test = np.concatenate((np.zeros(vstack(test_natural_features).shape[0]), np.ones(vstack(test_synth_features).shape[0])), axis=0)
+    
+
+    results = []
+    probes =[]
+    for sparsity in [0.1, 0.2, 0.3, 0.4, 0.5]:
+        lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity])
+        lr_model.fit(X_train, y_train)
+        coefs = lr_model.coef_
+        active_features = np.where(coefs != 0)[1]
+        probes.append(lr_model)
+        y_pred = lr_model.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        
+        roc_auc = roc_auc_score(y_test, y_pred)
+        results.append({
+            "active_features": len(active_features),
+            "sparsity": sparsity,
+            "accuracy": accuracy,
+            "roc_auc": roc_auc,
+        })
+    best_result = max(results, key=lambda x: x["roc_auc"])
+    return probes, results
+
+def test_linear_probe(probes, test_natural_features, test_synth_features, threshold=0.5):
+    """
+    Implement a voting scheme to get the final prediction using an ensemble of probes
+    
+    Args:
+        probes: List of trained logistic regression probes
+        test_natural_features: Features from natural samples
+        test_synth_features: Features from synthetic samples
+        threshold: Classification threshold (default 0.5, will be tuned for 1% FPR)
+        
+    Returns:
+        Dictionary containing predictions and probabilities for each class
+    """
+
+    # Store predictions from each probe
+    results = []
+    label_dict = {"natural": 1, "synth": 0}
+    
+    for probe in probes:
+        all_predictions = []
+        all_probs = []
+        true_labels = []
+        for label, test_features in [("natural", test_natural_features), ("synth", test_synth_features)]:
+            for test_feature in test_features:
+                # Get predictions from single probe
+                true_labels.append(label_dict[label])
+                # Get probability estimates
+                probs = probe.predict_proba(test_feature)
+                all_probs.append(probs[:, 1])  # Probability of synthetic class
+                
+                # Get binary predictions
+                pred = (probs[:, 1] >= threshold).astype(int)
+
+                all_predictions.append(pred)
+        
+
+    
+        final_probs = np.mean(all_probs, axis=1)
+        final_preds = (final_probs >= threshold).astype(int)
+        accuracy, precision, recall, f1, roc_auc = compute_metrics(final_probs, final_preds, true_labels)
+        results.append({
+            "accuracy": accuracy,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "roc_auc": roc_auc
+        })
+        
+    return results
+
+def compute_metrics(probabilities, predictions, true_labels):
+    accuracy = accuracy_score(predictions, true_labels)
+    precision = precision_score(predictions, true_labels)
+    recall = recall_score(predictions, true_labels)
+    f1 = f1_score(predictions, true_labels)
+    roc_auc = roc_auc_score(true_labels, probabilities)
+    return accuracy, precision, recall, f1, roc_auc
+
+
+
+
+
+# Create training results table
+def display_training_results(results):
+    table = PrettyTable()
+    table.title = "Training Results"
+
+    table.field_names = ["Metric", "Value"]
+    table.add_column("Model", [i for i in range(len(results))])
+    table.add_column("Active Features", [result.get("active_features", 0) for result in results])
+    table.add_column("Sparsity", [result.get("sparsity", 0) for result in results])
+    table.add_column("Accuracy", [result.get("accuracy", 0) for result in results])
+    table.add_column("ROC AUC", [result.get("roc_auc", 0) for result in results])
+    return table
+    
+
+# Create testing results table
+def display_testing_results(results):
+    table = PrettyTable()
+    table.title = "Testing Results"
+    # Add rows with your testing metrics one column for each result
+
+    table.add_column("Model", [i for i in range(len(results))])
+    table.add_column("Accuracy", [result.get("accuracy", 0) for result in results])
+    table.add_column("Precision", [result.get("precision", 0) for result in results])
+    table.add_column("Recall", [result.get("recall", 0) for result in results])
+    table.add_column("F1 Score", [result.get("f1", 0) for result in results])
+    table.add_column("ROC AUC", [result.get("roc_auc", 0) for result in results])
+
+
+
+    
+    return table
+
+
+
+if __name__ == "__main__":
+    # %%
+    if True:
+        #model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
+        model_path = "AI4PD/ZymCTRL"
+        tokenizer, model = load_model(model_path)
+        model = get_ht_model(model, model.config).to("cuda")
+        sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
+        #sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
+        cfg, sae = load_sae(sae_path)
+        thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
+        thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
+        sae.to("cuda")
+        jump_relu = convert_to_jumprelu(sae, thresholds)
+        jump_relu.eval()
+        del sae
+        torch.cuda.empty_cache()
+
+
+    # ==== NAUTRAL =======
+    obtain_features("nautral_sequenecs.txt")
+
+    # ==== SYNTHETIC =======
+    obtain_features("synth_sequences.txt")
+    train_natural_features, test_natural_features = load_features("natural_features_train.npz", "natural_features_test.npy")
+    train_synth_features, test_synth_features = load_features("synth_features_train.npz", "synth_features_test.npy")
+
+    # ======= Train Linear Probes =======
+
+    probes, train_results = train_linear_probe(train_natural_features, train_synth_features, test_natural_features, test_synth_features)
+    test_results = test_linear_probe(probes, test_natural_features, test_synth_features)
+
+    print(train_results)
+    print(test_results)
+    # Display all three tables
+    training_table = display_training_results(train_results).get_string()
+    testing_table = display_testing_results(test_results).get_string()
+
+    with open("training_table.txt", "w") as f:
+        f.write(training_table)
+    with open("testing_table.txt", "w") as f:
+        f.write(testing_table)

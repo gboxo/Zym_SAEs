@@ -3,6 +3,14 @@ wandb/
 tmp_mmseqs2/
 checkpoints/
 pSAE/
+*.npy
+*.npz
+*.pt
+*.pth
+*.pkl
+*.pickle
+*.json
+*.csv
 
 # Byte-compiled / optimized / DLL files
 
