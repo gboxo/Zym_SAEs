@@ -3,7 +3,7 @@ from transformers import GPT2LMHeadModel, AutoTokenizer
 import os
 from tqdm import tqdm
 import math
-
+import json
 def remove_characters(sequence, char_list):
     "This function removes special tokens used during training."
     columns = sequence.split('<sep>')
@@ -58,18 +58,21 @@ if __name__=='__main__':
     model.eval()
     special_tokens = ['<start>', '<end>', '<|endoftext|>','<pad>',' ', '<sep>']
 
+    with open("natural_sequences_by_ec.json", "r") as f:
+        data = json.load(f)
+
     # change to the appropriate EC classes
 
-    labels = ["3.6.4.12"]
+    labels = list(data.keys())
 
     for label in tqdm(labels):
-        # We'll run 100 batches per label. 20 sequences will be generated per batch.
-        for i in tqdm(range(0,100)): 
+        # We'll run 10 batches per label. 10 sequences will be generated per batch.
+        for i in tqdm(range(0,10)): 
             sequences = main(label, model, special_tokens, device, tokenizer)
             for key,value in sequences.items():
                 for index, val in enumerate(value):
                     # Sequences will be saved with the name of the label followed by the batch index,
                     # and the order of the sequence in that batch.           
-                    fn = open(f"DNA_helicase_generation/{label}_{i}_{index}.fasta", "w")
+                    fn = open(f"multiple_labels/{label}_{i}_{index}.fasta", "w")
                     fn.write(f'>{label}_{i}_{index}\t{val[1]}\n{val[0]}')
                     fn.close()

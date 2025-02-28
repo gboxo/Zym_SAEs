@@ -135,8 +135,8 @@ def train_linear_probe(train_natural_features, train_synth_features, test_natura
 
     results = []
     probes =[]
-    for sparsity in tqdm([0.1, 0.2, 0.3, 0.4, 0.5]):
-        lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity])
+    for sparsity in tqdm([0.00001,0.0001,0.001,0.01]):
+        lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1)
         lr_model.fit(X_train, y_train)
         coefs = lr_model.coef_
         active_features = np.where(coefs != 0)[1]
@@ -170,7 +170,7 @@ def test_linear_probe(probes, test_natural_features, test_synth_features, thresh
 
     # Store predictions from each probe
     results = []
-    label_dict = {"natural": 1, "synth": 0}
+    label_dict = {"natural": 0, "synth": 1}
     
     for probe in probes:
         all_predictions = []
@@ -219,7 +219,6 @@ def display_training_results(results):
     table = PrettyTable()
     table.title = "Training Results"
 
-    table.field_names = ["Metric", "Value"]
     table.add_column("Model", [i for i in range(len(results))])
     table.add_column("Active Features", [result.get("active_features", 0) for result in results])
     table.add_column("Sparsity", [result.get("sparsity", 0) for result in results])
