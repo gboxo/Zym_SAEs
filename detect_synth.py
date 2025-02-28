@@ -71,7 +71,7 @@ def get_features(sae: JumpReLUSAE, activations):
 def get_all_features(model, sae, tokenizer, sequences):
     all_features = []
     for sequence in sequences:
-        activations = get_activations(model, tokenizer, sequence[:10])
+        activations = get_activations(model, tokenizer, sequence)
         features = get_features(sae, activations)
         all_features.append(features)
         del activations, features
@@ -91,7 +91,7 @@ def obtain_features(text_path):
         natural_sequences = f.read()
         natural_sequences = natural_sequences.split("\n")
 
-    natural_features = get_all_features(model,jump_relu, tokenizer, natural_sequences[:100])
+    natural_features = get_all_features(model,jump_relu, tokenizer, natural_sequences)
     random_indices = np.random.permutation(len(natural_features))
     train_indices = random_indices[:int(len(random_indices)*0.8)]
     test_indices = random_indices[int(len(random_indices)*0.8):]
