@@ -15,6 +15,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 from scipy.sparse import coo_matrix, csr_matrix, csc_matrix, vstack
 from prettytable import PrettyTable
 from sklearn.metrics import roc_auc_score, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+from tqdm import tqdm
 
 
 def get_natural_and_synth_sequences():
@@ -88,21 +89,22 @@ def obtain_features(text_path):
 
 
     with open(text_path, "r") as f:
-        natural_sequences = f.read()
-        natural_sequences = natural_sequences.split("\n")
+        sequences = f.read()
+        sequences = sequences.split("\n")
 
-    natural_features = get_all_features(model,jump_relu, tokenizer, natural_sequences)
-    random_indices = np.random.permutation(len(natural_features))
+    features = get_all_features(model,jump_relu, tokenizer, sequences[:100])
+    random_indices = np.random.permutation(len(features))
     train_indices = random_indices[:int(len(random_indices)*0.8)]
     test_indices = random_indices[int(len(random_indices)*0.8):]
 
-    train_features = [natural_features[i] for i in train_indices]
-    test_features = [natural_features[i] for i in test_indices]
+    train_features = [features[i] for i in train_indices]
+    test_features = [features[i] for i in test_indices]
 
     train_features = vstack(train_features)
-    np.savez(f"{file_name}_features_train.npz",train_features)
-    np.save(f"{file_name}_features_test.npy",test_features)
-    del natural_features, train_features, test_features, random_indices, train_indices, test_indices
+    os.makedirs(f"features", exist_ok=True)
+    np.savez(f"features/{file_name}_features_train.npz",train_features)
+    np.save(f"features/{file_name}_features_test.npy",test_features)
+    del features, train_features, test_features, random_indices, train_indices, test_indices
     torch.cuda.empty_cache()
 
 def load_features(train_path, test_path):
@@ -133,7 +135,7 @@ def train_linear_probe(train_natural_features, train_synth_features, test_natura
 
     results = []
     probes =[]
-    for sparsity in [0.1, 0.2, 0.3, 0.4, 0.5]:
+    for sparsity in tqdm([0.1, 0.2, 0.3, 0.4, 0.5]):
         lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity])
         lr_model.fit(X_train, y_train)
         coefs = lr_model.coef_
@@ -187,9 +189,7 @@ def test_linear_probe(probes, test_natural_features, test_synth_features, thresh
 
                 all_predictions.append(pred)
         
-
-    
-        final_probs = np.mean(all_probs, axis=1)
+        final_probs = np.array([prob.mean() for prob in all_probs])
         final_preds = (final_probs >= threshold).astype(int)
         accuracy, precision, recall, f1, roc_auc = compute_metrics(final_probs, final_preds, true_labels)
         results.append({
@@ -251,12 +251,12 @@ def display_testing_results(results):
 if __name__ == "__main__":
     # %%
     if False:
-        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
-        #model_path = "AI4PD/ZymCTRL"
+        #model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
+        model_path = "AI4PD/ZymCTRL"
         tokenizer, model = load_model(model_path)
         model = get_ht_model(model, model.config).to("cuda")
-        #sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-        sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
+        sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
+        #sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
         cfg, sae = load_sae(sae_path)
         thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
@@ -268,12 +268,12 @@ if __name__ == "__main__":
 
 
     # ==== NAUTRAL =======
-    #obtain_features("natural_sequences.txt")
+    # obtain_features("natural_sequences.txt")
 
     # ==== SYNTHETIC =======
-    #obtain_features("synth_sequences.txt")
-    train_natural_features, test_natural_features = load_features("natural_features_train.npz", "natural_features_test.npy")
-    train_synth_features, test_synth_features = load_features("synth_features_train.npz", "synth_features_test.npy")
+    # obtain_features("synth_sequences.txt")
+    train_natural_features, test_natural_features = load_features("features/natural_features_train.npz", "features/natural_features_test.npy")
+    train_synth_features, test_synth_features = load_features("features/synth_features_train.npz", "features/synth_features_test.npy")
 
     # ======= Train Linear Probes =======
 
