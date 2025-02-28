@@ -41,7 +41,7 @@ def get_natural_and_synth_sequences():
         synth_sequences.append(seq)
 
 
-    with open("nautral_sequenecs.txt", "w") as f:
+    with open("natrual_sequences.txt", "w") as f:
         for seq in natural_sequences:
             f.write(seq + "\n")
 
@@ -250,13 +250,13 @@ def display_testing_results(results):
 
 if __name__ == "__main__":
     # %%
-    if True:
-        #model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
-        model_path = "AI4PD/ZymCTRL"
+    if False:
+        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
+        #model_path = "AI4PD/ZymCTRL"
         tokenizer, model = load_model(model_path)
         model = get_ht_model(model, model.config).to("cuda")
-        sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-        #sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
+        #sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
+        sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
         cfg, sae = load_sae(sae_path)
         thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
@@ -268,10 +268,10 @@ if __name__ == "__main__":
 
 
     # ==== NAUTRAL =======
-    obtain_features("nautral_sequenecs.txt")
+    #obtain_features("natural_sequences.txt")
 
     # ==== SYNTHETIC =======
-    obtain_features("synth_sequences.txt")
+    #obtain_features("synth_sequences.txt")
     train_natural_features, test_natural_features = load_features("natural_features_train.npz", "natural_features_test.npy")
     train_synth_features, test_synth_features = load_features("synth_features_train.npz", "synth_features_test.npy")
 
@@ -280,8 +280,6 @@ if __name__ == "__main__":
     probes, train_results = train_linear_probe(train_natural_features, train_synth_features, test_natural_features, test_synth_features)
     test_results = test_linear_probe(probes, test_natural_features, test_synth_features)
 
-    print(train_results)
-    print(test_results)
     # Display all three tables
     training_table = display_training_results(train_results).get_string()
     testing_table = display_testing_results(test_results).get_string()
