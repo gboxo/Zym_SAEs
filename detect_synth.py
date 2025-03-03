@@ -1,4 +1,5 @@
 # %%
+import json
 import os
 from inference_batch_topk import convert_to_jumprelu
 from utils import load_sae, load_model, get_ht_model
@@ -13,48 +14,59 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 from scipy.sparse import coo_matrix, csr_matrix, csc_matrix, vstack
-from prettytable import PrettyTable
+#from prettytable import PrettyTable
 from sklearn.metrics import roc_auc_score, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 from tqdm import tqdm
 
-
+# %%
 def get_natural_and_synth_sequences():
 
-    with open("/users/nferruz/gboxo/Downloads/mini_brenda.txt", "r") as f:
-        test_set = f.read()
-    test_set = test_set.split("\n")
-    test_set = [seq.strip("<pad>") for seq in test_set]
-    test_set = [elem for seq in test_set for elem in seq.split("<|endoftext|>")]
-    ec_numbers = [elem.split("<sep>")[0] for elem in test_set if len(elem.split("<sep>")) > 1]
-    sequences = [elem.split("<sep>")[1] for elem in test_set if len(elem.split("<sep>")) > 1]
-    ec_numbers = [elem for elem in ec_numbers if len(elem) > 0]
-    indices = [i for i,elem in enumerate(ec_numbers) if elem == "3.6.4.12"]
-    natural_sequences = [sequences[i].strip("<start>").strip("<end>").strip("<|endoftext|").strip("<end>") for i in indices]
+    if False:
 
+        with open("/users/nferruz/gboxo/Downloads/mini_brenda.txt", "r") as f:
+            test_set = f.read()
+        test_set = test_set.split("\n")
+        test_set = [seq.strip("<pad>") for seq in test_set]
+        test_set = [elem for seq in test_set for elem in seq.split("<|endoftext|>")]
+        ec_numbers = [elem.split("<sep>")[0] for elem in test_set if len(elem.split("<sep>")) > 1]
+        sequences = [elem.split("<sep>")[1] for elem in test_set if len(elem.split("<sep>")) > 1]
+        ec_numbers = [elem for elem in ec_numbers if len(elem) > 0]
+        indices = [i for i,elem in enumerate(ec_numbers) if elem == "3.6.4.12"]
+        natural_sequences = [sequences[i].strip("<start>").strip("<end>").strip("<|endoftext|").strip("<end>") for i in indices]
+    
 
-    files = os.listdir("DNA_helicase_generation")
+    with open("natural_sequences_by_ec.json", "r") as f:
+        data = json.load(f)
+    
+    natural_sequences = list(data.values())
+    ec_natural = [[key] * len(value) for key, value in data.items()]
+    ec_natural = [item for sublist in ec_natural for item in sublist]
+
+    files = os.listdir("multiple_labels")
     files = [file for file in files if file.endswith(".fasta")]
+    ec_synth = [key.split("_")[0] for key in files]
     synth_sequences = []
     for file in files:
-        with open(f"DNA_helicase_generation/{file}", "r") as f:
+        with open(f"multiple_labels/{file}", "r") as f:
             seq = f.read()
-            seq = seq.split("\n")[1]
+            seq = seq.split("\n")[1].strip("<en")
         synth_sequences.append(seq)
 
-
     with open("natrual_sequences.txt", "w") as f:
-        for seq in natural_sequences:
-            f.write(seq + "\n")
+        for ec,seq in zip(ec_natural, natural_sequences):
+            f.write(ec+"<sep>"+seq[0] + "\n")
 
     with open("synth_sequences.txt", "w") as f:
-        for seq in synth_sequences:
-            f.write(seq + "\n")
+        for ec,seq in zip(ec_synth, synth_sequences):
+            f.write(ec+"<sep>"+seq + "\n")
+
+
 
     return natural_sequences, synth_sequences
 
 
 def get_activations( model, tokenizer, sequence):
-    sequence = "3.6.4.12<sep>" + sequence
+    #sequence = "3.6.4.12<sep>" + sequence
     inputs = tokenizer.encode(sequence, return_tensors="pt").to("cuda")
     names_filter = lambda x: x.endswith("26.hook_resid_post")
     _, cache = model.run_with_cache(inputs, names_filter=names_filter)
@@ -92,7 +104,7 @@ def obtain_features(text_path):
         sequences = f.read()
         sequences = sequences.split("\n")
 
-    features = get_all_features(model,jump_relu, tokenizer, sequences[:100])
+    features = get_all_features(model,jump_relu, tokenizer, sequences)
     random_indices = np.random.permutation(len(features))
     train_indices = random_indices[:int(len(random_indices)*0.8)]
     test_indices = random_indices[int(len(random_indices)*0.8):]
@@ -246,10 +258,10 @@ def display_testing_results(results):
     return table
 
 
+    # %%
 
 if __name__ == "__main__":
-    # %%
-    if False:
+    if True:
         #model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
         model_path = "AI4PD/ZymCTRL"
         tokenizer, model = load_model(model_path)
@@ -267,10 +279,10 @@ if __name__ == "__main__":
 
 
     # ==== NAUTRAL =======
-    # obtain_features("natural_sequences.txt")
+    obtain_features("natural_sequences.txt")
 
     # ==== SYNTHETIC =======
-    # obtain_features("synth_sequences.txt")
+    obtain_features("synth_sequences.txt")
     train_natural_features, test_natural_features = load_features("features/natural_features_train.npz", "features/natural_features_test.npy")
     train_synth_features, test_synth_features = load_features("features/synth_features_train.npz", "features/synth_features_test.npy")
 
