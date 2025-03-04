@@ -53,9 +53,10 @@ def get_natural_and_synth_sequences():
 
 def get_activations( model, tokenizer, sequence):
     inputs = tokenizer.encode(sequence, return_tensors="pt").to("cuda")
-    names_filter = lambda x: x.endswith("26.hook_resid_post")
-    _, cache = model.run_with_cache(inputs, names_filter=names_filter)
-    activations = cache["blocks.26.hook_resid_post"]
+    with torch.no_grad():
+        names_filter = lambda x: x.endswith("26.hook_resid_pre")
+        _, cache = model.run_with_cache(inputs, names_filter=names_filter)
+        activations = cache["blocks.26.hook_resid_pre"]
     return activations
 
 def get_features(sae: JumpReLUSAE, activations):
@@ -69,7 +70,7 @@ def get_features(sae: JumpReLUSAE, activations):
 def get_all_features(model, sae, tokenizer, sequences):
     all_features = []
     for sequence in tqdm(sequences):
-        activations = get_activations(model, tokenizer, sequence)
+        activations = get_activations(model, tokenizer, sequence[:30])
         features = get_features(sae, activations)
         all_features.append(features)
         del activations, features
@@ -247,8 +248,7 @@ def display_testing_results(results):
 
 if __name__ == "__main__":
     if True:
-        
-        get_natural_and_synth_sequences()
+        nat, synth = get_natural_and_synth_sequences()
         paths = get_paths()
         model_path = paths.model_path
         sae_path = paths.sae_path

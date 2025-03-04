@@ -55,8 +55,7 @@ def main():
         # Initialize wandb with resumed config
         wandb_run = init_wandb(cfg, resume=True)
         print("Resuming training from checkpoint")
-        print(wandb_run)
-        
+
         # Load model
         tokenizer, model = load_model(cfg["model_path"])
         config = model.config
@@ -65,12 +64,23 @@ def main():
         model = get_ht_model(model, config)
 
 
+
         
-        
+        loaded_cfg["dtype"] = torch.float32
+        loaded_cfg["batch_size"] = 256
+        loaded_cfg["model_batch_size"] = 4096 
+        loaded_cfg["dataset_path"] = cfg["dataset_path"]
+        loaded_cfg["model_name"] = cfg["model_name"]
+        loaded_cfg["n_iters"] = cfg["n_iters"]
+        loaded_cfg["model_type"] = cfg["model_type"]
+
+
+
+
         # Train with resume
         sae, checkpoint_dir = train_sae(
             model=model,
-            cfg=cfg,
+            cfg=loaded_cfg,
             hook_point=cfg["hook_point"],
             checkpoint_path=checkpoint_path,
             resume=True,

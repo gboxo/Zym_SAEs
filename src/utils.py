@@ -68,6 +68,7 @@ def load_sae(sae_path, load_thresholds=False):
     cfg = post_init_cfg(cfg)
     
     state_dict = torch.load(sae_path+"/sae.pt")
+    cfg["dtype"] = torch.float32
 
     sae = BatchTopKSAE(cfg)
     sae.load_state_dict(state_dict)

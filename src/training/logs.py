@@ -123,7 +123,7 @@ def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, scheduler=None, act
         os.makedirs(dir_path, exist_ok=True)
     
     # Determine if this is a resumed training
-    is_resumed = "resume_from" in cfg and cfg.resume_from is not None
+    is_resumed = "resume_from" in cfg and cfg["resume_from"] is not None
     
     checkpoint = {
         'model_state_dict': sae.state_dict(),

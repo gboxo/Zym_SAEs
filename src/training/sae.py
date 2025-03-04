@@ -31,7 +31,7 @@ class BaseAutoencoder(nn.Module):
             cfg["device"]
         )
 
-        self.to(cfg["device"])
+        self.to(cfg["dtype"]).to(cfg["device"])
 
     def preprocess_input(self, x):
         if self.cfg.get("input_unit_norm", False):
@@ -127,7 +127,6 @@ class BatchTopKSAE(BaseAutoencoder):
             return l2_loss_aux
         else:
             return torch.tensor(0, dtype=x.dtype, device=x.device)
-
 
 class TopKSAE(BaseAutoencoder):
     def __init__(self, cfg):

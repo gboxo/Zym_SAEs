@@ -12,7 +12,7 @@ from tqdm import tqdm
 import argparse
 
 
-torch.set_grad_enabled(False)
+#torch.set_grad_enabled(False)
 
 
 

@@ -46,10 +46,11 @@ def get_sequences():
 def get_activations_and_log_probs( model, tokenizer, sequence):
     sequence = "1.3.3.18" + "<sep>" +  "<start>" + sequence
     inputs = tokenizer.encode(sequence, return_tensors="pt").to("cuda")
-    names_filter = lambda x: x.endswith("26.hook_resid_post")
-    logits, cache = model.run_with_cache(inputs, names_filter=names_filter)
-    activations = cache["blocks.26.hook_resid_post"]
-    log_probs = compute_log_probbilities(inputs, logits)
+    with torch.no_grad():
+        names_filter = lambda x: x.endswith("26.hook_resid_pre")
+        logits, cache = model.run_with_cache(inputs, names_filter=names_filter)
+        activations = cache["blocks.26.hook_resid_pre"]
+        log_probs = compute_log_probbilities(inputs, logits)
     return log_probs, activations
 
 def get_features(sae: JumpReLUSAE, activations):
@@ -174,7 +175,7 @@ def train_logistic_probe(train_features, train_log_probs, test_features, test_lo
 
     results = []
     probes =[]
-    for sparsity in tqdm([1e-3,5e-3,7e-3,9e-3]):
+    for sparsity in tqdm(np.logspace(-4, -2.5, 10)):
         lr_model = LogisticRegressionCV(penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1, cv=5)
         lr_model.fit(X_train, y_train)
         coefs = lr_model.coef_
@@ -310,7 +311,7 @@ def display_training_results_logistic(results):
     # %%
 
 if __name__ == "__main__":
-    if False:
+    if True:
         
         paths = get_paths()
         model_path = paths.model_path

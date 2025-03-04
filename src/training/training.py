@@ -139,9 +139,7 @@ def train_sae(
         activation_store = ActivationsStore(model, cfg)
 
 
-    # After creating the SAE
-    for param in sae.parameters():
-        param.requires_grad = True
+
     # Generate checkpoint directory
     checkpoint_dir = os.path.join(
         paths["checkpoints_dir"],
@@ -150,21 +148,19 @@ def train_sae(
     os.makedirs(checkpoint_dir, exist_ok=True)
     
     # Save initial configuration
-    with open(os.path.join(checkpoint_dir, "config.yaml"), "w") as f:
-        yaml.dump(cfg, f)
+    #with open(os.path.join(checkpoint_dir, "config.yaml"), "w") as f:
+    #    yaml.dump(cfg, f)
     
     # Set up model hook
     
-    # Start training loop
+
     for iter_num in range(start_iter, cfg["n_iters"]):
         # Process batch
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
-        print(cfg)
-        print("===========")
-        print(cfg_checkpoint)
-        print("Does the sae require grad?", any(p.requires_grad for p in sae.parameters()))
+
+
 
 
 
@@ -181,8 +177,8 @@ def train_sae(
             
         # Update activation store position
         activation_store.update_position(
-            (activation_store.current_batch_idx + 1) % 1024,
-            activation_store.current_epoch + ((activation_store.current_batch_idx + 1) // 1024)
+            (activation_store.current_batch_idx + 1) % cfg["model_batch_size"],
+            activation_store.current_epoch + ((activation_store.current_batch_idx + 1) // cfg["model_batch_size"])
         )
 
 
@@ -204,7 +200,9 @@ def train_sae(
     save_checkpoint(
         sae, optimizer, cfg, cfg["n_iters"], checkpoint_dir, 
         scheduler=scheduler, activation_store=activation_store, is_final=True
-    )
+    )    
+     
+
     
     return sae, checkpoint_dir
 

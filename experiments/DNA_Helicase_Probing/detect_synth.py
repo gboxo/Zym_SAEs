@@ -60,9 +60,10 @@ def get_natural_and_synth_sequences(brenda_path):
 def get_activations( model, tokenizer, sequence):
     sequence = "3.6.4.12<sep>" + sequence
     inputs = tokenizer.encode(sequence, return_tensors="pt").to("cuda")
-    names_filter = lambda x: x.endswith("26.hook_resid_post")
-    _, cache = model.run_with_cache(inputs, names_filter=names_filter)
-    activations = cache["blocks.26.hook_resid_post"]
+    with torch.no_grad():
+        names_filter = lambda x: x.endswith("26.hook_resid_pre")
+        _, cache = model.run_with_cache(inputs, names_filter=names_filter)
+        activations = cache["blocks.26.hook_resid_pre"]
     return activations
 
 def get_features(sae: JumpReLUSAE, activations):
@@ -257,7 +258,7 @@ if __name__ == "__main__":
     brenda_path = paths.mini_brenda
     natural_sequences, synth_sequences = get_natural_and_synth_sequences(brenda_path)
     model_path = paths.model_path
-    if False:
+    if True:
         tokenizer, model = load_model(model_path)
         model = get_ht_model(model, model.config).to("cuda")
         sae_path = paths.sae_path
