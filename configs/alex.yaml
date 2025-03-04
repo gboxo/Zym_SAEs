@@ -19,7 +19,7 @@
   wandb_project: ZymCTRL_SAE
   input_unit_norm: true
   perf_log_freq: 1000
-  sae_type: topk
+  sae_type: BatchTopKSAE
   checkpoint_freq: 10000
   n_batches_to_dead: 5
   checkpoint_dir: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/

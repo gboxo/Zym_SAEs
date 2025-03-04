@@ -1,4 +1,5 @@
 # Large folders
+Data/
 .jupyter/
 wandb/
 tmp_mmseqs2/
