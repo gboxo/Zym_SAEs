@@ -1,7 +1,4 @@
 
-# %%
-import os
-os.environ["PYTHONPATH"] = "/users/nferruz/gboxo/crg_boxo/"
 
 # %%
 import pickle as pkl

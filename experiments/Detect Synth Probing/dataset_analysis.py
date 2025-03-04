@@ -4,7 +4,7 @@ from src.utils import get_paths
 # %%
 
 paths = get_paths()
-brenda_path = paths.brenda_path
+brenda_path = paths.mini_brenda
 with open(brenda_path, "r") as f:
     data = f.read()
 

@@ -70,7 +70,7 @@ def get_features(sae: JumpReLUSAE, activations):
 def get_all_features(model, sae, tokenizer, sequences):
     all_features = []
     for sequence in tqdm(sequences):
-        activations = get_activations(model, tokenizer, sequence[:30])
+        activations = get_activations(model, tokenizer, sequence)
         features = get_features(sae, activations)
         all_features.append(features)
         del activations, features
@@ -89,6 +89,7 @@ def obtain_features(text_path):
     with open(text_path, "r") as f:
         sequences = f.read()
         sequences = sequences.split("\n")
+        sequences = [seq for seq in sequences if seq != ""]
 
     features = get_all_features(model,jump_relu, tokenizer, sequences)
     random_indices = np.random.permutation(len(features))
@@ -133,7 +134,7 @@ def train_linear_probe(train_natural_features, train_synth_features, test_natura
 
     results = []
     probes =[]
-    for sparsity in tqdm([0.00001,0.0001,0.001,0.01]):
+    for sparsity in tqdm(np.logspace(-5, -3, 20)):
         lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1)
         lr_model.fit(X_train, y_train)
         coefs = lr_model.coef_
@@ -247,7 +248,7 @@ def display_testing_results(results):
     # %%
 
 if __name__ == "__main__":
-    if True:
+    if False:
         nat, synth = get_natural_and_synth_sequences()
         paths = get_paths()
         model_path = paths.model_path
@@ -264,12 +265,12 @@ if __name__ == "__main__":
         del sae
         torch.cuda.empty_cache()
 
+        # ==== NATURAL =======
+        obtain_features("Data/Detect_Synth_Data/natural_sequences.txt")
 
-    # ==== NATURAL =======
-    obtain_features("Data/Detect_Synth_Data/natural_sequences.txt")
+        # ==== SYNTHETIC =======
+        obtain_features("Data/Detect_Synth_Data/synth_sequences.txt")
 
-    # ==== SYNTHETIC =======
-    obtain_features("Data/Detect_Synth_Data/synth_sequences.txt")
     train_natural_features, test_natural_features = load_features("Data/Detect_Synth_Data/features/natural_features_train.npz", "Data/Detect_Synth_Data/features/natural_features_test.npy")
     train_synth_features, test_synth_features = load_features("Data/Detect_Synth_Data/features/synth_features_train.npz", "Data/Detect_Synth_Data/features/synth_features_test.npy")
 
@@ -282,7 +283,7 @@ if __name__ == "__main__":
     training_table = display_training_results(train_results).get_string()
     testing_table = display_testing_results(test_results).get_string()
 
-    os.makedirs("results", exist_ok=True)
+    os.makedirs("Data/Detect_Synth_Data/results", exist_ok=True)
 
     with open("Data/Detect_Synth_Data/results/training_table.txt", "w") as f:
         f.write(training_table)

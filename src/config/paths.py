@@ -27,7 +27,7 @@ def detect_environment():
     hostname = socket.gethostname()
     
     # Check if running on a compute cluster
-    if 'alex' in hostname:
+    if 'nhr' in hostname:
         return "compute"
     else:
         return "local"

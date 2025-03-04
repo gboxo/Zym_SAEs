@@ -57,11 +57,13 @@ def main(label, model,special_tokens,device,tokenizer):
 if __name__=='__main__':
     device = torch.device("cuda") # Replace with 'cpu' if you don't have a GPU - but it will be slow
     print('Reading pretrained model and tokenizer')
+    paths = get_paths()
+    model_path = paths.model_path
 
 
 
-    tokenizer = AutoTokenizer.from_pretrained('AI4PD/zymCTRL') # change to ZymCTRL location
-    model = GPT2LMHeadModel.from_pretrained('AI4PD/zymCTRL').to(device) # change to ZymCTRL location
+    tokenizer = AutoTokenizer.from_pretrained(model_path) # change to ZymCTRL location
+    model = GPT2LMHeadModel.from_pretrained(model_path).to(device) # change to ZymCTRL location
     model.eval()
     special_tokens = ['<start>', '<end>', '<|endoftext|>','<pad>',' ', '<sep>']
 
@@ -80,6 +82,6 @@ if __name__=='__main__':
                 for index, val in enumerate(value):
                     # Sequences will be saved with the name of the label followed by the batch index,
                     # and the order of the sequence in that batch.           
-                    fn = open(f"multiple_labels/{label}_{i}_{index}.fasta", "w")
+                    fn = open(f"Data/Detect_Synth_Data/multiple_labels/{label}_{i}_{index}.fasta", "w")
                     fn.write(f'>{label}_{i}_{index}\t{val[1]}\n{val[0]}')
                     fn.close()

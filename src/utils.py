@@ -19,7 +19,7 @@ from types import SimpleNamespace
 
 def get_paths():
 
-    if "alex" in socket.gethostname():
+    if "nhr" in socket.gethostname():
 
         model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
         sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
@@ -61,19 +61,19 @@ def load_model(model_name):
 
 def load_sae(sae_path, load_thresholds=False):
     cfg = get_default_cfg()
-    with open(sae_path+"/config.json", "r") as f:
+    with open(sae_path+"config.json", "r") as f:
         config = json.load(f)
     
     cfg = update_cfg(cfg, **config)
     cfg = post_init_cfg(cfg)
     
-    state_dict = torch.load(sae_path+"/sae.pt")
+    state_dict = torch.load(sae_path+"sae.pt")
     cfg["dtype"] = torch.float32
 
     sae = BatchTopKSAE(cfg)
     sae.load_state_dict(state_dict)
     if load_thresholds:
-        thresholds = torch.load(sae_path+"/thresholds.pt")
+        thresholds = torch.load(sae_path+"thresholds.pt")
         sae.thresholds = thresholds
         return cfg,sae,thresholds
     else: 

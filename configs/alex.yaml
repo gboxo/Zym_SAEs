@@ -1,5 +1,5 @@
   seed: 49
-  batch_size: 4096
+  batch_size: 2048
   lr: 0.0003
   num_tokens: 1000000000
   l1_coeff: 0
@@ -9,6 +9,7 @@
   seq_len: 128
   dtype: torch.float32
   model_name: ZymCTRL
+  model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
   site: resid_pre
   layer: 26
   act_size: 1280

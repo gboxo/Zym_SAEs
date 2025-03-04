@@ -67,8 +67,8 @@ def main():
 
         
         loaded_cfg["dtype"] = torch.float32
-        loaded_cfg["batch_size"] = 256
-        loaded_cfg["model_batch_size"] = 4096 
+        loaded_cfg["batch_size"] = 128
+        loaded_cfg["model_batch_size"] = 1024 
         loaded_cfg["dataset_path"] = cfg["dataset_path"]
         loaded_cfg["model_name"] = cfg["model_name"]
         loaded_cfg["n_iters"] = cfg["n_iters"]
