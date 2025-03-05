@@ -19,7 +19,7 @@ from types import SimpleNamespace
 
 def get_paths():
 
-    if "nhr" in socket.gethostname():
+    if not "Workstation" in socket.gethostname():
 
         model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
         sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
