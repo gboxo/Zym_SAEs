@@ -277,6 +277,12 @@ if __name__ == "__main__":
     # ======= Train Linear Probes =======
 
     probes, train_results = train_linear_probe(train_natural_features, train_synth_features, test_natural_features, test_synth_features)
+    # Save the probes
+    os.makedirs("Data/Detect_Synth_Data/probes", exist_ok=True)
+    for i, probe in enumerate(probes):
+        np.save(f"Data/Detect_Synth_Data/probes/probe_{i}.npy", probe)
+
+
     test_results = test_linear_probe(probes, test_natural_features, test_synth_features)
 
     # Display all three tables
