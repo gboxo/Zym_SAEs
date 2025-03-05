@@ -4,6 +4,7 @@ from functools import partial
 import os
 import json
 import re
+from collections import OrderedDict
 
 def init_wandb(cfg, resume=False):
     """
@@ -170,6 +171,8 @@ def load_checkpoint(checkpoint_path, sae=None, optimizer=None, scheduler=None, a
     Returns:
         Tuple of (sae, optimizer, cfg, iter_num, scheduler, activation_store_state)
     """
+
+
     # If checkpoint_path is a directory, look for latest checkpoint
     if os.path.isdir(checkpoint_path):
         latest_path = os.path.join(checkpoint_path, "checkpoint_latest.pt")
@@ -196,6 +199,10 @@ def load_checkpoint(checkpoint_path, sae=None, optimizer=None, scheduler=None, a
     
     # Load the checkpoint
     checkpoint = torch.load(checkpoint_path, map_location=device)
+    if isinstance(checkpoint, OrderedDict) and len(list(checkpoint.keys())) == 4:
+        checkpoint_dict = {}
+        checkpoint_dict['model_state_dict'] = checkpoint
+        checkpoint = checkpoint_dict
     
     # Try to extract config and other metadata
     if "cfg" in checkpoint:
