@@ -1,5 +1,6 @@
 import wandb
 import torch
+from torch.nn import functional as F
 from functools import partial
 import os
 import json
@@ -65,6 +66,18 @@ def zero_abl_hook(activation, hook):
 
 def mean_abl_hook(activation, hook):
     return activation.mean([0, 1]).expand_as(activation)
+
+def log_decoder_weights(sae, decoder_weights, step, wandb_run):
+    actual_decoder_weights = sae.W_dec.weight.data.cpu()
+
+    cosine_similarity = F.cosine_similarity(decoder_weights, actual_decoder_weights, dim=1)
+    log_dict = {
+        "performance/cosine_similarity": cosine_similarity
+    }
+    wandb_run.log(log_dict, step=step)
+    
+
+
 
 @torch.no_grad()
 def log_model_performance(wandb_run, step, model, activations_store, sae, index=None, batch_tokens=None):

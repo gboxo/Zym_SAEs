@@ -1,6 +1,6 @@
 import torch
 import tqdm
-from .logs import init_wandb, log_wandb, log_model_performance, save_checkpoint, load_checkpoint
+from .logs import init_wandb, log_wandb, log_model_performance, save_checkpoint, load_checkpoint, log_decoder_weights
 import os
 import re
 from datetime import datetime
@@ -58,6 +58,10 @@ def generate_checkpoint_dir(cfg, resume=False):
     
     return dir_name
 
+
+
+
+
 def train_sae(
     model,
     cfg,
@@ -93,7 +97,7 @@ def train_sae(
     scheduler = None
     activation_store = None
     start_iter = 0
-    
+
     # Handle resuming from checkpoint
     if resume and checkpoint_path:
         # Modify config to include resume information
@@ -122,6 +126,8 @@ def train_sae(
             activation_store=activation_store,
             device=device
         )
+
+        decoder_weights = sae.W_dec.weight.data.cpu()
         
         print(f"Resuming training from iteration {start_iter}")
     else:
@@ -138,37 +144,89 @@ def train_sae(
         # Initialize activation store
         activation_store = ActivationsStore(model, cfg)
 
-
-
     # Generate checkpoint directory
     checkpoint_dir = os.path.join(
         paths["checkpoints_dir"],
         generate_checkpoint_dir(cfg, resume=resume)
     )
     os.makedirs(checkpoint_dir, exist_ok=True)
+    os.makedirs(os.path.join(checkpoint_dir, "percentiles"), exist_ok=True)
     
-    # Save initial configuration
-    #with open(os.path.join(checkpoint_dir, "config.yaml"), "w") as f:
-    #    yaml.dump(cfg, f)
+    # Initialize feature activation stats tracking
+    n_features = sae.W_dec.weight.shape[0]
+    feature_min_activations_buffer = []
+    threshold_compute_freq = cfg.get("threshold_compute_freq", 1000)  # How often to compute thresholds
+    threshold_num_batches = cfg.get("threshold_num_batches", 20)  # How many batches to collect before computing
     
-    # Set up model hook
-    
-
     for iter_num in range(start_iter, cfg["n_iters"]):
         # Process batch
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
 
-
-
-
-
+        # Collect feature activations for threshold computation
+        if iter_num % threshold_compute_freq == 0 and len(feature_min_activations_buffer) < threshold_num_batches:
+            feature_activations = sae_output["feature_acts"]
+            # For each feature, get the minimum activation that is greater than zero
+            filtered_activations = torch.where(feature_activations > 0, feature_activations, float('inf'))
+            feature_min_activations = torch.min(filtered_activations, dim=0).values
+            feature_min_activations = torch.where(feature_min_activations == float('inf'), torch.nan, feature_min_activations)
+            
+            # Store these minimum activations for later processing
+            feature_min_activations_buffer.append(feature_min_activations.detach())
+            
+            # If we've collected enough batches, compute the thresholds
+            if len(feature_min_activations_buffer) >= threshold_num_batches:
+                with torch.no_grad():
+                    # Stack all collected minimum activations
+                    all_feature_min_activations = torch.stack(feature_min_activations_buffer)
+                    
+                    # Replace any remaining infs with nans for proper quantile calculation
+                    all_feature_min_activations = torch.where(
+                        all_feature_min_activations == float('inf'), 
+                        torch.nan, 
+                        all_feature_min_activations
+                    )
+                    
+                    # Compute percentiles (0 to 100 in steps of 1)
+                    percentiles = torch.linspace(0, 1, 101, device=device)
+                    feature_percentiles = torch.nanquantile(all_feature_min_activations, percentiles, dim=0)
+                    
+                    # Save each percentile
+                    for i, percentile in enumerate(feature_percentiles):
+                        torch.save(percentile.cpu(), f"{checkpoint_dir}/percentiles/feature_percentile_{i}.pt")
+                    
+                    # Compute thresholds as mean of non-nan percentiles
+                    feature_thresholds = torch.nanmean(feature_percentiles, dim=0)
+                    
+                    # Save the thresholds
+                    torch.save(feature_thresholds.cpu(), f"{checkpoint_dir}/thresholds.pt")
+                    
+                    # Log statistics if wandb is enabled
+                    if wandb_run is not None:
+                        # Calculate statistics on thresholds
+                        valid_thresholds = feature_thresholds[~torch.isnan(feature_thresholds)]
+                        if len(valid_thresholds) > 0:
+                            wandb_run.log({
+                                "thresholds/mean": torch.mean(valid_thresholds).item(),
+                                "thresholds/median": torch.median(valid_thresholds).item(),
+                                "thresholds/min": torch.min(valid_thresholds).item(),
+                                "thresholds/max": torch.max(valid_thresholds).item(),
+                                "thresholds/std": torch.std(valid_thresholds).item(),
+                                "thresholds/active_features": len(valid_thresholds),
+                            }, step=iter_num)
+                    
+                    # Clear the buffer for next round
+                    feature_min_activations_buffer = []
+                    
+                    # Free up GPU memory
+                    del all_feature_min_activations, feature_percentiles
+                    torch.cuda.empty_cache()
 
         # Logging and checkpointing
         if iter_num % cfg["perf_log_freq"] == 0:
             log_wandb(sae_output, iter_num, wandb_run)
-            
+            log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
         if iter_num % cfg["checkpoint_freq"] == 0 and iter_num > 0:
             save_checkpoint(
                 sae, optimizer, cfg, iter_num, checkpoint_dir, 
@@ -181,8 +239,6 @@ def train_sae(
             activation_store.current_epoch + ((activation_store.current_batch_idx + 1) // cfg["model_batch_size"])
         )
 
-
-
         loss.backward()
         torch.nn.utils.clip_grad_norm_(sae.parameters(), cfg["max_grad_norm"])
         sae.make_decoder_weights_and_grad_unit_norm()
@@ -194,7 +250,6 @@ def train_sae(
                 scheduler.step(loss)
             else:
                 scheduler.step()
-        
     
     # Save final checkpoint
     save_checkpoint(
@@ -202,8 +257,6 @@ def train_sae(
         scheduler=scheduler, activation_store=activation_store, is_final=True
     )    
      
-
-    
     return sae, checkpoint_dir
 
 def train_sae_group(saes, activation_store, model, cfgs):
