@@ -71,9 +71,25 @@ def log_decoder_weights(sae, decoder_weights, step, wandb_run):
     actual_decoder_weights = sae.state_dict()["W_dec"].cpu()
 
     cosine_similarity = F.cosine_similarity(decoder_weights, actual_decoder_weights, dim=1)
+    
+    # Calculate statistics for cosine similarity
+    mean_cosine = cosine_similarity.mean().item()
+    min_cosine = cosine_similarity.min().item()
+    max_cosine = cosine_similarity.max().item()
+    std_cosine = cosine_similarity.std().item()
+    
+    # Log individual statistics instead of raw tensor to avoid histogram binning issues
     log_dict = {
-        "performance/cosine_similarity": cosine_similarity
+        "performance/cosine_similarity_mean": mean_cosine,
+        "performance/cosine_similarity_min": min_cosine,
+        "performance/cosine_similarity_max": max_cosine,
+        "performance/cosine_similarity_std": std_cosine
     }
+    
+    # Only log the full histogram data if there's enough variation
+    if std_cosine > 1e-5 and max_cosine - min_cosine > 1e-5:
+        log_dict["performance/cosine_similarity_hist"] = wandb.Histogram(cosine_similarity.detach().cpu().numpy())
+    
     wandb_run.log(log_dict, step=step)
     
 
