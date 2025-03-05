@@ -153,7 +153,7 @@ def train_sae(
     os.makedirs(os.path.join(checkpoint_dir, "percentiles"), exist_ok=True)
     
     # Initialize feature activation stats tracking
-    n_features = sae.W_dec.weight.shape[0]
+    n_features = sae.state_dict()["W_dec"].shape[0]
     feature_min_activations_buffer = []
     threshold_compute_freq = cfg.get("threshold_compute_freq", 1000)  # How often to compute thresholds
     threshold_num_batches = cfg.get("threshold_num_batches", 20)  # How many batches to collect before computing

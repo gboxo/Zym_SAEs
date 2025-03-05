@@ -73,7 +73,8 @@ def main():
         loaded_cfg["model_name"] = cfg["model_name"]
         loaded_cfg["n_iters"] = cfg["n_iters"]
         loaded_cfg["model_type"] = cfg["model_type"]
-
+        loaded_cfg["aux_penalty"] = 0  
+        loaded_cfg["top_k_aux"] = 0 
 
 
 
