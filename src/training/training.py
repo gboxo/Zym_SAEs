@@ -127,7 +127,7 @@ def train_sae(
             device=device
         )
 
-        decoder_weights = sae.W_dec.weight.data.cpu()
+        decoder_weights = sae.state_dict()["W_dec"].cpu()
         
         print(f"Resuming training from iteration {start_iter}")
     else:
