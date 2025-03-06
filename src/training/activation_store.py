@@ -30,6 +30,9 @@ class ActivationsStore:
 
     def _get_tokens_column(self):
         sample = next(self.dataset)
+        if sum(sample["input_ids"]) < 1000:
+            _
+
         if "tokens" in sample:
             return "tokens"
         elif "input_ids" in sample:
@@ -47,6 +50,9 @@ class ActivationsStore:
                 tokens = self.model.to_tokens(batch["text"], truncate=True, move_to_device=True, prepend_bos=True).squeeze(0)
             else:
                 tokens = batch[self.tokens_column]
+            if sum(tokens) < 1000:
+                continue
+
             all_tokens.extend(tokens)
         token_tensor = torch.tensor(all_tokens, dtype=torch.long, device=self.device)[:self.model_batch_size * self.context_size]
         return token_tensor.view(self.model_batch_size, self.context_size)
