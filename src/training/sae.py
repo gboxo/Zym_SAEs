@@ -70,7 +70,7 @@ class BatchTopKSAE(BaseAutoencoder):
         x, x_mean, x_std = self.preprocess_input(x)
 
         x_cent = x - self.b_dec
-        acts = F.relu(x_cent @ self.W_enc)
+        acts = F.relu(x_cent @ self.W_enc + self.b_enc)
         acts_topk = torch.topk(acts.flatten(), self.cfg["top_k"] * x.shape[0], dim=-1)
         acts_topk = (
             torch.zeros_like(acts.flatten())

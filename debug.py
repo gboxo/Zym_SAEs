@@ -18,7 +18,7 @@ cfg["use_wandb"] = True
 
 _, _, loaded_cfg, start_iter, _, _ = load_checkpoint(checkpoint_path, device=cfg["device"])
 cfg["n_iters"] = start_iter + additional_iters
-wandb_run = init_wandb(cfg, resume=True)
+#wandb_run = init_wandb(cfg, resume=True)
 
 
 
@@ -36,7 +36,21 @@ cfg["dtype"] = torch.float32
 cfg["batch_size"] = 32
 cfg["model_batch_size"] = 64 
 
+import numpy as np
 activation_store = ActivationsStore(model, cfg)
+dataset = activation_store.dataset
+sequences = [next(dataset)["input_ids"] for _ in range(128000)]
+tot = [sum(elem) for elem in sequences]
+tot = np.array(tot)
+sequences = np.array(sequences)
+ids = np.where(tot < 1000)[0]
+
+
+
+
+
+
+
 
 
 batch = activation_store.next_batch()
