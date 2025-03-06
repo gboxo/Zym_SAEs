@@ -240,6 +240,26 @@ def train_sae(
         )
 
         loss.backward()
+        
+        # Log gradient norms and learning rate before optimizer step
+        if iter_num % cfg["perf_log_freq"] == 0 and wandb_run is not None:
+            # Calculate and log gradient norm
+            total_grad_norm = 0.0
+            for p in sae.parameters():
+                if p.grad is not None:
+                    param_norm = p.grad.data.norm(2).item()
+                    total_grad_norm += param_norm ** 2
+            total_grad_norm = total_grad_norm ** 0.5
+            
+            # Get current learning rate
+            current_lr = optimizer.param_groups[0]['lr']
+            
+            # Log to wandb
+            wandb_run.log({
+                "training/gradient_norm": total_grad_norm,
+                "training/learning_rate": current_lr
+            }, step=iter_num)
+        
         torch.nn.utils.clip_grad_norm_(sae.parameters(), cfg["max_grad_norm"])
         sae.make_decoder_weights_and_grad_unit_norm()
         optimizer.step()
