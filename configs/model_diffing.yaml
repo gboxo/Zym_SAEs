@@ -1,0 +1,24 @@
+base_config: base_config_workstation.yaml
+
+
+base:
+  model_path: /users/nferruz/gboxo/ZymCTRL_RL9/ 
+
+
+training:
+  dataset_path: /users/nferruz/gboxo/crg_boxo/Data/Diffing/tokenized_train_iteration1_rounds0to10
+  checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/
+  name: "Model_Diffing_M0_D9"
+  perf_log_freq: 1
+  threshold_compute_freq: 1
+  aux_penalty: 0
+  top_k_aux: 0
+  num_tokens: 2000000
+  
+resuming:
+  resume_from: /users/nferruz/gboxo/ZymCTRL/checkpoints/
+  checkpoint_dir_to: /users/nferruz/gboxo/ZymCTRL/checkpoints/
+  resuming: true
+  n_iters: 720
+
+
