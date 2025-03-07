@@ -15,6 +15,7 @@ from transformer_lens import HookedTransformer
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import socket
 from types import SimpleNamespace
+import os
 
 
 def get_paths():
@@ -61,23 +62,42 @@ def load_model(model_name):
 
 def load_sae(sae_path, load_thresholds=False):
     cfg = get_default_cfg()
-    with open(sae_path+"config.json", "r") as f:
-        config = json.load(f)
+    if os.path.exists(sae_path+"checkpoint_latest.pt"):
+        checkpoint = torch.load(sae_path+"checkpoint_latest.pt")
+        cfg = checkpoint["cfg"]
+        state_dict = checkpoint["model_state_dict"]
+        sae = BatchTopKSAE(cfg)
+        sae.load_state_dict(state_dict)
+        if load_thresholds:
+            thresholds = checkpoint["thresholds"]
+            sae.thresholds = thresholds
+            return cfg,sae,thresholds
+        else:
+            return cfg,sae
     
-    cfg = update_cfg(cfg, **config)
-    cfg = post_init_cfg(cfg)
-    
-    state_dict = torch.load(sae_path+"sae.pt")
-    cfg["dtype"] = torch.float32
 
-    sae = BatchTopKSAE(cfg)
-    sae.load_state_dict(state_dict)
-    if load_thresholds:
-        thresholds = torch.load(sae_path+"thresholds.pt")
-        sae.thresholds = thresholds
-        return cfg,sae,thresholds
-    else: 
-        return cfg,sae
+    else:
+
+
+
+
+        with open(sae_path+"config.json", "r") as f:
+            config = json.load(f)
+        
+        cfg = update_cfg(cfg, **config)
+        cfg = post_init_cfg(cfg)
+        
+        state_dict = torch.load(sae_path+"sae.pt")
+        cfg["dtype"] = torch.float32
+
+        sae = BatchTopKSAE(cfg)
+        sae.load_state_dict(state_dict)
+        if load_thresholds:
+            thresholds = torch.load(sae_path+"thresholds.pt")
+            sae.thresholds = thresholds
+            return cfg,sae,thresholds
+        else: 
+            return cfg,sae
 
 def load_config(config_path):
     cfg = get_default_cfg()

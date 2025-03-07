@@ -1,12 +1,8 @@
 import argparse
-from datetime import datetime
 from ..utils import load_config, load_model
-from ..config.paths import add_path_args, resolve_paths
+from ..config.paths import add_path_args
 from .training import train_sae
 from .logs import init_wandb, load_checkpoint
-from .sae import BatchTopKSAE
-from .activation_store import ActivationsStore
-from .config import get_default_cfg, post_init_cfg
 from ..utils import get_ht_model
 import torch
 
@@ -22,8 +18,6 @@ def main():
     
     args = parser.parse_args()
     
-    # Resolve paths
-    paths = resolve_paths(args)
     
     # Load config
     cfg = load_config(args.config)

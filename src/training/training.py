@@ -69,6 +69,7 @@ def train_sae(
     checkpoint_path=None,
     resume=False,
     wandb_run=None,
+    model_diffing=False,
     paths=None,
     **kwargs
 ):
@@ -127,6 +128,9 @@ def train_sae(
             device=device
         )
 
+        if model_diffing:
+            start_iter = 0
+
         decoder_weights = sae.state_dict()["W_dec"].cpu()
         
         print(f"Resuming training from iteration {start_iter}")
@@ -159,7 +163,7 @@ def train_sae(
     threshold_num_batches = cfg.get("threshold_num_batches", 20)  # How many batches to collect before computing
     
     for iter_num in range(start_iter, cfg["n_iters"]):
-        # Process batch
+        print(iter_num)        # Process batch
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
@@ -224,9 +228,10 @@ def train_sae(
                     torch.cuda.empty_cache()
 
         # Logging and checkpointing
-        if iter_num % cfg["perf_log_freq"] == 0:
-            log_wandb(sae_output, iter_num, wandb_run)
-            log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
+        if wandb_run is not None:
+            if iter_num % cfg["perf_log_freq"] == 0:
+                log_wandb(sae_output, iter_num, wandb_run)
+                log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
         if iter_num % cfg["checkpoint_freq"] == 0 and iter_num > 0:
             save_checkpoint(
                 sae, optimizer, cfg, iter_num, checkpoint_dir, 
@@ -255,10 +260,11 @@ def train_sae(
             current_lr = optimizer.param_groups[0]['lr']
             
             # Log to wandb
-            wandb_run.log({
-                "training/gradient_norm": total_grad_norm,
-                "training/learning_rate": current_lr
-            }, step=iter_num)
+            if wandb_run is not None:
+                wandb_run.log({
+                    "training/gradient_norm": total_grad_norm,
+                    "training/learning_rate": current_lr
+                }, step=iter_num)
         
         torch.nn.utils.clip_grad_norm_(sae.parameters(), cfg["max_grad_norm"])
         sae.make_decoder_weights_and_grad_unit_norm()

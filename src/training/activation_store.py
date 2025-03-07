@@ -12,8 +12,10 @@ class ActivationsStore:
         batch_size=1024
     ):
         self.model = model
-        
-        self.dataset = iter(load_from_disk(cfg["dataset_path"]))
+        self.original_dataset = load_from_disk(cfg["dataset_path"])
+        #dataset = dataset.shuffle(seed=42)
+        print(self.original_dataset)
+        self.dataset = iter(self.original_dataset)
         self.hook_point = cfg["hook_point"]
         self.context_size = min(cfg["seq_len"], model.cfg.n_ctx)
         self.model_batch_size = cfg["model_batch_size"]
@@ -27,11 +29,10 @@ class ActivationsStore:
         self.current_batch_idx = 0
         self.current_epoch = 0
         self.dataset_position = 0
+        
 
     def _get_tokens_column(self):
         sample = next(self.dataset)
-        if sum(sample["input_ids"]) < 1000:
-            _
 
         if "tokens" in sample:
             return "tokens"
@@ -45,16 +46,22 @@ class ActivationsStore:
     def get_batch_tokens(self):
         all_tokens = []
         while len(all_tokens) < self.model_batch_size * self.context_size:
-            batch = next(self.dataset)
+            try:
+                batch = next(self.dataset)
+            except StopIteration:
+                # Reset the dataset iterator when it's exhausted
+                self.dataset = iter(self.original_dataset)
+                self.current_epoch += 1
+                batch = next(self.dataset)
+                
             if self.tokens_column == "text":
                 tokens = self.model.to_tokens(batch["text"], truncate=True, move_to_device=True, prepend_bos=True).squeeze(0)
             else:
                 tokens = batch[self.tokens_column]
-            if sum(tokens) < 1000:
-                continue
 
             all_tokens.extend(tokens)
         token_tensor = torch.tensor(all_tokens, dtype=torch.long, device=self.device)[:self.model_batch_size * self.context_size]
+        print(token_tensor.shape)
         return token_tensor.view(self.model_batch_size, self.context_size)
 
     def get_activations(self, batch_tokens: torch.Tensor):
@@ -81,8 +88,10 @@ class ActivationsStore:
         try:
             return next(self.dataloader_iter)[0]
         except (StopIteration, AttributeError):
+            print(" aaaaaaaaaaaaaaaaaaaaaaaa")
             self.activation_buffer = self._fill_buffer()
             self.dataloader = self._get_dataloader()
+            print(self.dataloader)
             self.dataloader_iter = iter(self.dataloader)
             return next(self.dataloader_iter)[0]
 
