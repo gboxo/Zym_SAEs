@@ -13,7 +13,6 @@ class ActivationsStore:
     ):
         self.model = model
         self.original_dataset = load_from_disk(cfg["dataset_path"])
-        #dataset = dataset.shuffle(seed=42)
         self.dataset = iter(self.original_dataset)
         self.hook_point = cfg["hook_point"]
         self.context_size = min(cfg["seq_len"], model.cfg.n_ctx)

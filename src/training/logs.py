@@ -162,8 +162,6 @@ def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, activation_store=No
         'resume_history': cfg.get('resume_history', []),  # Track resume history
         'is_resumed': is_resumed,
     }
-    
-    if activation_store is not None:
     if activation_store is not None:
         checkpoint['activation_store_state'] = {
             'current_batch_idx': activation_store.current_batch_idx,
