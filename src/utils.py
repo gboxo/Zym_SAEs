@@ -1,6 +1,7 @@
 # %%
 import yaml
 from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Config, GPT2LMHeadModel
+from sae_lens import HookedSAETransformer
 from transformers import AutoConfig
 from .training.config import get_default_cfg, update_cfg
 from .training.sae import BatchTopKSAE
@@ -245,3 +246,44 @@ def get_ht_model(gpt:AutoModelForCausalLM,cfg: GPT2Config, tokenizer=None) -> Ho
     )
     return model
 
+
+def get_sl_model(gpt:AutoModelForCausalLM,cfg: GPT2Config, tokenizer=None) -> HookedTransformer:
+    state_dict = convert_GPT_weights(gpt, cfg)
+
+    cfg_dict = {
+        "eps": cfg.layer_norm_epsilon,
+        "attn_only": False,
+        "act_fn": "gelu_new",
+        "d_model": cfg.n_embd,
+        "d_head": cfg.n_embd // cfg.n_head,
+        "n_heads": cfg.n_head,
+        "n_layers": cfg.n_layer,
+        "n_ctx": cfg.n_ctx,  # Capped bc the actual ctx length is 30k and the attn mask would be too big
+        "d_vocab": cfg.vocab_size,
+        "use_attn_scale": True,
+        "normalization_type": "LN",
+        "positional_embedding_type": "standard",
+        "tokenizer_prepends_bos": True,
+        "default_prepend_bos": False,
+        "use_normalization_before_and_after": False,
+        "attention_dir": "causal"
+
+
+    }
+
+
+
+    cfg_ht = HookedTransformerConfig(**cfg_dict)
+
+
+
+    model = HookedSAETransformer(cfg_ht,tokenizer=tokenizer)
+    model.load_and_process_state_dict(
+        state_dict,
+        fold_ln = False,
+        center_writing_weights = False,
+        center_unembed=False,
+        fold_value_biases = False,
+        refactor_factored_attn_matrices = False,
+    )
+    return model

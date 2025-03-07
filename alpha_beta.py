@@ -65,7 +65,7 @@ def collect_data():
     joined.to_csv("alpha_beta_class.csv", index=False)
 
 def get_data():
-    data = pd.read_csv("alpha_beta_class.csv")
+    data = pd.read_csv("Data/Alpha_Beta_Data/alpha_beta_class.csv")
     return data
 
 def get_activations( model, tokenizer, sequence):
@@ -136,19 +136,22 @@ def load_features():
 
 
 
-def train_linear_probe(train_natural_features, train_synth_features, test_natural_features, test_synth_features):
+def train_linear_probe(train_features, test_features, train_labels, test_labels):
     # Concatennate  COO
 
-    X_train = vstack((train_natural_features, train_synth_features))
-    X_test = vstack((vstack(test_natural_features), vstack(test_synth_features)))
+    X_train = train_features
+    X_test = test_features
 
-    y_train = np.concatenate((np.zeros(train_natural_features.shape[0]), np.ones(train_synth_features.shape[0])), axis=0)
-    y_test = np.concatenate((np.zeros(vstack(test_natural_features).shape[0]), np.ones(vstack(test_synth_features).shape[0])), axis=0)
+    y_train = np.concatenate(train_labels)
+    y_test = np.concatenate(test_labels)
     
+    print(X_train.shape, X_test.shape)
+    print(y_train.shape, y_test.shape)
+
 
     results = []
     probes =[]
-    for sparsity in tqdm(np.logspace(-5, -3, 20)):
+    for sparsity in [8.858667904100833e-05]:#tqdm(np.logspace(-5, -3, 20)):
         lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1)
         lr_model.fit(X_train, y_train)
         coefs = lr_model.coef_
@@ -159,7 +162,7 @@ def train_linear_probe(train_natural_features, train_synth_features, test_natura
         
         roc_auc = roc_auc_score(y_test, y_pred)
         results.append({
-            "active_features": len(active_features),
+            "active_features": active_features,
             "sparsity": sparsity,
             "accuracy": accuracy,
             "roc_auc": roc_auc,
@@ -167,14 +170,14 @@ def train_linear_probe(train_natural_features, train_synth_features, test_natura
     best_result = max(results, key=lambda x: x["roc_auc"])
     return probes, results
 
-def test_linear_probe(probes, test_natural_features, test_synth_features, threshold=0.5):
+def test_linear_probe(probes, test_features, test_labels, threshold=0.5):
     """
     Implement a voting scheme to get the final prediction using an ensemble of probes
     
     Args:
         probes: List of trained logistic regression probes
-        test_natural_features: Features from natural samples
-        test_synth_features: Features from synthetic samples
+        test_features: Features from natural samples
+        test_labels: Labels from natural samples
         threshold: Classification threshold (default 0.5, will be tuned for 1% FPR)
         
     Returns:
@@ -189,18 +192,17 @@ def test_linear_probe(probes, test_natural_features, test_synth_features, thresh
         all_predictions = []
         all_probs = []
         true_labels = []
-        for label, test_features in [("alpha", test_natural_features), ("beta", test_synth_features)]:
-            for test_feature in test_features:
-                # Get predictions from single probe
-                true_labels.append(label_dict[label])
-                # Get probability estimates
-                probs = probe.predict_proba(test_feature)
-                all_probs.append(probs[:, 1])  # Probability of synthetic class
-                
+        for label, test_feature in [("alpha", test_features), ("beta", test_features)]:
+            # Get predictions from single probe
+            true_labels.append(label_dict[label])
+            # Get probability estimates
+            probs = probe.predict_proba(test_feature)
+            all_probs.append(probs[:, 1])  # Probability of synthetic class
+            
                 # Get binary predictions
-                pred = (probs[:, 1] >= threshold).astype(int)
+            pred = (probs[:, 1] >= threshold).astype(int)
 
-                all_predictions.append(pred)
+            all_predictions.append(pred)
         
         final_probs = np.array([prob.mean() for prob in all_probs])
         final_preds = (final_probs >= threshold).astype(int)
@@ -230,11 +232,12 @@ def main():
     #obtain_features(df, features)
     train_features, test_features, train_labels, test_labels = load_features()
     probes, results = train_linear_probe(train_features, test_features, train_labels, test_labels)
-    test_linear_probe(probes, test_features, test_labels)
+    print(results)
+    #test_linear_probe(probes, test_features, test_labels)
 
 if __name__ == "__main__":
 
-    if True:
+    if False:
         paths = get_paths()
         model_path = paths.model_path
         sae_path = paths.sae_path
