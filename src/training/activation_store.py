@@ -14,7 +14,6 @@ class ActivationsStore:
         self.model = model
         self.original_dataset = load_from_disk(cfg["dataset_path"])
         #dataset = dataset.shuffle(seed=42)
-        print(self.original_dataset)
         self.dataset = iter(self.original_dataset)
         self.hook_point = cfg["hook_point"]
         self.context_size = min(cfg["seq_len"], model.cfg.n_ctx)
@@ -61,7 +60,6 @@ class ActivationsStore:
 
             all_tokens.extend(tokens)
         token_tensor = torch.tensor(all_tokens, dtype=torch.long, device=self.device)[:self.model_batch_size * self.context_size]
-        print(token_tensor.shape)
         return token_tensor.view(self.model_batch_size, self.context_size)
 
     def get_activations(self, batch_tokens: torch.Tensor):
@@ -88,10 +86,8 @@ class ActivationsStore:
         try:
             return next(self.dataloader_iter)[0]
         except (StopIteration, AttributeError):
-            print(" aaaaaaaaaaaaaaaaaaaaaaaa")
             self.activation_buffer = self._fill_buffer()
             self.dataloader = self._get_dataloader()
-            print(self.dataloader)
             self.dataloader_iter = iter(self.dataloader)
             return next(self.dataloader_iter)[0]
 

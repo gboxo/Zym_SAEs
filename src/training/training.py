@@ -24,11 +24,12 @@ def generate_checkpoint_dir(cfg, resume=False):
     components = [
         model_name,
         date_str,
-        f"h{cfg["hook_point"].split('.')[-1]}",
+        f"{cfg["hook_point"].split('.')[-1]}",
         f"{cfg["act_size"]}",
         cfg["sae_type"].lower(),
         f"{cfg["top_k"]}",
         f"{cfg["lr"]}",
+        f"{cfg["name"]}",
     ]
     
     # Add iteration target if specified

@@ -69,6 +69,7 @@ def get_data():
     return data
 
 def get_activations( model, tokenizer, sequence):
+    sequence = "4.2.1.1<sep><start>" + sequence
     inputs = tokenizer.encode(sequence, return_tensors="pt").to("cuda")
     with torch.no_grad():
         names_filter = lambda x: x.endswith("26.hook_resid_pre")
@@ -144,6 +145,9 @@ def train_linear_probe(train_features, test_features, train_labels, test_labels)
 
     y_train = np.concatenate(train_labels)
     y_test = np.concatenate(test_labels)
+
+    y_train = ~y_train
+    y_test = ~y_test
     
     print(X_train.shape, X_test.shape)
     print(y_train.shape, y_test.shape)
@@ -151,7 +155,8 @@ def train_linear_probe(train_features, test_features, train_labels, test_labels)
 
     results = []
     probes =[]
-    for sparsity in [8.858667904100833e-05]:#tqdm(np.logspace(-5, -3, 20)):
+    #[8.858667904100833e-05]:#
+    for sparsity in tqdm(np.logspace(-4.5, -3, 20)):
         lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1)
         lr_model.fit(X_train, y_train)
         coefs = lr_model.coef_

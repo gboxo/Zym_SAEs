@@ -4,7 +4,9 @@ import os
 import matplotlib.pyplot as plt
 import sys
 import torch.nn.functional as F
-
+from src.utils import load_sae
+import numpy as np
+torch.cuda.empty_cache()
 # Get the absolute path to the src directory
 src_path = os.path.abspath(os.path.join('../../'))
 
@@ -12,38 +14,94 @@ src_path = os.path.abspath(os.path.join('../../'))
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-# %%
-
-
-from src.training.activation_store import ActivationsStore
-from src.utils import load_sae
-torch.cuda.empty_cache()
-
-# === POST TRAINING ===
-checkpoint_dir = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_06_03_25_hhook_resid_pre_1280_batchtopk_100_0.0005_resumed/"
-cfg,post_sae = load_sae(checkpoint_dir)
-post_sae.eval()
-
-
-# === PRE TRAINING ===
-checkpoint_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-cfg,sae_pre = load_sae(checkpoint_path)
-sae_pre.eval()
 
 # %%
 
-W_dec_pre = sae_pre.W_dec.data
-W_dec_post = post_sae.W_dec.data
+base_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_04_03_25_hhook_resid_pre_1280_batchtopk_100_0.0003_resumed/"
+path_sae_M0_D9 = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_07_03_25_hhook_resid_pre_1280_batchtopk_100_0.0005_Model_Diffing_M0_D9_resumed/"
+path_sae_M9_D9 = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_07_03_25_hhook_resid_pre_1280_batchtopk_100_0.0005_Model_Diffing_M9_D9_resumed/"
+
+
+# %%
+
+# ========= BASE SAE =======
+
+cfg,sae_base = load_sae(base_path)
+sae_base.eval()
+base_W_dec = sae_base.W_dec.data
+
+# ========= BASE MODEL RL DATA SAE =======
+
+cfg,sae_M0_D9 = load_sae(path_sae_M0_D9)
+sae_M0_D9.eval()
+M0_D9_W_dec = sae_M0_D9.W_dec.data
+
+# ========= RL MODEL RL DATA SAE =======
+
+cfg,sae_M9_D9 = load_sae(path_sae_M9_D9)
+sae_M9_D9.eval()
+M9_D9_W_dec = sae_M9_D9.W_dec.data
 
 
 
 # %%
-cosine_similarity = F.cosine_similarity(W_dec_pre, W_dec_post, dim=1)
+
+
+
+# %%
+M0_D0_cs = F.cosine_similarity(base_W_dec, M0_D9_W_dec, dim=1)
+M9_D9_cs = F.cosine_similarity(base_W_dec, M9_D9_W_dec, dim=1)
+
+# %%
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+
+points1 =  [  64, 1525, 2140, 3184, 3340, 3832, 3882, 4356, 5062, 5249, 6175,
+       6393, 6762, 7247, 7344, 8432, 8507, 8697]
 
 
 
 
+# Set style and figure size
+plt.figure(figsize=(10, 8))
 
+# Create scatter plot with smaller points and transparency
+plt.scatter(M0_D0_cs.detach().cpu().numpy(), 
+           M9_D9_cs.detach().cpu().numpy(),
+           alpha=0.4,
+           s=20,
+           color='#2E86C1')
+
+# Add red circle around point with index 3340
+for i in points1:
+    x = M0_D0_cs.detach().cpu().numpy()[i]
+    y = M9_D9_cs.detach().cpu().numpy()[i]
+    circle = plt.Circle((x, y), 0.02, color='red', fill=False, linewidth=2)
+    # Add text to the circle
+    plt.gca().add_patch(circle)
+    plt.text(x, y, str(i), fontsize=10, ha='left', va='bottom', color='black')
+
+
+
+# Customize labels and title with better fonts
+plt.xlabel("Cosine Similarity with Base Model (NO RL)", 
+          fontsize=12, 
+          fontweight='bold')
+plt.ylabel("Cosine Similarity with Base Model (RL)", 
+          fontsize=12,
+          fontweight='bold')
+plt.title("Feature Similarity Comparison Between Base and RL-Trained Models",
+          fontsize=14,
+          pad=20)
+
+# Add grid and customize ticks
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tick_params(axis='both', which='major', labelsize=10)
+
+# Adjust layout and display
+plt.tight_layout()
+plt.show()
 
 
 

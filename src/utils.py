@@ -1,19 +1,15 @@
 # %%
 import yaml
-from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Config, GPT2LMHeadModel
+from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Config
 from sae_lens import HookedSAETransformer
-from transformers import AutoConfig
 from .training.config import get_default_cfg, update_cfg
 from .training.sae import BatchTopKSAE
 from .training.config import post_init_cfg
 import einops
 import torch
-import seaborn as sns
-import matplotlib.pyplot as plt
 import json
 from transformer_lens.HookedTransformerConfig import HookedTransformerConfig
 from transformer_lens import HookedTransformer
-from transformers import AutoModelForCausalLM, AutoTokenizer
 import socket
 from types import SimpleNamespace
 import os
