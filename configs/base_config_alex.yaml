@@ -48,6 +48,7 @@ resuming:
   resuming: false
   n_iters: 0
   resume_history: false
+  model_diffing: false
 
 
 

@@ -1,129 +1,46 @@
 import argparse
-from src.training.training import train_sae
+from src.training.training import resume_training
 from src.training.logs import init_wandb, load_checkpoint
 from src.utils import get_ht_model
-from src.utils import load_config, load_model
-from src.config.paths import add_path_args
-
+from src.utils import load_model
+from src.config.load_config import load_experiment_config, convert_to_sae_config
 import torch
+from types import SimpleNamespace
 
 def main():
+
+    config = load_experiment_config("configs/model_diffing.yaml")
+    sae_cfg = convert_to_sae_config(config)
+    # Convert nested dictionaries to nested SimpleNamespace objects
+    config = {k: SimpleNamespace(**v) if isinstance(v, dict) else v for k, v in config.items()}
+    config = SimpleNamespace(**config)
+
     
     # Add training arguments
-    config = "configs/workstation.yaml"
-    checkpoint_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_04_03_25_hhook_resid_pre_1280_batchtopk_100_0.0003_resumed/checkpoint_latest.pt"
-    dataset_path = "Data/Diffing/tokenized_train_dataset_iteration1_rounds0to10"
-
     
-    
-    
-    # Load config
-    cfg = load_config(config)
-    cfg["use_wandb"] = True
-    
-    wandb_run = init_wandb(cfg, resume=True)
-    # If checkpoint_path is a directory, it will be handled by load_checkpoint
+    wandb_run = init_wandb(config, resume=True)
     
     # Load checkpoint to get basic info without modifying anything
-    _, _, loaded_cfg, start_iter, _, _ = load_checkpoint(checkpoint_path, device=cfg["device"])
+    _, _, loaded_cfg, start_iter, _, _ = load_checkpoint(config.resuming.resume_from, device=config.sae.device)
     
-    # Update iterations if additional_iters is specified
-    
-    if "model_type" not in cfg:
-        cfg["model_type"] = loaded_cfg["model_type"]
-    
-    # Initialize wandb with resumed config
-    print("Resuming training from checkpoint")
 
-    # Load model
-    #cfg["model_path"] = "/users/nferruz/gboxo/ZymCTRL_RL9/"
-    cfg["model_name"] = "AI4PD/ZymCTRL"
-    tokenizer, model = load_model(cfg["model_path"])
-    config = model.config
-    config.attn_implementation = "eager"
-    config.d_model = 5120
-    model = get_ht_model(model, config)
+    tokenizer, model = load_model(config.base.model_path)
+    model_config = model.config
+    model_config.attn_implementation = "eager"
+    model_config.d_model = 5120
+    model = get_ht_model(model, model_config)
+    config.sae.dtype = torch.float32
 
 
-    loaded_cfg["name"] = "Model_Diffing_M0_D9"
-    loaded_cfg["dtype"] = torch.float32
-    loaded_cfg["wandb_project"] = "Model_Diffing_RL" 
-    loaded_cfg["batch_size"] = 512
-    loaded_cfg["top_k"] = 100
-    loaded_cfg["aux_penalty"] = 0
-    loaded_cfg["top_k_aux"] = 0
-    loaded_cfg["model_batch_size"] = 128 
-    loaded_cfg["dataset_path"] = dataset_path
-    loaded_cfg["perf_log_freq"] = 1
-    loaded_cfg["model_name"] = cfg["model_name"]
-    loaded_cfg["num_batches_in_buffer"] = 5 
-    loaded_cfg["n_iters"] = 80*9
-    loaded_cfg["model_type"] = "BatchTopKSAE"
-    loaded_cfg["use_wandb"] = True
-    loaded_cfg["num_tokens"] = 256*152*9
-    loaded_cfg["checkpoint_dir"] = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/Diffing/checkpoints/"
-    loaded_cfg["threshold_compute_freq"] = 1
-    loaded_cfg["threshold_num_batches"] = 40 
-    loaded_cfg["lr"] = 5e-4
-
-
-    if True:
-
-        post_sae, checkpoint_dir = train_sae(
-            model=model,
-            cfg=loaded_cfg,
-            hook_point=cfg["hook_point"],
-            checkpoint_path=checkpoint_path,
-            model_diffing = True,
-            resume=True,
-            wandb_run=wandb_run,
-        )
-    EVALUATE = False
-
-    if EVALUATE:
-
-        # === EVALUATE ===
-        from src.training.activation_store import ActivationsStore
-        from src.utils import load_sae
-        torch.cuda.empty_cache()
-
-        # === POST TRAINING ===
-        checkpoint_dir = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_06_03_25_hhook_resid_pre_1280_batchtopk_100_0.0005_resumed/"
-
-        cfg,post_sae = load_sae(checkpoint_dir)
-        post_sae.eval()
-
-
-        cfg = loaded_cfg
-        cfg["use_wandb"] = False
-        cfg["model_batch_size"] = 128
-        cfg["batch_size"] = 64
-        cfg["n_iters"] = 10
-        cfg["dataset_path"] = "Data/Diffing/tokenized_eval_dataset_iteration1_rounds0to10"
-
-        activation_store = ActivationsStore(model,cfg)
-        batch = activation_store.next_batch()
-
-        loss = post_sae(batch)["loss"]
-        print("Post-training loss: ", loss)
-
-
-        # === PRE TRAINING ===
-        checkpoint_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-        cfg,sae_pre = load_sae(checkpoint_path)
-        sae_pre.eval()
-        cfg = loaded_cfg
-        cfg["use_wandb"] = False
-        cfg["model_batch_size"] = 128
-        cfg["batch_size"] = 64
-        cfg["n_iters"] = 10
-        cfg["dataset_path"] = "Data/Diffing/tokenized_eval_dataset_iteration1"
-
-
-        activation_store = ActivationsStore(model,cfg)
-        batch = activation_store.next_batch()
-        loss = sae_pre(batch)["loss"]
-        print("Pre-training loss: ", loss)
+    post_sae, checkpoint_dir = resume_training(
+        model=model,
+        cfg=config,
+        sae_cfg=sae_cfg,
+        checkpoint_path=config.resuming.resume_from,
+        model_diffing = True,
+        resume=True,
+        wandb_run=wandb_run,
+    )
 
 
 

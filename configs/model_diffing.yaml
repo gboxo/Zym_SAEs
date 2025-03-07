@@ -20,5 +20,6 @@ resuming:
   checkpoint_dir_to: /users/nferruz/gboxo/ZymCTRL/checkpoints/
   resuming: true
   n_iters: 720
+  model_diffing: true
 
 

@@ -11,31 +11,31 @@ def init_wandb(cfg, resume=False):
     """
     Initialize wandb with support for resuming.
     """
-    if not cfg.get("use_wandb", False):
+    if not cfg.training.use_wandb:
         return None
         
     import wandb
     
     # Set wandb directory if specified
-    if hasattr(cfg, "wandb_dir") and cfg["wandb_dir"]:
-        os.environ["WANDB_DIR"] = cfg["wandb_dir"]
+    if cfg.training.wandb_dir:
+        os.environ["WANDB_DIR"] = cfg.training.wandb_dir
     
     # Determine run name
-    run_name = cfg.get("wandb_run_name", None)
+    run_name = cfg.training.wandb_run_name
     if run_name is None:
         # Generate run name based on model and configuration
-        model_name = os.path.basename(cfg["model_path"].rstrip('/'))
-        hook_name = cfg["hook_point"].split('.')[-1]
-        run_name = f"{model_name}_{hook_name}_{cfg["sae_type"]}_{cfg["top_k"]}_{cfg["lr"]}"
+        model_name = os.path.basename(cfg.base.model_path.rstrip('/'))
+        hook_name = cfg.training.hook_point.split('.')[-1]
+        run_name = f"{model_name}_{hook_name}_{cfg.training.sae_type}_{cfg.training.top_k}_{cfg.training.lr}"
         
     if resume:
         run_name += "_resumed"
         
     # Resume wandb run if resuming and run_id is in config
-    run_id = cfg.get("wandb_run_id", None) if resume else None
+    run_id = cfg.training.wandb_run_id if resume else None
     
     wandb_run = wandb.init(
-        project=cfg.get("wandb_project", "sae_training"),
+        project=cfg.training.wandb_project,
         name=run_name,
         config=cfg,
         resume="must" if run_id else "never",
@@ -43,7 +43,7 @@ def init_wandb(cfg, resume=False):
     )
     
     # Store run ID in config for potential future resuming
-    cfg["wandb_run_id"] = wandb_run.id
+    cfg.training.wandb_run_id = wandb_run.id
     
     return wandb_run
 
@@ -135,7 +135,7 @@ def log_model_performance(wandb_run, step, model, activations_store, sae, index=
 
     wandb_run.log(log_dict, step=step)
 
-def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, scheduler=None, activation_store=None, is_final=False):
+def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, activation_store=None, is_final=False):
     """
     Save checkpoint with all necessary information to resume training.
     
@@ -145,7 +145,6 @@ def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, scheduler=None, act
         cfg: Training configuration
         iter_num: Current iteration number
         dir_path: Directory to save the checkpoint
-        scheduler: Learning rate scheduler (optional)
         activation_store: Activation store for dataset position (optional)
         is_final: Whether this is the final checkpoint
     """
@@ -164,9 +163,7 @@ def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, scheduler=None, act
         'is_resumed': is_resumed,
     }
     
-    if scheduler is not None:
-        checkpoint['scheduler_state_dict'] = scheduler.state_dict()
-    
+    if activation_store is not None:
     if activation_store is not None:
         checkpoint['activation_store_state'] = {
             'current_batch_idx': activation_store.current_batch_idx,
@@ -185,7 +182,7 @@ def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, scheduler=None, act
     print(f"Saved checkpoint to {checkpoint_path}")
     return checkpoint_path
 
-def load_checkpoint(checkpoint_path, sae=None, optimizer=None, scheduler=None, activation_store=None, device='cpu'):
+def load_checkpoint(checkpoint_path, sae=None, optimizer=None, activation_store=None, device='cpu'):
     """
     Load checkpoint with all necessary information to resume training.
     
@@ -193,12 +190,11 @@ def load_checkpoint(checkpoint_path, sae=None, optimizer=None, scheduler=None, a
         checkpoint_path: Path to the checkpoint file or directory
         sae: The sparse autoencoder model (optional)
         optimizer: The optimizer (optional)
-        scheduler: Learning rate scheduler (optional)
         activation_store: Activation store (optional)
         device: Device to load the model to
         
     Returns:
-        Tuple of (sae, optimizer, cfg, iter_num, scheduler, activation_store_state)
+        Tuple of (sae, optimizer, cfg, iter_num, activation_store_state)
     """
 
 
@@ -266,11 +262,6 @@ def load_checkpoint(checkpoint_path, sae=None, optimizer=None, scheduler=None, a
     # Load optimizer state if provided
     if optimizer is not None and 'optimizer_state_dict' in checkpoint:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        
-    # Load scheduler state if provided
-    if scheduler is not None and 'scheduler_state_dict' in checkpoint:
-        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-    
     # Extract activation store state
     activation_store_state = checkpoint.get('activation_store_state', None)
     
@@ -282,5 +273,5 @@ def load_checkpoint(checkpoint_path, sae=None, optimizer=None, scheduler=None, a
     
     print(f"Loaded checkpoint from {checkpoint_path} (iteration {iter_num})")
     
-    return sae, optimizer, cfg, iter_num, scheduler, activation_store_state
+    return sae, optimizer, cfg, iter_num, activation_store_state
 
