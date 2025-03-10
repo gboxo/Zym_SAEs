@@ -62,6 +62,7 @@ def load_sae(sae_path, load_thresholds=False):
     if os.path.exists(sae_path+"checkpoint_latest.pt"):
         checkpoint = torch.load(sae_path+"checkpoint_latest.pt")
         cfg = checkpoint["cfg"]
+        cfg["dtype"] = torch.float32
         state_dict = checkpoint["model_state_dict"]
         sae = BatchTopKSAE(cfg)
         sae.load_state_dict(state_dict)

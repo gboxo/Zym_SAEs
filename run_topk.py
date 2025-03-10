@@ -1,10 +1,8 @@
 import argparse
-from src.utils import load_config, load_model
-from src.config.paths import add_path_args
+from src.utils import load_model
 from src.training.training import train_sae
-from src.training.logs import init_wandb, load_checkpoint
+from src.training.logs import init_wandb
 from src.utils import get_ht_model
-import torch
 from src.config.load_config import load_experiment_config, convert_to_sae_config
 from types import SimpleNamespace
 
