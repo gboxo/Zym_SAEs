@@ -1,0 +1,20 @@
+base_config: base_config_workstation.yaml
+
+
+base:
+  model_path: AI4PD/ZymCTRL
+
+
+training:
+  checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/
+  name: "Training_ZymCTRL"
+  top_k: 32
+  perf_log_freq: 100
+  threshold_compute_freq: 100
+  aux_penalty: 0.03125
+  top_k_aux: 512
+  num_tokens: 20000000
+  
+resuming:
+  resuming: false
+  model_diffing: false

@@ -4,7 +4,6 @@ base:
   model_path: AI4PD/ZymCTRL/
 sae:
   model_type: BatchTopKSAE
-  sae_type: BathcTopKSAE
   site: resid_pre
   layer: 26
   act_size: 1280
@@ -14,7 +13,7 @@ sae:
   dtype: "float32"
 
 training:
-  dataset_path: /home/woody/b114cb23/boxo/final_dataset_big/
+  dataset_path: /users/nferruz/gboxo/ZymCTRL_Dataset/final_dataset_big/
   batch_size: 128
   model_batch_size: 64 
   lr: 0.001
@@ -26,7 +25,7 @@ training:
   seq_len: 256
   use_wandb: true
   n_batches_to_dead: 5
-  checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/
+  checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000
   wandb_dir: /users/nferruz/gboxo/wandb/
   top_k: 100  
   top_k_aux: 512 

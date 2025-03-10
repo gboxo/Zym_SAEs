@@ -23,7 +23,7 @@ from .training.sae import (
 )
 
 # Import training utilities
-from .training.training import train_sae, train_sae_group
+from .training.training import train_sae, resume_training
 from .training.logs import init_wandb, log_wandb, log_model_performance, save_checkpoint
 from .training.activation_store import ActivationsStore
 

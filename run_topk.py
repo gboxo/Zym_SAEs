@@ -10,7 +10,12 @@ from types import SimpleNamespace
 
 def main():
 
-    config = load_experiment_config("configs/base_config_workstation.yaml")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="configs/simple_training.yaml")
+    args = parser.parse_args()
+
+
+    config = load_experiment_config(args.config)
     sae_cfg = convert_to_sae_config(config)
     # Convert nested dictionaries to nested SimpleNamespace objects
     config = {k: SimpleNamespace(**v) if isinstance(v, dict) else v for k, v in config.items()}
@@ -18,10 +23,10 @@ def main():
 
     wandb_run = init_wandb(config)
     tokenizer, model = load_model(config.base.model_path)
-    config = model.config
-    config.attn_implementation = "eager"
-    config.d_model = 5120
-    model = get_ht_model(model, config)
+    model_config = model.config
+    model_config.attn_implementation = "eager"
+    model_config.d_model = 5120
+    model = get_ht_model(model, model_config)
     
     sae, checkpoint_dir = train_sae(
         model=model,

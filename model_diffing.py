@@ -1,6 +1,6 @@
 import argparse
 from src.training.training import resume_training
-from src.training.logs import init_wandb, load_checkpoint
+from src.training.logs import init_wandb
 from src.utils import get_ht_model
 from src.utils import load_model
 from src.config.load_config import load_experiment_config, convert_to_sae_config
@@ -9,7 +9,14 @@ from types import SimpleNamespace
 
 def main():
 
-    config = load_experiment_config("configs/model_diffing.yaml")
+
+    # Argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="configs/model_diffing.yaml")
+    args = parser.parse_args()
+
+
+    config = load_experiment_config(args.config)
     sae_cfg = convert_to_sae_config(config)
     # Convert nested dictionaries to nested SimpleNamespace objects
     config = {k: SimpleNamespace(**v) if isinstance(v, dict) else v for k, v in config.items()}
@@ -19,9 +26,6 @@ def main():
     # Add training arguments
     
     wandb_run = init_wandb(config, resume=True)
-    
-    # Load checkpoint to get basic info without modifying anything
-    _, _, loaded_cfg, start_iter, _, _ = load_checkpoint(config.resuming.resume_from, device=config.sae.device)
     
 
     tokenizer, model = load_model(config.base.model_path)

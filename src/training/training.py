@@ -8,11 +8,11 @@ from ..config.paths import resolve_paths
 import yaml
 from .activation_store import ActivationsStore
 from ..training.sae import BatchTopKSAE, TopKSAE, VanillaSAE, JumpReLUSAE, BaseAutoencoder
-from types import Namespace
+from types import SimpleNamespace
 
 
 
-def generate_checkpoint_dir(cfg: Namespace, resume: bool = False):
+def generate_checkpoint_dir(cfg: SimpleNamespace, resume: bool = False):
     """
     Generate a checkpoint directory name that clearly indicates original properties
     and continuation without being too long.
@@ -27,9 +27,10 @@ def generate_checkpoint_dir(cfg: Namespace, resume: bool = False):
     components = [
         model_name,
         date_str,
-        f"{cfg.training.hook_point.split('.')[-1]}",
+        f"{cfg.sae.layer}",
+        f"{cfg.sae.site}",
         f"{cfg.sae.act_size}",
-        cfg.sae.sae_type.lower(),
+        cfg.sae.model_type.lower(),
         f"{cfg.training.top_k}",
         f"{cfg.training.lr}",
         f"{cfg.training.name}",
@@ -43,16 +44,15 @@ def generate_checkpoint_dir(cfg: Namespace, resume: bool = False):
     if resume:
         # Extract the original checkpoint name if resuming
         if cfg.resuming.resume_from:
-            original_dir = os.path.basename(os.path.dirname(cfg.resuming.resume_from))
+
+            original_dir = os.path.basename(cfg.resuming.resume_from)
             # Extract iteration from checkpoint filename
             iter_match = re.search(r'checkpoint_(\d+)', os.path.basename(cfg.resuming.resume_from))
-            resume_iter = iter_match.group(1) if iter_match else "unknown"
+            resume_iter = iter_match.group(1) if iter_match else "X"
             
-            # Count previous resumes to create a compact name
-            resume_count = len(cfg.resuming.resume_history)
             
             # Create resumed directory name
-            dir_name = f"{original_dir}_resumed{resume_count}_{resume_iter}_to_{cfg.resuming.n_iters}"
+            dir_name = f"{original_dir}_resumed{resume_iter}_to_{cfg.resuming.n_iters}"
         else:
             # Fallback if resume_from not specified properly
             dir_name = f"{dir_name}_resumed"
@@ -61,13 +61,13 @@ def generate_checkpoint_dir(cfg: Namespace, resume: bool = False):
 
 
 def threshold_loop_collect(sae_output, feature_min_activations_buffer):
-
-    feature_activations = sae_output["feature_acts"]
-    # For each feature, get the minimum activation that is greater than zero
-    filtered_activations = torch.where(feature_activations > 0, feature_activations, float('inf'))
-    feature_min_activations = torch.min(filtered_activations, dim=0).values
-    feature_min_activations = torch.where(feature_min_activations == float('inf'), torch.nan, feature_min_activations)
-    feature_min_activations_buffer.append(feature_min_activations.detach())
+    with torch.no_grad():
+        feature_activations = sae_output["feature_acts"]
+        # For each feature, get the minimum activation that is greater than zero
+        filtered_activations = torch.where(feature_activations > 0, feature_activations, float('inf'))
+        feature_min_activations = torch.min(filtered_activations, dim=0).values
+        feature_min_activations = torch.where(feature_min_activations == float('inf'), torch.nan, feature_min_activations)
+        feature_min_activations_buffer.append(feature_min_activations.detach())
     return feature_min_activations_buffer
 
 
@@ -102,22 +102,22 @@ def threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir):
 
 
 def get_gradient_norm(sae, optimizer):
-
-    # Calculate and log gradient norm
-    total_grad_norm = 0.0
-    for p in sae.parameters():
-        if p.grad is not None:
-            param_norm = p.grad.data.norm(2).item()
-            total_grad_norm += param_norm ** 2
-    total_grad_norm = total_grad_norm ** 0.5
-    
-    # Get current learning rate
-    current_lr = optimizer.param_groups[0]['lr']
+    with torch.no_grad():
+        # Calculate and log gradient norm
+        total_grad_norm = 0.0
+        for p in sae.parameters():
+            if p.grad is not None:
+                param_norm = p.grad.data.norm(2).item()
+                total_grad_norm += param_norm ** 2
+        total_grad_norm = total_grad_norm ** 0.5
+        
+        # Get current learning rate
+        current_lr = optimizer.param_groups[0]['lr']
     return total_grad_norm, current_lr
 
 def resume_training(
     model,
-    cfg: Namespace,
+    cfg: SimpleNamespace,
     sae_cfg: dict,
     checkpoint_path: str = None,
     resume: bool = False,
@@ -131,19 +131,23 @@ def resume_training(
     sae = None
     optimizer = None
     activation_store = None
+    
+
+
+    sae = BatchTopKSAE(sae_cfg)
 
     
     
     # Load checkpoint
-    sae, optimizer, cfg_checkpoint, start_iter, _, _ = load_checkpoint(
-        checkpoint_path,
-        sae=sae_cfg,
+    sae, optimizer, cfg_checkpoint, start_iter, _  = load_checkpoint(
+        sae = sae,
+        checkpoint_path=checkpoint_path,
         optimizer=optimizer,
         activation_store=activation_store,
         device=device
     )
 
-    if cfg.model_diffing:
+    if cfg.resuming.model_diffing:
         start_iter = 0
 
     decoder_weights = sae.state_dict()["W_dec"].cpu()
@@ -170,7 +174,7 @@ def resume_training(
     threshold_compute_freq = cfg.training.threshold_compute_freq  # How often to compute thresholds
     threshold_num_batches = cfg.training.threshold_num_batches  # How many batches to collect before computing
     
-    for iter_num in range(start_iter, cfg.training.n_iters):
+    for iter_num in range(start_iter, cfg.resuming.n_iters):
         print(iter_num)        # Process batch
         batch = activation_store.next_batch()
         sae_output = sae(batch)
@@ -178,35 +182,35 @@ def resume_training(
 
         # Collect feature activations for threshold computation
         if iter_num % threshold_compute_freq == 0 and len(feature_min_activations_buffer) < threshold_num_batches:
-            feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer, threshold_num_batches, device, checkpoint_dir)
+            feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer)
             if len(feature_min_activations_buffer) >= threshold_num_batches:
-                feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, threshold_num_batches, device, checkpoint_dir)
-            # Log statistics if wandb is enabled
+                feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir)
+                # Log statistics if wandb is enabled
                 if wandb_run is not None:
-                    # Calculate statistics on thresholds
-                    valid_thresholds = feature_thresholds[~torch.isnan(feature_thresholds)]
-                    if len(valid_thresholds) > 0:
-                        wandb_run.log({
-                            "thresholds/mean": torch.mean(valid_thresholds).item(),
-                            "thresholds/median": torch.median(valid_thresholds).item(),
-                            "thresholds/min": torch.min(valid_thresholds).item(),
-                            "thresholds/max": torch.max(valid_thresholds).item(),
-                            "thresholds/std": torch.std(valid_thresholds).item(),
-                            "thresholds/active_features": len(valid_thresholds),
-                        }, step=iter_num)
+                    with torch.no_grad():
+                        # Calculate statistics on thresholds
+                        valid_thresholds = feature_thresholds[~torch.isnan(feature_thresholds)]
+                        if len(valid_thresholds) > 0:
+                            wandb_run.log({
+                                "thresholds/mean": torch.mean(valid_thresholds).item(),
+                                "thresholds/median": torch.median(valid_thresholds).item(),
+                                "thresholds/min": torch.min(valid_thresholds).item(),
+                                "thresholds/max": torch.max(valid_thresholds).item(),
+                                "thresholds/std": torch.std(valid_thresholds).item(),
+                                "thresholds/active_features": len(valid_thresholds),
+                            }, step=iter_num)
             
             # Clear the buffer for next round
             feature_min_activations_buffer = []
             
             # Free up GPU memory
-            del all_feature_min_activations, feature_percentiles
-            torch.cuda.empty_cache()
 
         # Logging and checkpointing
         if wandb_run is not None:
             if iter_num % cfg.training.perf_log_freq == 0:
-                log_wandb(sae_output, iter_num, wandb_run)
-                log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
+                with torch.no_grad():
+                    log_wandb(sae_output, iter_num, wandb_run)
+                    log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
         if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
             save_checkpoint(
                 sae, optimizer, cfg, iter_num, checkpoint_dir, 
@@ -237,7 +241,7 @@ def resume_training(
         optimizer.zero_grad()
     # Save final checkpoint
     save_checkpoint(
-        sae, optimizer, cfg, cfg.training.n_iters, checkpoint_dir, 
+        sae, optimizer, cfg, cfg.resuming.n_iters, checkpoint_dir, 
         activation_store=activation_store, is_final=True
     )    
      
@@ -248,7 +252,7 @@ def resume_training(
 
 def train_sae(
     model,
-    cfg: Namespace,
+    cfg: SimpleNamespace,
     sae_cfg: dict,
     checkpoint_path: str = None,
     wandb_run = None,
@@ -283,12 +287,12 @@ def train_sae(
     
     
     # Initialize activation store
-    activation_store = ActivationsStore(model, cfg)
+    activation_store = ActivationsStore(model, sae_cfg)
 
     # Generate checkpoint directory
     checkpoint_dir = os.path.join(
         cfg.training.checkpoint_dir,
-        generate_checkpoint_dir(cfg, resume=resume)
+        generate_checkpoint_dir(cfg, resume=False)
     )
     os.makedirs(checkpoint_dir, exist_ok=True)
     os.makedirs(os.path.join(checkpoint_dir, "percentiles"), exist_ok=True)
@@ -298,18 +302,22 @@ def train_sae(
     feature_min_activations_buffer = []
     threshold_compute_freq = cfg.training.threshold_compute_freq  # How often to compute thresholds
     threshold_num_batches = cfg.training.threshold_num_batches  # How many batches to collect before computing
-    
-    for iter_num in range(start_iter, cfg.training.n_iters):
-        print(iter_num)        # Process batch
+
+    # I need to compute the n_iters provided that this is not resuming 
+    #for iter_num in range(start_iter, cfg..n_iters):
+    n_tokens = cfg.training.num_tokens
+    n_iters = n_tokens // (cfg.training.batch_size * cfg.training.seq_len)
+    print(f"Training for {n_iters} iterations")
+    for iter_num in range(n_iters):
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
 
         # Collect feature activations for threshold computation
         if iter_num % threshold_compute_freq == 0 and len(feature_min_activations_buffer) < threshold_num_batches:
-            feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer, threshold_num_batches, device, checkpoint_dir)
+            feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer)
             if len(feature_min_activations_buffer) >= threshold_num_batches:
-                feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, threshold_num_batches, device, checkpoint_dir)
+                feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir)
             # Log statistics if wandb is enabled
                 if wandb_run is not None:
                     # Calculate statistics on thresholds
@@ -327,24 +335,22 @@ def train_sae(
             # Clear the buffer for next round
             feature_min_activations_buffer = []
             
-            # Free up GPU memory
-            del all_feature_min_activations, feature_percentiles
-            torch.cuda.empty_cache()
 
         # Logging and checkpointing
         if wandb_run is not None:
             if iter_num % cfg.training.perf_log_freq == 0:
-                log_wandb(sae_output, iter_num, wandb_run)
+                with torch.no_grad():
+                    log_wandb(sae_output, iter_num, wandb_run)
         if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
             save_checkpoint(
                 sae, optimizer, cfg, iter_num, checkpoint_dir, 
                  activation_store=activation_store
             )
             
-        # Update activation store position
+        # Update activation store position  
         activation_store.update_position(
-            (activation_store.current_batch_idx + 1) % cfg["model_batch_size"],
-            activation_store.current_epoch + ((activation_store.current_batch_idx + 1) // cfg["model_batch_size"])
+            (activation_store.current_batch_idx + 1) % cfg.training.batch_size,
+            activation_store.current_epoch + ((activation_store.current_batch_idx + 1) // cfg.training.batch_size)
         )
 
         loss.backward()
@@ -360,7 +366,7 @@ def train_sae(
                     "training/learning_rate": current_lr
                 }, step=iter_num)
         
-        torch.nn.utils.clip_grad_norm_(sae.parameters(), cfg["max_grad_norm"])
+        torch.nn.utils.clip_grad_norm_(sae.parameters(), cfg.training.max_grad_norm)
         sae.make_decoder_weights_and_grad_unit_norm()
         optimizer.step()
         optimizer.zero_grad()

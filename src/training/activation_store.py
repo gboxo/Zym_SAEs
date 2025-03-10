@@ -9,7 +9,6 @@ class ActivationsStore:
         self,
         model: HookedRootModule,
         cfg: dict,
-        batch_size=1024
     ):
         self.model = model
         self.original_dataset = load_from_disk(cfg["dataset_path"])
@@ -17,6 +16,7 @@ class ActivationsStore:
         self.hook_point = cfg["hook_point"]
         self.context_size = min(cfg["seq_len"], model.cfg.n_ctx)
         self.model_batch_size = cfg["model_batch_size"]
+        self.batch_size = cfg["batch_size"]
         self.device = cfg["device"]
         self.num_batches_in_buffer = cfg["num_batches_in_buffer"]
         self.tokens_column = self._get_tokens_column()
@@ -79,7 +79,7 @@ class ActivationsStore:
         return torch.cat(all_activations, dim=0)
 
     def _get_dataloader(self):
-        return DataLoader(TensorDataset(self.activation_buffer), batch_size=self.cfg["batch_size"], shuffle=True)
+        return DataLoader(TensorDataset(self.activation_buffer), batch_size=self.batch_size, shuffle=True)
 
     def next_batch(self):
         try:
@@ -94,10 +94,53 @@ class ActivationsStore:
         """Update the current position in the dataset"""
         self.current_batch_idx = batch_idx
         self.current_epoch = epoch
-        self.dataset_position = epoch * 1024 + batch_idx
+        self.dataset_position = epoch * self.batch_size + batch_idx
         
     def get_position(self):
         """Get the current position in the dataset"""
+        return self.current_batch_idx, self.current_epoch, self.dataset_position
+
+    def skip_to_batch(self, target_batch_idx, target_epoch=0):
+        """
+        Skip to a specific batch position without computing activations
+        
+        Args:
+            target_batch_idx: The batch index to skip to
+            target_epoch: The epoch to skip to (default 0)
+        """
+        # Reset iterator if we're going backward or to a different epoch
+        if target_epoch < self.current_epoch or (target_epoch == self.current_epoch and target_batch_idx < self.current_batch_idx):
+            self.dataset = iter(self.original_dataset)
+            self.current_epoch = 0
+            self.current_batch_idx = 0
+        
+        # Skip forward to desired epoch
+        while self.current_epoch < target_epoch:
+            try:
+                # Fast-forward through the dataset without processing
+                for _ in range(len(self.original_dataset)):
+                    next(self.dataset)
+                self.current_epoch += 1
+            except StopIteration:
+                self.dataset = iter(self.original_dataset)
+                self.current_epoch += 1
+        
+        # Skip forward to desired batch within the epoch
+        tokens_per_batch = self.model_batch_size * self.context_size
+        samples_to_skip = (target_batch_idx - self.current_batch_idx) * tokens_per_batch // self.context_size
+        
+        if samples_to_skip > 0:
+            try:
+                for _ in range(samples_to_skip):
+                    next(self.dataset)
+            except StopIteration:
+                self.dataset = iter(self.original_dataset)
+                self.current_epoch += 1
+        
+        # Update tracking variables
+        self.current_batch_idx = target_batch_idx
+        self.dataset_position = target_epoch * self.batch_size + target_batch_idx
+        
         return self.current_batch_idx, self.current_epoch, self.dataset_position
 
 

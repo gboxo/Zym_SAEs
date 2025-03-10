@@ -21,25 +21,19 @@ def init_wandb(cfg, resume=False):
         os.environ["WANDB_DIR"] = cfg.training.wandb_dir
     
     # Determine run name
-    run_name = cfg.training.wandb_run_name
-    if run_name is None:
-        # Generate run name based on model and configuration
-        model_name = os.path.basename(cfg.base.model_path.rstrip('/'))
-        hook_name = cfg.training.hook_point.split('.')[-1]
-        run_name = f"{model_name}_{hook_name}_{cfg.training.sae_type}_{cfg.training.top_k}_{cfg.training.lr}"
+    # Generate run name based on model and configuration
+    model_name = os.path.basename(cfg.base.model_path.rstrip('/'))
+    hook_name =  f"blocks.{cfg.sae.layer}.{cfg.sae.site}"
+    run_name = f"{model_name}_{hook_name}_{cfg.sae.model_type}_{cfg.sae.act_size}_{cfg.sae.dict_size}_{cfg.sae.input_unit_norm}_{cfg.sae.dtype}"
         
     if resume:
         run_name += "_resumed"
         
     # Resume wandb run if resuming and run_id is in config
-    run_id = cfg.training.wandb_run_id if resume else None
-    
     wandb_run = wandb.init(
         project=cfg.training.wandb_project,
         name=run_name,
         config=cfg,
-        resume="must" if run_id else "never",
-        id=run_id
     )
     
     # Store run ID in config for potential future resuming
@@ -152,16 +146,17 @@ def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, activation_store=No
         os.makedirs(dir_path, exist_ok=True)
     
     # Determine if this is a resumed training
-    is_resumed = "resume_from" in cfg and cfg["resume_from"] is not None
+    is_resumed = cfg.resuming.resuming is not None
     
     checkpoint = {
         'model_state_dict': sae.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-        'cfg': cfg,
+        'cfg': sae.cfg,
         'iter_num': iter_num,
-        'resume_history': cfg.get('resume_history', []),  # Track resume history
+        'resume_history': cfg.resuming.resume_history,  # Track resume history
         'is_resumed': is_resumed,
     }
+    
     if activation_store is not None:
         checkpoint['activation_store_state'] = {
             'current_batch_idx': activation_store.current_batch_idx,
@@ -229,7 +224,7 @@ def load_checkpoint(checkpoint_path, sae=None, optimizer=None, activation_store=
     
     # Try to extract config and other metadata
     if "cfg" in checkpoint:
-        cfg = checkpoint['cfg']
+        cfg = dict(checkpoint['cfg'])
     else:
         with open(os.path.join(os.path.dirname(checkpoint_path), "config.json"), "r") as f:
             cfg = json.load(f)
