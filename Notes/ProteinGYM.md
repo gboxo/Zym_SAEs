@@ -1,4 +1,4 @@
-# Protein GYM
+#Protein GYM
 
 
 Predicting the effects of mutations in proteins is crucial to understand genetic disease or design novel proteins.
@@ -78,6 +78,46 @@ It's challenging to isolate ta singular, measurable property that reflects the k
 Annotated reports of human genetic variations and associated phenotypes with relevant supporting evidence.
 
 ### Zero Shot Benchmarks
+
+**DMS assays**
+
+Due to the often non-linear relationships between protein function and organisms fitness, the Sperman's rank correlarion coefficient is appropiate.
+
+
+When DMS measurements exhibit a bimodal profile, rank correlarions might not be the optimal choice.
+
+We also measure:
+- AUC ROC
+- Matthews correlarion Coefficient (MCC) (compare model scores with binarized experimental measurements)
+
+
+For certain goals like optimizing functional properties of designed proteins, it's more important  that a model is able to correctly identify the most functional protein variants, rather than a properly capture the overall distribution of all assayed variants. Thus, we also calculate the Normalized Discounted Cumulative Gains (NDCG), which up-weights a model if it gives scores to sequences with the highest DMS value.
+
+
+
+### Supervised Benchmarks
+
+**Greater care should be dedicated to mitigating  overfitting risks, as observations in biological datasets might not be independant.**
+
+
+**Three types of cross validation**
+
+1) Random Scheme: Each mutation is randomly assigned to one of 5  different folds.
+2) Contiguous Scheme: We split the sequence contiguously along its lengtg, in order to obtain 5 segments of contiguous positions, and assign mutations to each segment based on the position at which occurs.
+3) Modulo scheme, we assign positions to each fold using the modulo operator to obtain 5 folds overall.
+
+We report the Sperman's rank  correlation and MSE between predictions and experimental measurements.
+
+```
+A more challenging generalization task would
+involve learning the relationship between protein representation (sequence, structure, or both) and function using only a handful of proteins, and then extrapolating at inference time to protein families not encountered during training. This setting may be seen as a hybrid between the zero-shot and supervised regimes – closer to zero-shot if we seek to predict different properties across families, and closer to the supervised setting if the properties are similar (eg., predicting the thermostability of proteins with low sequence similarity with the ones in the training set). While this study does not delve into these hybrid scenarios, the DMS assays in ProteinGym can facilitate such analyses.
+```
+
+
+
+
+
+
 
 
 
