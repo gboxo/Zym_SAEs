@@ -256,9 +256,9 @@ def display_testing_results(results):
 if __name__ == "__main__":
     paths = get_paths()
     brenda_path = paths.mini_brenda
-    natural_sequences, synth_sequences = get_natural_and_synth_sequences(brenda_path)
+    #natural_sequences, synth_sequences = get_natural_and_synth_sequences(brenda_path)
     model_path = paths.model_path
-    if True:
+    if False:
         tokenizer, model = load_model(model_path)
         model = get_ht_model(model, model.config).to("cuda")
         sae_path = paths.sae_path
@@ -285,6 +285,9 @@ if __name__ == "__main__":
     probes, train_results = train_linear_probe(train_natural_features, train_synth_features, test_natural_features, test_synth_features)
     test_results = test_linear_probe(probes, test_natural_features, test_synth_features)
 
+    os.makedirs("Data/DNA_Helicase_Data/probes", exist_ok=True)
+    for i, probe in enumerate(probes):
+        np.save(f"Data/DNA_Helicase_Data/probes/probe_{i}.npy", probe)
     # Display all three tables
     training_table = display_training_results(train_results).get_string()
     testing_table = display_testing_results(test_results).get_string()
