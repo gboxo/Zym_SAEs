@@ -57,7 +57,7 @@ resuming:
   resume_from: ${resume_from}
   checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase/M0_D${i}
   resuming: true
-  n_iters: 700
+  n_iters: 20
   model_diffing: true
 EOL
 
