@@ -1,13 +1,10 @@
 import torch
-import tqdm
-from .logs import init_wandb, log_wandb, log_model_performance, save_checkpoint, load_checkpoint, log_decoder_weights
+from .logs import log_wandb, log_model_performance, save_checkpoint, load_checkpoint, log_decoder_weights
 import os
 import re
 from datetime import datetime
-from ..config.paths import resolve_paths
-import yaml
 from .activation_store import ActivationsStore
-from ..training.sae import BatchTopKSAE, TopKSAE, VanillaSAE, JumpReLUSAE, BaseAutoencoder
+from ..training.sae import BatchTopKSAE
 from types import SimpleNamespace
 
 
@@ -179,7 +176,6 @@ def resume_training(
     threshold_num_batches = cfg.training.threshold_num_batches  # How many batches to collect before computing
     
     for iter_num in range(start_iter, cfg.resuming.n_iters):
-        print(iter_num)        # Process batch
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
@@ -220,11 +216,15 @@ def resume_training(
                 sae, optimizer, cfg, iter_num, checkpoint_dir, 
                  activation_store=activation_store
             )
+        if iter_num % cfg.training.perf_log_freq == 0:
+            with torch.no_grad():
+                log_model_performance(wandb_run, iter_num, model, activation_store, sae)
+
             
         # Update activation store position
         activation_store.update_position(
-            (activation_store.current_batch_idx + 1) % cfg.training.model_batch_size,
-            activation_store.current_epoch + ((activation_store.current_batch_idx + 1) // cfg.training.model_batch_size)
+            activation_store.current_batch_idx + 1,
+            activation_store.current_epoch
         )
 
         loss.backward()
@@ -311,7 +311,6 @@ def train_sae(
     #for iter_num in range(start_iter, cfg..n_iters):
     n_tokens = cfg.training.num_tokens
     n_iters = n_tokens // (cfg.training.batch_size * cfg.training.seq_len)
-    print(f"Training for {n_iters} iterations")
     for iter_num in range(n_iters):
         batch = activation_store.next_batch()
         sae_output = sae(batch)
@@ -351,10 +350,10 @@ def train_sae(
                  activation_store=activation_store
             )
             
-        # Update activation store position  
+        # Update activation store position
         activation_store.update_position(
-            (activation_store.current_batch_idx + 1) % cfg.training.batch_size,
-            activation_store.current_epoch + ((activation_store.current_batch_idx + 1) // cfg.training.batch_size)
+            activation_store.current_batch_idx + 1,
+            activation_store.current_epoch
         )
 
         loss.backward()
