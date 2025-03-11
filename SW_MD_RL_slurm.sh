@@ -45,7 +45,7 @@ base:
   model_path: ${model_path}
 
 training:
-  dataset_path: /home/hpc/b114cb/b114cb23/crg_boxo/Data/Diffing/tokenized_train_dataset_iteration${i}
+  dataset_path: /home/hpc/b114cb/b114cb23/SAETraining/crg_boxo/Data/Diffing Alpha Amylase/tokenized_train_dataset_iteration${i}
   name: "Model_Diffing_M${i}_D${i}"
   perf_log_freq: 1
   threshold_compute_freq: 1
