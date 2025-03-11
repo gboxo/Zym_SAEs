@@ -48,5 +48,3 @@ training:
 
 resuming:
   n_iters: 10000
-  resume_from: "/path/to/default/resume"
-  resume_history: false

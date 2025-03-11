@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 
 
-def generate_checkpoint_dir(cfg: SimpleNamespace, resume: bool = False):
+def generate_checkpoint_dir(cfg: SimpleNamespace, resume: bool = False,diffing: bool = False):
     """
     Generate a checkpoint directory name that clearly indicates original properties
     and continuation without being too long.
@@ -56,6 +56,8 @@ def generate_checkpoint_dir(cfg: SimpleNamespace, resume: bool = False):
         else:
             # Fallback if resume_from not specified properly
             dir_name = f"{dir_name}_resumed"
+    if diffing:
+        dir_name = f"diffing"
     
     return dir_name
 
@@ -163,7 +165,7 @@ def resume_training(
     # Generate checkpoint directory
     checkpoint_dir = os.path.join(
         cfg.resuming.checkpoint_dir_to,
-        generate_checkpoint_dir(cfg, resume=resume)
+        generate_checkpoint_dir(cfg, resume=resume, diffing=cfg.resuming.model_diffing)
     )
     os.makedirs(checkpoint_dir, exist_ok=True)
     os.makedirs(os.path.join(checkpoint_dir, "percentiles"), exist_ok=True)

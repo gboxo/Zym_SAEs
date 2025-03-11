@@ -153,7 +153,6 @@ def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, activation_store=No
         'optimizer_state_dict': optimizer.state_dict(),
         'cfg': sae.cfg,
         'iter_num': iter_num,
-        'resume_history': cfg.resuming.resume_history,  # Track resume history
         'is_resumed': is_resumed,
     }
     
@@ -236,16 +235,8 @@ def load_checkpoint(checkpoint_path, sae=None, optimizer=None, activation_store=
     if "model_type" not in cfg:
         cfg["model_type"] = "BatchTopK"
     
-    # Update resume history
-    if 'resume_history' not in checkpoint:
-        checkpoint['resume_history'] = []
     
-    # Add current checkpoint to resume history if not already there
-    if checkpoint_path not in checkpoint['resume_history']:
-        checkpoint['resume_history'].append(checkpoint_path)
     
-    # Update the config with resume history
-    cfg["resume_history"] = checkpoint['resume_history']
     cfg["resume_from"] = checkpoint_path
     
     # Load model state if provided

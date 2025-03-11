@@ -47,7 +47,6 @@ resuming:
   checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/
   resuming: false
   n_iters: 0
-  resume_history: false
   model_diffing: false
 
 

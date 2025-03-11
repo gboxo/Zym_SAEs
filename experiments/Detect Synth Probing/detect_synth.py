@@ -5,19 +5,13 @@ from src.inference.inference_batch_topk import convert_to_jumprelu
 from src.utils import load_sae, load_model, get_ht_model
 from src.training.sae import JumpReLUSAE
 import torch
-import seaborn as sns
-import matplotlib.pyplot as plt
 import numpy as np
-from collections import Counter
-import scipy.cluster.hierarchy as hierarchy
 from sklearn.linear_model import LogisticRegressionCV
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
-from scipy.sparse import coo_matrix, csr_matrix, csc_matrix, vstack
-from prettytable import PrettyTable
-from sklearn.metrics import roc_auc_score, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+from scipy.sparse import coo_matrix, vstack
+from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score, f1_score
 from tqdm import tqdm
 from src.utils import get_paths
+from prettytable import PrettyTable
 # %%
 def get_natural_and_synth_sequences():
 
@@ -40,11 +34,11 @@ def get_natural_and_synth_sequences():
 
     with open("Data/Detect_Synth_Data/natural_sequences.txt", "w") as f:
         for ec,seq in zip(ec_natural, natural_sequences):
-            f.write(ec+"<sep>"+seq[0] + "\n")
+            f.write(ec+"<sep><start>"+seq[0] + "\n")
 
     with open("Data/Detect_Synth_Data/synth_sequences.txt", "w") as f:
         for ec,seq in zip(ec_synth, synth_sequences):
-            f.write(ec+"<sep>"+seq + "\n")
+            f.write(ec+"<sep><start>"+seq + "\n")
 
 
 

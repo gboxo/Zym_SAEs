@@ -1,7 +1,7 @@
 base:
   seed: 42
   model_name: ZymCTRL
-  model_path: AI4PD/ZymCTRL/
+  model_path: AI4PD/ZymCTRL
 sae:
   model_type: BatchTopKSAE
   site: resid_pre
