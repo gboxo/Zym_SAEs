@@ -9,6 +9,7 @@ class ActivationsStore:
         self,
         model: HookedRootModule,
         cfg: dict,
+        activation_store_state: dict = None
     ):
         self.model = model
         self.original_dataset = load_from_disk(cfg["dataset_path"])
@@ -22,11 +23,16 @@ class ActivationsStore:
         self.tokens_column = self._get_tokens_column()
         self.cfg = cfg
         self.tokenizer = model.tokenizer
-        
-        # Add tracking of position in dataset
-        self.current_batch_idx = 0
-        self.current_epoch = 0
-        self.dataset_position = 0
+
+        if activation_store_state is not None:
+            self.current_batch_idx = activation_store_state["current_batch_idx"]
+            self.current_epoch = activation_store_state["current_epoch"]
+            self.dataset_position = activation_store_state["dataset_position"]
+            self.current_batch_idx, self.current_epoch, self.dataset_position = self.skip_to_batch(self.current_batch_idx, self.current_epoch)
+        else:
+            self.current_batch_idx = 0
+            self.current_epoch = 0
+            self.dataset_position = 0
         
 
     def _get_tokens_column(self):
@@ -94,7 +100,7 @@ class ActivationsStore:
         """Update the current position in the dataset"""
         self.current_batch_idx = batch_idx
         self.current_epoch = epoch
-        self.dataset_position = epoch * self.batch_size + batch_idx
+        self.dataset_position = batch_idx * self.model_batch_size
         
     def get_position(self):
         """Get the current position in the dataset"""
@@ -108,38 +114,45 @@ class ActivationsStore:
             target_batch_idx: The batch index to skip to
             target_epoch: The epoch to skip to (default 0)
         """
+        # Calculate total dataset batches
+        dataset_size = len(self.original_dataset)
+        batches_per_epoch = dataset_size // self.model_batch_size
+        
+        # Validate inputs
+        if target_batch_idx < 0:
+            raise ValueError("target_batch_idx must be non-negative")
+        if target_epoch < 0:
+            raise ValueError("target_epoch must be non-negative")
+        
+        # Normalize batch_idx and epoch if target_batch_idx exceeds dataset size
+        additional_epochs = target_batch_idx // batches_per_epoch
+        normalized_batch_idx = target_batch_idx % batches_per_epoch
+        target_epoch += additional_epochs
+        
         # Reset iterator if we're going backward or to a different epoch
-        if target_epoch < self.current_epoch or (target_epoch == self.current_epoch and target_batch_idx < self.current_batch_idx):
+        if target_epoch < self.current_epoch or (target_epoch == self.current_epoch and normalized_batch_idx < self.current_batch_idx):
             self.dataset = iter(self.original_dataset)
             self.current_epoch = 0
             self.current_batch_idx = 0
         
-        # Skip forward to desired epoch
+        # Skip to desired epoch
         while self.current_epoch < target_epoch:
-            try:
-                # Fast-forward through the dataset without processing
-                for _ in range(len(self.original_dataset)):
-                    next(self.dataset)
-                self.current_epoch += 1
-            except StopIteration:
-                self.dataset = iter(self.original_dataset)
-                self.current_epoch += 1
+            self.dataset = iter(self.original_dataset)
+            self.current_epoch += 1
         
-        # Skip forward to desired batch within the epoch
-        tokens_per_batch = self.model_batch_size * self.context_size
-        samples_to_skip = (target_batch_idx - self.current_batch_idx) * tokens_per_batch // self.context_size
+        # Skip to desired batch within the epoch
+        samples_to_skip = normalized_batch_idx * self.model_batch_size
         
-        if samples_to_skip > 0:
-            try:
-                for _ in range(samples_to_skip):
-                    next(self.dataset)
-            except StopIteration:
-                self.dataset = iter(self.original_dataset)
-                self.current_epoch += 1
+        try:
+            for _ in range(samples_to_skip):
+                next(self.dataset)
+        except StopIteration:
+            # This shouldn't happen with normalized batch_idx
+            raise RuntimeError("Unexpected StopIteration during batch skip")
         
         # Update tracking variables
-        self.current_batch_idx = target_batch_idx
-        self.dataset_position = target_epoch * self.batch_size + target_batch_idx
+        self.current_batch_idx = normalized_batch_idx
+        self.dataset_position = normalized_batch_idx * self.model_batch_size
         
         return self.current_batch_idx, self.current_epoch, self.dataset_position
 

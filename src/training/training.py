@@ -143,7 +143,7 @@ def resume_training(
     
     
     # Load checkpoint
-    sae, optimizer, cfg_checkpoint, start_iter, _  = load_checkpoint(
+    sae, optimizer, cfg_checkpoint, start_iter, activation_store_state = load_checkpoint(
         sae = sae,
         checkpoint_path=checkpoint_path,
         optimizer=optimizer,
@@ -162,7 +162,7 @@ def resume_training(
     
     
     # Initialize activation store
-    activation_store = ActivationsStore(model, sae_cfg)
+    activation_store = ActivationsStore(model, sae_cfg, activation_store_state)
 
     # Generate checkpoint directory
     checkpoint_dir = os.path.join(
