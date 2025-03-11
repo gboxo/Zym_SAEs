@@ -31,7 +31,7 @@ for i in "${iterations[@]}"; do
 
   if [ "$i" = "1" ]; then
     resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000"
-    model_path="/home/woody/b114cb/b114cb23/models/AI4PD/ZymCTRL/"
+    model_path="/home/woody/b114cb/b114cb23/models/ZymCTRL/"
   else
     prev_iter=$((${i}-1))
     resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase/M${prev_iter}_D${prev_iter}/diffing"

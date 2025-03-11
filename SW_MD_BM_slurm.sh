@@ -43,7 +43,7 @@ for i in "${iterations[@]}"; do
 base_config: base_config_alex.yaml
 
 base:
-  model_path: /home/woody/b114cb/b114cb23/models/AI4PD/ZymCTRL/
+  model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
 training:
   dataset_path: /home/hpc/b114cb/b114cb23/crg_boxo/Data/Diffing Alpha Amylase/tokenized_train_dataset_iteration${i}
   name: "Model_Diffing_M0_D${i}"
