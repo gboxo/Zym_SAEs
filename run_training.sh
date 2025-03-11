@@ -22,5 +22,4 @@ source /home/woody/b114cb/b114cb23/boxo/pSAE/bin/activate
 
 
 # Run the Python script and redirect output to a log file
-python3 -m src.training.run_topk --config configs/alex.yaml --resume --checkpoint_path /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/ --additional_iters 1_000_000
-
+python3 -m src.training.run_topk --config configs/alex.yaml

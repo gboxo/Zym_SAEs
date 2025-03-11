@@ -58,6 +58,8 @@ def generate_checkpoint_dir(cfg: SimpleNamespace, resume: bool = False,diffing: 
             dir_name = f"{dir_name}_resumed"
     if diffing:
         dir_name = f"diffing"
+    else:
+        dir_name = f"final"
     
     return dir_name
 

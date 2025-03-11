@@ -35,7 +35,7 @@ for i in "${iterations[@]}"; do
   else
     prev_iter=$((${i}-1))
     resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase/M${prev_iter}_D${prev_iter}/diffing"
-    model_path="/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration_${i}"
+    model_path="/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration${i}"
   fi
 
   cat <<EOL > $output_file
