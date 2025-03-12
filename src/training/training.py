@@ -227,7 +227,7 @@ def resume_training(
         if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
             with torch.no_grad():
                 log_wandb(sae_output, iter_num, wandb_run)
-                if cfg.resuming.diffing:
+                if cfg.resuming.model_diffing:
                     log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
             #with torch.no_grad():
                 #log_model_performance(wandb_run, iter_num, model, activation_store, sae)

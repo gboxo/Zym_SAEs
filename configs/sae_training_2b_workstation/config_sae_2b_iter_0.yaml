@@ -9,6 +9,11 @@ training:
   name: "sae_training_iter_0"
   checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_0
   wandb_project: "DEBUG"
+  threshold_compute_freq: 100
+  threshold_num_batches: 50
+  num_batches_in_buffer: 20
+  perf_log_freq: 100
+  checkpoint_freq: 100
 resuming:
   resume_from: 
   resuming: false

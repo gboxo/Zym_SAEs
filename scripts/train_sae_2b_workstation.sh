@@ -35,6 +35,11 @@ training:
   name: "sae_training_iter_${i}"
   checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_${i}
   wandb_project: "DEBUG"
+  threshold_compute_freq: 100
+  threshold_num_batches: 50
+  num_batches_in_buffer: 20
+  perf_log_freq: 100
+  checkpoint_freq: 100
 resuming:
   resume_from: ${resume_from}
   resuming: ${resuming}

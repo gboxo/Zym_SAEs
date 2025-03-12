@@ -8,10 +8,14 @@ training:
   num_tokens: 50000
   name: "sae_training_iter_3"
   checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_3
-  
+  wandb_project: "DEBUG"
+  threshold_compute_freq: 100
+  threshold_num_batches: 50
+  num_batches_in_buffer: 20
+  perf_log_freq: 100
+  checkpoint_freq: 100
 resuming:
   resume_from: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_2/final
   resuming: true
   checkpoint_dir_to: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_3
-  wandb_project: "DEBUG"
 
