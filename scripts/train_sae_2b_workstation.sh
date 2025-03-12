@@ -1,7 +1,7 @@
 
 #!/bin/bash
 # Define the base directory for output files
-output_dir="configs/sae_training_2b_workstation/"
+output_dir="configs/sae_training_2b_workstation"
 # Define the array of iteration identifiers or indices
 iterations=("0" "1" "2" "3" "4")  # Adjust as needed
 cp configs/base_config_workstation.yaml $output_dir/base_config_workstation.yaml
@@ -34,12 +34,11 @@ training:
   num_tokens: 50000
   name: "sae_training_iter_${i}"
   checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_${i}
-  
+  wandb_project: "DEBUG"
 resuming:
   resume_from: ${resume_from}
   resuming: ${resuming}
   checkpoint_dir_to: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_${i}
-  wandb_project: "DEBUG"
 
 EOL
 

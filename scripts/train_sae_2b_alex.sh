@@ -2,6 +2,7 @@
 #!/bin/bash
 # Define the base directory for output files
 output_dir="configs/sae_training_2b_alex/"
+mkdir -p $output_dir
 # Define the array of iteration identifiers or indices
 iterations=("0" "1" "2" "3" "4")  # Adjust as needed
 cp configs/base_config_alex.yaml $output_dir/base_config_alex.yaml

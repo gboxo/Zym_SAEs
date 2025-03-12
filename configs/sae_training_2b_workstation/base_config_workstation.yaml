@@ -14,8 +14,8 @@ sae:
 
 training:
   dataset_path: /users/nferruz/gboxo/ZymCTRL_Dataset/final_dataset_big/
-  batch_size: 64
-  model_batch_size: 32 
+  batch_size: 128
+  model_batch_size: 64 
   lr: 0.001
   num_tokens: 1000000000
   l1_coeff: 0
@@ -32,12 +32,12 @@ training:
   aux_penalty: 0.01
   bandwidth: 0.001
   name: "SAE_Training" 
-  threshold_compute_freq: 100
+  threshold_compute_freq: 1000
   threshold_num_batches: 50
   num_batches_in_buffer: 20
-  perf_log_freq: 100
-  checkpoint_freq: 100
-  wandb_project: "DEBUG"
+  perf_log_freq: 1000
+  checkpoint_freq: 10000
+  wandb_project: "ZymCTRL_SAE"
 
 resuming:
   resume_from: /users/nferruz/gboxo/ZymCTRL/checkpoints/
