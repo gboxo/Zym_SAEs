@@ -29,10 +29,15 @@ for i in "${iterations[@]}"; do
 base_config: base_config_alex.yaml
 
 training:
-  num_tokens: 500000
+  num_tokens: 5000000
   name: "sae_training_iter_${i}"
   checkpoint_dir: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_${i}
   wandb_project: "DEBUG"
+  threshold_compute_freq: 1000
+  threshold_num_batches: 50
+  num_batches_in_buffer: 20
+  perf_log_freq: 1000
+  checkpoint_freq: 1000
 
 resuming:
   resume_from: ${resume_from}
