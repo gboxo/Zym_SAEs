@@ -1,6 +1,6 @@
 import argparse
 from src.utils import load_model
-from src.training.training import train_sae
+from src.training.training import train_sae, resume_training
 from src.training.logs import init_wandb
 from src.utils import get_ht_model
 from src.config.load_config import load_experiment_config, convert_to_sae_config
@@ -25,13 +25,24 @@ def main():
     model_config.attn_implementation = "eager"
     model_config.d_model = 5120
     model = get_ht_model(model, model_config)
+
+    if not config.resuming.resuming:
     
-    sae, checkpoint_dir = train_sae(
-        model=model,
-        cfg=config,
-        sae_cfg=sae_cfg,
-        wandb_run=wandb_run,
-    )
+        sae, checkpoint_dir = train_sae(
+            model=model,
+            cfg=config,
+            sae_cfg=sae_cfg,
+            wandb_run=wandb_run,
+        )
+    else:
+        sae, checkpoint_dir = resume_training(
+            model=model,
+            cfg=config,
+            sae_cfg=sae_cfg,
+            wandb_run=wandb_run,
+            resume=True,
+            checkpoint_path=config.resuming.resume_from,
+        )
 
     print(f"Training completed. Checkpoint saved to {checkpoint_dir}")
 

@@ -1,0 +1,17 @@
+
+base_config: base_config_workstation.yaml
+base:
+  model_path: AI4PD/ZymCTRL 
+  d_sae: 10240
+
+training:
+  num_tokens: 50000
+  name: "sae_training_iter_3"
+  checkpoint_dir: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_3
+  
+resuming:
+  resume_from: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_2/final
+  resuming: true
+  checkpoint_dir_to: /users/nferruz/gboxo/ZymCTRL/checkpoints/sae_training_iter_3
+  wandb_project: "DEBUG"
+

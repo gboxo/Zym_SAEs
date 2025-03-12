@@ -153,7 +153,7 @@ def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, activation_store=No
         'optimizer_state_dict': optimizer.state_dict(),
         'cfg': sae.cfg,
         'iter_num': iter_num,
-        'is_resumed': is_resumed,
+        'is_resumed': is_resumed,    
     }
     
     if activation_store is not None:
@@ -174,7 +174,7 @@ def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, activation_store=No
     print(f"Saved checkpoint to {checkpoint_path}")
     return checkpoint_path
 
-def load_checkpoint(checkpoint_path, sae=None, optimizer=None, activation_store=None, device='cpu'):
+def load_checkpoint(checkpoint_path, sae=None, optimizer=None, device='cpu'):
     """
     Load checkpoint with all necessary information to resume training.
     
@@ -216,6 +216,7 @@ def load_checkpoint(checkpoint_path, sae=None, optimizer=None, activation_store=
     
     # Load the checkpoint
     checkpoint = torch.load(checkpoint_path, map_location=device)
+
     if isinstance(checkpoint, OrderedDict) and len(list(checkpoint.keys())) == 4:
         checkpoint_dict = {}
         checkpoint_dict['model_state_dict'] = checkpoint
@@ -249,11 +250,7 @@ def load_checkpoint(checkpoint_path, sae=None, optimizer=None, activation_store=
     # Extract activation store state
     activation_store_state = checkpoint.get('activation_store_state', None)
     
-    # Update activation store if provided
-    if activation_store is not None and activation_store_state is not None:
-        activation_store.current_batch_idx = activation_store_state['current_batch_idx']
-        activation_store.current_epoch = activation_store_state['current_epoch']
-        activation_store.dataset_position = activation_store_state['dataset_position']
+
     
     print(f"Loaded checkpoint from {checkpoint_path} (iteration {iter_num})")
     

@@ -128,14 +128,12 @@ def resume_training(
     # Set up devices
     device = cfg.sae.device
     
-    # Initialize SAE and optimizer
-    sae = None
-    optimizer = None
-    activation_store = None
+
     
 
 
     sae = BatchTopKSAE(sae_cfg)
+    optimizer = torch.optim.Adam(sae.parameters(), lr=cfg.training.lr)
 
     
     
@@ -144,20 +142,18 @@ def resume_training(
         sae = sae,
         checkpoint_path=checkpoint_path,
         optimizer=optimizer,
-        activation_store=activation_store,
         device=device
     )
+
 
     if cfg.resuming.model_diffing:
         start_iter = 0
 
     decoder_weights = sae.state_dict()["W_dec"].cpu()
     
-    print(f"Resuming training from iteration {start_iter}")
 
-    optimizer = torch.optim.Adam(sae.parameters(), lr=cfg.training.lr)
     
-    
+
     # Initialize activation store
     activation_store = ActivationsStore(model, sae_cfg, activation_store_state)
 
@@ -170,12 +166,18 @@ def resume_training(
     os.makedirs(os.path.join(checkpoint_dir, "percentiles"), exist_ok=True)
     
     # Initialize feature activation stats tracking
-    n_features = sae.state_dict()["W_dec"].shape[0]
     feature_min_activations_buffer = []
     threshold_compute_freq = cfg.training.threshold_compute_freq  # How often to compute thresholds
     threshold_num_batches = cfg.training.threshold_num_batches  # How many batches to collect before computing
+
+
+    # Compute the number of iterations
+    n_tokens = cfg.training.num_tokens
+    n_iters = n_tokens // cfg.training.model_batch_size
+
+
     
-    for iter_num in range(start_iter, cfg.resuming.n_iters):
+    for iter_num in range(start_iter, start_iter + n_iters):
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
@@ -202,23 +204,16 @@ def resume_training(
             
             # Clear the buffer for next round
             feature_min_activations_buffer = []
-            
-            # Free up GPU memory
+                
 
-        # Logging and checkpointing
-        if wandb_run is not None:
-            if iter_num % cfg.training.perf_log_freq == 0:
-                with torch.no_grad():
-                    log_wandb(sae_output, iter_num, wandb_run)
-                    log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
+
+
         if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
             save_checkpoint(
                 sae, optimizer, cfg, iter_num, checkpoint_dir, 
                  activation_store=activation_store
             )
-        if iter_num % cfg.training.perf_log_freq == 0:
-            with torch.no_grad():
-                log_model_performance(wandb_run, iter_num, model, activation_store, sae)
+
 
             
         # Update activation store position
@@ -230,22 +225,30 @@ def resume_training(
         loss.backward()
         # Log gradient norms and learning rate before optimizer step
         if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
+            with torch.no_grad():
+                log_wandb(sae_output, iter_num, wandb_run)
+                if cfg.resuming.diffing:
+                    log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
+            #with torch.no_grad():
+                #log_model_performance(wandb_run, iter_num, model, activation_store, sae)
             total_grad_norm, current_lr = get_gradient_norm(sae, optimizer)
             
             # Log to wandb
-            if wandb_run is not None:
-                wandb_run.log({
-                    "training/gradient_norm": total_grad_norm,
-                    "training/learning_rate": current_lr
-                }, step=iter_num)
+            wandb_run.log({
+                "training/gradient_norm": total_grad_norm,
+                "training/learning_rate": current_lr
+            }, step=iter_num)
+
         
         torch.nn.utils.clip_grad_norm_(sae.parameters(), cfg.training.max_grad_norm)
         sae.make_decoder_weights_and_grad_unit_norm()
         optimizer.step()
         optimizer.zero_grad()
+
+
     # Save final checkpoint
     save_checkpoint(
-        sae, optimizer, cfg, cfg.resuming.n_iters, checkpoint_dir, 
+        sae, optimizer, cfg, start_iter + n_iters, checkpoint_dir, 
         activation_store=activation_store, is_final=True
     )    
      
@@ -307,10 +310,10 @@ def train_sae(
     threshold_compute_freq = cfg.training.threshold_compute_freq  # How often to compute thresholds
     threshold_num_batches = cfg.training.threshold_num_batches  # How many batches to collect before computing
 
-    # I need to compute the n_iters provided that this is not resuming 
-    #for iter_num in range(start_iter, cfg..n_iters):
+
+
     n_tokens = cfg.training.num_tokens
-    n_iters = n_tokens // (cfg.training.batch_size * cfg.training.seq_len)
+    n_iters = n_tokens // cfg.training.model_batch_size
     for iter_num in range(n_iters):
         batch = activation_store.next_batch()
         sae_output = sae(batch)
@@ -339,11 +342,7 @@ def train_sae(
             feature_min_activations_buffer = []
             
 
-        # Logging and checkpointing
-        if wandb_run is not None:
-            if iter_num % cfg.training.perf_log_freq == 0:
-                with torch.no_grad():
-                    log_wandb(sae_output, iter_num, wandb_run)
+
         if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
             save_checkpoint(
                 sae, optimizer, cfg, iter_num, checkpoint_dir, 
@@ -360,6 +359,8 @@ def train_sae(
         
         # Log gradient norms and learning rate before optimizer step
         if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
+            with torch.no_grad():
+                log_wandb(sae_output, iter_num, wandb_run)
             total_grad_norm, current_lr = get_gradient_norm(sae, optimizer)
             
             # Log to wandb

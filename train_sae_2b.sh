@@ -22,7 +22,6 @@ for i in "${iterations[@]}"; do
   fi
   
   # Calculate tokens for this iteration (increase with each iteration)
-  tokens=$((1000000 + ${i} * 500000))
   
   # Create config file for this iteration
   cat <<EOL > $output_file
@@ -31,7 +30,7 @@ base:
   d_sae: 1280
 
 training:
-  num_tokens: ${tokens}
+  num_tokens: 500000000 
   name: "sae_training_iter_${i}"
   
 resuming:
@@ -68,7 +67,7 @@ module load cudnn/8.9.6.50-11.x
 source /home/woody/b114cb/b114cb23/boxo/pSAE/bin/activate
 
 # Run the Python script with the specific config
-python3 -m src.training.run_topk --config ${output_file}
+python3 -m run_topk --config ${output_file}
 EOL
 
   chmod +x $slurm_script
