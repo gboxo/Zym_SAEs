@@ -31,12 +31,12 @@ training:
   num_tokens: 50000
   name: "sae_training_iter_${i}"
   checkpoint_dir: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_${i}
-  
+  wandb_project: "DEBUG"
+
 resuming:
   resume_from: ${resume_from}
   resuming: ${resuming}
   checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_${i}
-  wandb_project: "DEBUG"
 
 EOL
 
