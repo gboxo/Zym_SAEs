@@ -51,8 +51,9 @@ training:
   threshold_compute_freq: 1
   aux_penalty: 0
   top_k_aux: 0
-  num_tokens: 2000000
-
+  num_tokens: 100000
+  threshold_num_batches: 5
+  num_batches_in_buffer: 10
 resuming:
   resume_from: ${resume_from}
   checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase/M${i}_D${i}

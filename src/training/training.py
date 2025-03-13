@@ -148,6 +148,7 @@ def resume_training(
 
     if cfg.resuming.model_diffing:
         start_iter = 0
+        activation_store_state = None
 
     decoder_weights = sae.state_dict()["W_dec"].cpu()
     
