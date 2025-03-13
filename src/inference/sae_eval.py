@@ -218,10 +218,11 @@ class SAEEval:
 
 if __name__ == "__main__":
     paths = get_paths()
-    sae_path = paths.sae_path
     model_path = paths.model_path
     test_set_path = "/users/nferruz/gboxo/Downloads/mini_brenda.txt"
     is_tokenized = False
+
+
 
 
 

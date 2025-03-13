@@ -12,6 +12,10 @@ Things to compute:
 
 
 
+def compute_CS(W_dec, W_dec_ref):
+    cs = F.cosine_similarity(W_dec, W_dec_ref, dim=1)
+    return cs
+
 path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/"
 files = os.listdir(path)
 
@@ -30,12 +34,7 @@ for index in range(4):
 
 
 
-def compute_CS(W_dec, W_dec_ref):
-    cs = F.cosine_similarity(W_dec, W_dec_ref, dim=1)
-    return cs
-
 all_cs = {} 
-
 # All vs M0_D0
 for key in sae_dict.keys():
     if key == "M0_D0": continue
@@ -48,8 +47,6 @@ for i in range(1,4):
     all_cs[f"M0_D{i}_vs_M0_D{i-1}"] = cs
 
 # Stage wise CS RL
-
-
 for i in range(1,4):
     cs = compute_CS(sae_dict[f"M{i}_D{i}"], sae_dict[f"M{i-1}_D{i-1}"])
     all_cs[f"M{i}_D{i}_vs_M{i-1}_D{i-1}"] = cs

@@ -1,18 +1,10 @@
 import os
-# %%
-from transformers import AutoTokenizer, GPT2LMHeadModel
-from src.training.config import update_cfg, post_init_cfg, get_default_cfg
-import json
-from src.training.config import get_default_cfg
 import torch
-from src.training.sae import BatchTopKSAE
 from src.training.activation_store import ActivationsStore
 from src.utils import get_ht_model, load_config, load_sae, load_model
 from tqdm import tqdm
-import argparse
-
-
-#torch.set_grad_enabled(False)
+from src.utils import get_paths
+from src.config.load_config import load_experiment_config, convert_to_sae_config
 
 
 
@@ -40,7 +32,7 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
 
         batch_feature_min_activations = []
         for activation in batch_activations:
-            feature_activations = sparse_autoencoder(activation)["feature_acts"]
+            feature_activations = sparse_autoencoder(activation)["feature_acts"].cpu()
             # For each feature, get the minimum activation that is greater than zero
             filtered_activations = torch.where(feature_activations > 0, feature_activations, float('inf'))
             feature_min_activations = torch.min(filtered_activations, dim=0).values
@@ -60,7 +52,7 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
     all_feature_min_activations = torch.stack(all_feature_min_activations)
     all_feature_min_activations = torch.where(all_feature_min_activations > 0, all_feature_min_activations, 0)
     # Compute the deciles of the activations
-    feature_deciles = torch.quantile(all_feature_min_activations, torch.linspace(0, 1, 101).to("cuda"), dim=0)
+    feature_deciles = torch.quantile(all_feature_min_activations, torch.linspace(0, 1, 101), dim=0)
     os.makedirs(path+"/percentiles", exist_ok=True)
     for i in range(feature_deciles.shape[0]):
         
@@ -69,11 +61,11 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
     return feature_thresholds
 
 
-def main(path, model_path, n_batches, config_path):
+def main(path, model_path, n_batches, cfg):
     _,sae = load_sae(path)
+    sae.eval()
 
     # Load the configuration file
-    cfg = load_config(config_path)
     cfg["ctx_len"] = 256
     cfg["model_batch_size"] = 64 
 
@@ -86,9 +78,9 @@ def main(path, model_path, n_batches, config_path):
     config = model_ht.config
     config.d_mlp = 5120
     model = get_ht_model(model_ht,config, tokenizer=tokenizer)
+    model.eval()
     del model_ht
     # Compute the threshold and save it in the same directory as the SAE
-    print(cfg)
     threshold = compute_threshold(model, sae, cfg, num_batches=n_batches)
     return threshold
 
@@ -97,35 +89,16 @@ def main(path, model_path, n_batches, config_path):
 
 if __name__ == "__main__":
 
-    # Define the path of the SAE and load it
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--sae_path", type=str, required=False)
-    parser.add_argument("--model_path", type=str, required=False)
-    parser.add_argument("--n_batches", type=int, required=False)
-    parser.add_argument("--config_path", type=str, required=False)
-    args = parser.parse_args()
+    paths = get_paths()
+    model_path = paths.model_path
+    config = "configs/diffing_exp1/config_3_bm.yaml"
+    config = load_experiment_config(config)
+    sae_cfg = convert_to_sae_config(config)
+    n_batches = 5
+    path = "/users/nferruz/gboxo/Diffing Alpha Amylase/M0_D3/diffing/"
 
-    if args.sae_path is None:
-        path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000"
-    else:
-        path = args.sae_path
 
-    if args.model_path is None:
-        model_path = "AI4PD/ZymCTRL"
-    else:
-        model_path = args.model_path
-
-    if args.n_batches is None:
-        n_batches = 100
-    else:
-        n_batches = args.n_batches
-
-    if args.config_path is None:
-        config_path = "configs/workstation.yaml"
-    else:
-        config_path = args.config_path
-
-    threshold = main(path, model_path=model_path, n_batches = n_batches, config_path=config_path)
+    threshold = main(path, model_path=model_path, n_batches = n_batches, cfg=sae_cfg)
     torch.save(threshold, f"{path}/thresholds.pt")
 
 
