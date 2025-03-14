@@ -14,7 +14,7 @@ We will evaluate the performance of the SAE in a hold out test set of 1000 seque
     - Number of active features per sequence
     - Cosine Similarity 
 """
-import einops
+import pandas as pd
 import os
 import torch
 import numpy as np
@@ -217,10 +217,17 @@ class SAEEval:
 
 
 if __name__ == "__main__":
-    paths = get_paths()
-    model_path = paths.model_path
-    test_set_path = "/users/nferruz/gboxo/Downloads/mini_brenda.txt"
-    is_tokenized = False
+    model_iteration = 1
+    data_iteration = 1
+    model_path = f"/users/nferruz/gboxo/Alpha Amylase/output_iteration{model_iteration}" 
+    sae_path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
+    df_path = f"/users/nferruz/gboxo/Alpha Amylase/dataframe_iteration{data_iteration}.csv"
+    df = pd.read_csv(df_path)
+    sequences = df["sequence"].tolist()
+    txt = "\n".join(sequences)
+    test_set_path = f"/users/nferruz/gboxo/Alpha Amylase/test_set_iteration{data_iteration-1}.txt"
+    with open(test_set_path, "w") as f:
+        f.write(txt)
 
 
 
@@ -237,7 +244,7 @@ if __name__ == "__main__":
     cfg.model_path = model_path
     cfg.sae_path = sae_path
     cfg.test_set_path = test_set_path
-    cfg.is_tokenized = is_tokenized
+    cfg.is_tokenized = False
     eval = SAEEval(cfg)
     eval.evaluation_loop()
     eval.pretty_table()

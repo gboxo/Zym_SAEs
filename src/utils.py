@@ -74,7 +74,6 @@ def load_sae(sae_path, load_thresholds=False):
             return cfg,sae
     
 
-    else:
 
 
 

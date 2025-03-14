@@ -5,6 +5,7 @@ from src.utils import get_ht_model, load_config, load_sae, load_model
 from tqdm import tqdm
 from src.utils import get_paths
 from src.config.load_config import load_experiment_config, convert_to_sae_config
+import pandas as pd
 
 
 
@@ -89,17 +90,25 @@ def main(path, model_path, n_batches, cfg):
 
 if __name__ == "__main__":
 
-    paths = get_paths()
-    model_path = paths.model_path
-    config = "configs/diffing_exp1/config_3_bm.yaml"
+    model_iteration = 3
+    data_iteration = 3
+    config = f"configs/diffing_exp1/config_{model_iteration}_bm.yaml"
     config = load_experiment_config(config)
     sae_cfg = convert_to_sae_config(config)
-    n_batches = 5
-    path = "/users/nferruz/gboxo/Diffing Alpha Amylase/M0_D3/diffing/"
 
 
-    threshold = main(path, model_path=model_path, n_batches = n_batches, cfg=sae_cfg)
-    torch.save(threshold, f"{path}/thresholds.pt")
+
+    if True:
+
+        path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
+        n_batches = 5
+
+        model_path = f"/users/nferruz/gboxo/Alpha Amylase/output_iteration{model_iteration}" 
+        sae_path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
+        
+
+        threshold = main(path, model_path=model_path, n_batches = n_batches, cfg=sae_cfg)
+        torch.save(threshold, f"{path}/thresholds.pt")
 
 
 
