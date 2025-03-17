@@ -35,8 +35,13 @@ base:
   seq_len: 512
 
 training:
-  num_tokens: 500000000 
+  num_tokens: 50000
   name: "sae_training_iter_${i}"
+  threshold_compute_freq: 100
+  threshold_num_batches: 50
+  num_batches_in_buffer: 20
+  perf_log_freq: 100
+  checkpoint_freq: 100
   
 resuming:
   resume_from: ${resume_from}
