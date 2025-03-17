@@ -345,15 +345,15 @@ def analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
 if __name__ == "__main__":
     
 
-    model_iteration = 1
-    data_iteration = 1
+    model_iteration = 0
+    data_iteration = 3
     cs = torch.load("Data/Diffing_Analysis_Data/all_cs.pt")
     cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
     # Load the dataframe
     df_path = f"/users/nferruz/gboxo/Alpha Amylase/dataframe_iteration{data_iteration}.csv"
     assert os.path.exists(df_path), "Dataframe does not exist"
     df = pd.read_csv(df_path)
-    if False:
+    if True:
         if model_iteration == 0:
             model_path = "AI4PD/ZymCTRL"
         else:
