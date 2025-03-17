@@ -27,6 +27,12 @@ for i in "${iterations[@]}"; do
   cat <<EOL > $output_file
 
 base_config: base_config_alex.yaml
+base:
+  model_path: AI4PD/ZymCTRL
+  d_sae: 20480
+  batch_size: 4096
+  model_batch_size: 512 
+  seq_len: 512
 
 training:
   num_tokens: 5000000

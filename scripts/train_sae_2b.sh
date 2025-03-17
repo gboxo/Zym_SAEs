@@ -25,9 +25,14 @@ for i in "${iterations[@]}"; do
   
   # Create config file for this iteration
   cat <<EOL > $output_file
+
+base_config: base_config_alex.yaml
 base:
   model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
-  d_sae: 1280
+  d_sae: 20480
+  batch_size: 4096
+  model_batch_size: 512 
+  seq_len: 512
 
 training:
   num_tokens: 500000000 

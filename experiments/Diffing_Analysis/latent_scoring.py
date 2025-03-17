@@ -29,6 +29,8 @@ def get_activations( model, tokenizer, sequence):
 
 def get_features(sae: JumpReLUSAE, activations):
     feature_acts = sae.forward(activations, use_pre_enc_bias=True)["feature_acts"]
+
+
     sparse_feature_acts = coo_matrix(feature_acts[0].detach().cpu().numpy())
     del feature_acts
     torch.cuda.empty_cache()
@@ -49,7 +51,6 @@ def obtain_features(df):
     """
     Obtain features from natural sequences
     """
-
     sequences = df["sequence"].tolist()
     features = get_all_features(model,jump_relu, tokenizer, sequences)
     os.makedirs(f"Data/Diffing_Analysis_Data/features", exist_ok=True)
@@ -345,8 +346,8 @@ def analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
 if __name__ == "__main__":
     
 
-    model_iteration = 0
-    data_iteration = 3
+    model_iteration = 1
+    data_iteration = 1
     cs = torch.load("Data/Diffing_Analysis_Data/all_cs.pt")
     cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
     # Load the dataframe
