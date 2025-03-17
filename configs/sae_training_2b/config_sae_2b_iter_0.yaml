@@ -1,10 +1,20 @@
+
+base_config: base_config_alex.yaml
 base:
   model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
-  d_sae: 1280
+  d_sae: 20480
+  batch_size: 4096
+  model_batch_size: 512 
+  seq_len: 512
 
 training:
-  num_tokens: 1000000
+  num_tokens: 50000
   name: "sae_training_iter_0"
+  threshold_compute_freq: 100
+  threshold_num_batches: 50
+  num_batches_in_buffer: 20
+  perf_log_freq: 100
+  checkpoint_freq: 100
   
 resuming:
   resume_from: 

@@ -277,6 +277,7 @@ def train_sae(
         resume: Whether to resume training
         wandb_run: Optional wandb run
     """
+    print("Starting training")
     
     # Set up devices
     device = cfg.sae.device
@@ -290,13 +291,14 @@ def train_sae(
     # Handle resuming from checkpoint
     # Normal initialization for new training
     sae = BatchTopKSAE(sae_cfg)
-    
+    print("SAE initialized")
     optimizer = torch.optim.Adam(sae.parameters(), lr=cfg.training.lr)
+    print("Optimizer initialized")
     
     
     # Initialize activation store
     activation_store = ActivationsStore(model, sae_cfg)
-
+    print("Activation store initialized")
     # Generate checkpoint directory
     checkpoint_dir = os.path.join(
         cfg.training.checkpoint_dir,
@@ -304,7 +306,7 @@ def train_sae(
     )
     os.makedirs(checkpoint_dir, exist_ok=True)
     os.makedirs(os.path.join(checkpoint_dir, "percentiles"), exist_ok=True)
-    
+    print("Checkpoint directory created")
     # Initialize feature activation stats tracking
     n_features = sae.state_dict()["W_dec"].shape[0]
     feature_min_activations_buffer = []
@@ -315,7 +317,10 @@ def train_sae(
 
     n_tokens = cfg.training.num_tokens
     n_iters = n_tokens // cfg.training.model_batch_size
+    print("Number of iterations: ", n_iters)
+    print("Starting training loop")
     for iter_num in range(n_iters):
+        print("Iteration: ", iter_num)
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]

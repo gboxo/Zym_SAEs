@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Define the base directory for output files
-output_dir="configs/sae_training_2b/"
 
+output_dir="configs/sae_training_2b/"
+mkdir -p $output_dir
 # Define the array of iteration identifiers or indices
 iterations=("0" "1" "2" "3" "4")  # Adjust as needed
-
+cp configs/base_config_alex.yaml $output_dir/base_config_alex.yaml
 
 # Iterate over each identifier to create a configuration file and submit job
 for i in "${iterations[@]}"; do
@@ -37,11 +37,11 @@ base:
 training:
   num_tokens: 50000
   name: "sae_training_iter_${i}"
-  threshold_compute_freq: 100
-  threshold_num_batches: 50
-  num_batches_in_buffer: 20
-  perf_log_freq: 100
-  checkpoint_freq: 100
+  threshold_compute_freq: 1
+  threshold_num_batches: 20 
+  num_batches_in_buffer: 3 
+  perf_log_freq: 1
+  checkpoint_freq: 10
   
 resuming:
   resume_from: ${resume_from}

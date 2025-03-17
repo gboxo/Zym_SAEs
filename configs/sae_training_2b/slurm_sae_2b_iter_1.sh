@@ -20,4 +20,4 @@ module load cudnn/8.9.6.50-11.x
 source /home/woody/b114cb/b114cb23/boxo/pSAE/bin/activate
 
 # Run the Python script with the specific config
-python3 -m src.training.run_topk --config configs/sae_training_2b//config_sae_2b_iter_1.yaml
+python3 -m run_topk --config configs/sae_training_2b//config_sae_2b_iter_1.yaml

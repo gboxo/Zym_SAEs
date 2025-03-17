@@ -21,11 +21,12 @@ def main():
 
     wandb_run = init_wandb(config)
     tokenizer, model = load_model(config.base.model_path)
+    print("The model is loaded")
     model_config = model.config
     model_config.attn_implementation = "eager"
     model_config.d_model = 5120
     model = get_ht_model(model, model_config)
-
+    print("The model is loaded as TL")
     if not config.resuming.resuming:
     
         sae, checkpoint_dir = train_sae(

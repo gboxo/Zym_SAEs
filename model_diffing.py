@@ -29,6 +29,7 @@ def main():
     
 
     tokenizer, model = load_model(config.base.model_path)
+    print("The model is loaded")
     model_config = model.config
     model_config.attn_implementation = "eager"
     model_config.d_model = 5120

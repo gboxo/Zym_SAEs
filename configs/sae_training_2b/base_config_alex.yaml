@@ -17,7 +17,7 @@ sae:
 training:
   checkpoint_dir: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/
   wandb_dir: /home/woody/b114cb/b114cb23/boxo/
-  dataset_path: /home/woody/b114cb23/boxo/final_dataset_big/
+  dataset_path: /home/woody/b114cb/b114cb23/boxo/final_dataset_big/
   num_tokens: 1000000000
   batch_size: 4096
   model_batch_size: 512 
