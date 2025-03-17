@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 
 
 output_dir="configs/sae_training_2b/"
