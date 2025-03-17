@@ -1,0 +1,19 @@
+base_config: base_config_alex.yaml
+
+base:
+  model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
+training:
+  dataset_path: /home/hpc/b114cb/b114cb23/SAETraining/crg_boxo/Data/Diffing Alpha Amylase/tokenized_train_dataset_iteration2
+  name: "Model_Diffing_M0_D2"
+  perf_log_freq: 1
+  threshold_compute_freq: 1
+  aux_penalty: 0
+  top_k_aux: 0
+  num_tokens: 2000000
+
+resuming:
+  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase/M0_D1/diffing
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase/M0_D2
+  resuming: true
+  n_iters: 20
+  model_diffing: true

@@ -1,0 +1,12 @@
+base:
+  model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
+  d_sae: 1280
+
+training:
+  num_tokens: 3000000
+  name: "sae_training_iter_4"
+  
+resuming:
+  resume_from: /home/woody/b114cb/b114cb23/boxo/checkpoints/sae_training_iter_3/final
+  resuming: true
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/boxo/checkpoints/sae_training_iter_4

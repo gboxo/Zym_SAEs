@@ -1,0 +1,14 @@
+
+base_config: base_config_alex.yaml
+
+training:
+  num_tokens: 50000
+  name: "sae_training_iter_3"
+  checkpoint_dir: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_3
+  wandb_project: "DEBUG"
+
+resuming:
+  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_2/final
+  resuming: true
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_3
+
