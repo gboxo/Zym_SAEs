@@ -1,4 +1,5 @@
 import torch
+import os
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from tqdm import tqdm
@@ -64,7 +65,7 @@ def load_model(checkpoint, filepath, num_labels=1, mixed=False, full=False, deep
 def generate_dataset(iteration_num, ec_label, tokenizer):
     tokenized_sequences = []
     names = []
-    with open(f"seq_gen_{ec_label}_iteration{iteration_num}.fasta", "r") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta", "r") as f:
         rep_seq = f.readlines()
     for line in rep_seq:
         if not line.startswith(">"):
@@ -86,6 +87,7 @@ args = parser.parse_args()
 
 iteration_num = args.iteration_num
 ec_label = args.label.strip()
+print(f"Loading the Oracle model")
 
 checkpoint = "facebook/esm2_t33_650M_UR50D"
 tokenizer, model = load_model(
@@ -97,8 +99,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 model.eval()
 
+print(f"Generating the dataset")
 test_dataloader, names = generate_dataset(iteration_num, ec_label, tokenizer)
 
+print(f"Generating the predictions")
 predictions = []
 with torch.no_grad():
     for batch in tqdm(test_dataloader):
@@ -130,7 +134,8 @@ with torch.no_grad():
 predictions = [(p1 + p2) / 2 for p1, p2 in zip(predictions, predictions2)]
 
 out = "".join(f'{name[:-2]},{prediction}\n' for name, prediction in zip(names, predictions))
-with open(f'activity_prediction_iteration{iteration_num}.txt', 'w') as f:
+os.makedirs(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions', exist_ok=True)
+with open(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions/activity_prediction_iteration{iteration_num}.txt', 'w') as f:
     f.write(out)
 
 del model
