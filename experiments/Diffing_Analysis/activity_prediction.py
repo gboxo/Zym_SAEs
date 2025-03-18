@@ -92,7 +92,7 @@ print(f"Loading the Oracle model")
 checkpoint = "facebook/esm2_t33_650M_UR50D"
 tokenizer, model = load_model(
     checkpoint,
-    "/users/nferruz/gboxo/LoRA_esm1v/Finetuning/model_100_esm2.pth",
+    "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRA_esm2_3B/esm2_GB1_finetuned.pth",
     num_labels=1
 )
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -117,7 +117,7 @@ torch.cuda.empty_cache()
 checkpoint = "/home/woody/b114cb/b114cb23/esm1v_t33_650M_UR90S_1"
 tokenizer, model = load_model(
     checkpoint,
-    "/home/woody/b114cb/b114cb23/alpha_amylase_activity_predictor/LoRA_esm1v/Esm1v_GB1_finetuned.pth",
+    "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRA_esm1v/Esm1v_GB1_finetuned.pth",
     num_labels=1
 )
 model.to(device)

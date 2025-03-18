@@ -116,6 +116,21 @@ def get_gradient_norm(sae, optimizer):
         current_lr = optimizer.param_groups[0]['lr']
     return total_grad_norm, current_lr
 
+def validate_and_clip_gradients(sae, optimizer, max_grad_norm, iter_num=None, wandb_run=None):
+    """Helper function to validate gradients and perform clipping."""
+    # Check if any gradients are invalid (inf/nan)
+    if not all(torch.isfinite(p.grad).all() for p in sae.parameters() if p.grad is not None):
+        print(f"Warning: Non-finite gradients detected at iteration {iter_num}")
+        if wandb_run is not None:
+            wandb_run.log({"training/invalid_gradients": 1}, step=iter_num)
+        optimizer.zero_grad()
+        return False
+    
+    # Clip gradients and normalize decoder weights
+    torch.nn.utils.clip_grad_norm_(sae.parameters(), max_grad_norm)
+    sae.make_decoder_weights_and_grad_unit_norm()
+    return True
+
 def resume_training(
     model,
     cfg: SimpleNamespace,
@@ -127,9 +142,6 @@ def resume_training(
 ):
     # Set up devices
     device = cfg.sae.device
-    
-
-    
 
 
     sae = BatchTopKSAE(sae_cfg)
@@ -180,20 +192,54 @@ def resume_training(
     print("Starting training loop")
     
     for iter_num in range(start_iter, start_iter + n_iters):
+        # Training mode
+        sae.train()
         print("Iteration: ", iter_num)
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
 
-        # Collect feature activations for threshold computation
+        # Validation and logging
+        if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
+            # Switch to eval mode for validation
+            sae.eval()
+            with torch.no_grad():
+                # Log training metrics
+                log_wandb(sae_output, iter_num, wandb_run)
+                
+                if cfg.resuming.model_diffing:
+                    log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
+                
+                # Get validation batch and compute metrics
+                val_batch = activation_store.next_batch()
+                val_output = sae(val_batch)
+                val_loss = val_output["loss"]
+                
+                # Log validation metrics
+                wandb_run.log({
+                    "validation/loss": val_loss.item(),
+                }, step=iter_num)
+                
+                # Get gradient stats
+                total_grad_norm, current_lr = get_gradient_norm(sae, optimizer)
+                
+                # Log training stats
+                wandb_run.log({
+                    "training/gradient_norm": total_grad_norm,
+                    "training/learning_rate": current_lr
+                }, step=iter_num)
+            
+            # Switch back to training mode
+            sae.train()
+
+        # Threshold computation
         if iter_num % threshold_compute_freq == 0 and len(feature_min_activations_buffer) < threshold_num_batches:
-            feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer)
-            if len(feature_min_activations_buffer) >= threshold_num_batches:
-                feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir)
-                # Log statistics if wandb is enabled
-                if wandb_run is not None:
-                    with torch.no_grad():
-                        # Calculate statistics on thresholds
+            sae.eval()
+            with torch.no_grad():
+                feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer)
+                if len(feature_min_activations_buffer) >= threshold_num_batches:
+                    feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir)
+                    if wandb_run is not None:
                         valid_thresholds = feature_thresholds[~torch.isnan(feature_thresholds)]
                         if len(valid_thresholds) > 0:
                             wandb_run.log({
@@ -204,18 +250,8 @@ def resume_training(
                                 "thresholds/std": torch.std(valid_thresholds).item(),
                                 "thresholds/active_features": len(valid_thresholds),
                             }, step=iter_num)
-            
-            # Clear the buffer for next round
-            feature_min_activations_buffer = []
-                
-
-
-
-        if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
-            save_checkpoint(
-                sae, optimizer, cfg, iter_num, checkpoint_dir, 
-                 activation_store=activation_store
-            )
+                feature_min_activations_buffer = []
+            sae.train()
 
 
             
@@ -224,28 +260,14 @@ def resume_training(
             activation_store.current_batch_idx + 1,
             activation_store.current_epoch
         )
-
         loss.backward()
-        # Log gradient norms and learning rate before optimizer step
-        if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
-            with torch.no_grad():
-                log_wandb(sae_output, iter_num, wandb_run)
-                if cfg.resuming.model_diffing:
-                    log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
-            #with torch.no_grad():
-                #log_model_performance(wandb_run, iter_num, model, activation_store, sae)
-            total_grad_norm, current_lr = get_gradient_norm(sae, optimizer)
-            
-            # Log to wandb
-            wandb_run.log({
-                "training/gradient_norm": total_grad_norm,
-                "training/learning_rate": current_lr
-            }, step=iter_num)
-
-        
-        torch.nn.utils.clip_grad_norm_(sae.parameters(), cfg.training.max_grad_norm)
-        sae.make_decoder_weights_and_grad_unit_norm()
-        optimizer.step()
+        if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
+            save_checkpoint(
+                sae, optimizer, cfg, iter_num, checkpoint_dir, 
+                 activation_store=activation_store
+            )
+        if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
+            optimizer.step()
         optimizer.zero_grad()
 
 
@@ -322,34 +344,63 @@ def train_sae(
     print("Number of iterations: ", n_iters)
     print("Starting training loop")
     for iter_num in range(n_iters):
+        # Training mode
+        sae.train()
         print("Iteration: ", iter_num)
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
 
-        # Collect feature activations for threshold computation
-        if iter_num % threshold_compute_freq == 0 and len(feature_min_activations_buffer) < threshold_num_batches:
-            feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer)
-            if len(feature_min_activations_buffer) >= threshold_num_batches:
-                feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir)
-            # Log statistics if wandb is enabled
-                if wandb_run is not None:
-                    # Calculate statistics on thresholds
-                    valid_thresholds = feature_thresholds[~torch.isnan(feature_thresholds)]
-                    if len(valid_thresholds) > 0:
-                        wandb_run.log({
-                            "thresholds/mean": torch.mean(valid_thresholds).item(),
-                            "thresholds/median": torch.median(valid_thresholds).item(),
-                            "thresholds/min": torch.min(valid_thresholds).item(),
-                            "thresholds/max": torch.max(valid_thresholds).item(),
-                            "thresholds/std": torch.std(valid_thresholds).item(),
-                            "thresholds/active_features": len(valid_thresholds),
-                        }, step=iter_num)
+        # Validation and logging
+        if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
+            # Switch to eval mode for validation
+            sae.eval()
+            with torch.no_grad():
+                # Log training metrics
+                log_wandb(sae_output, iter_num, wandb_run)
+                
+                # Get validation batch and compute metrics
+                val_batch = activation_store.next_batch()
+                val_output = sae(val_batch)
+                val_loss = val_output["loss"]
+                
+                # Log validation metrics
+                wandb_run.log({
+                    "validation/loss": val_loss.item(),
+                }, step=iter_num)
+                
+                # Get gradient stats
+                total_grad_norm, current_lr = get_gradient_norm(sae, optimizer)
+                
+                # Log training stats
+                wandb_run.log({
+                    "training/gradient_norm": total_grad_norm,
+                    "training/learning_rate": current_lr
+                }, step=iter_num)
             
-            # Clear the buffer for next round
-            feature_min_activations_buffer = []
-            
+            # Switch back to training mode
+            sae.train()
 
+        # Threshold computation
+        if iter_num % threshold_compute_freq == 0 and len(feature_min_activations_buffer) < threshold_num_batches:
+            sae.eval()
+            with torch.no_grad():
+                feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer)
+                if len(feature_min_activations_buffer) >= threshold_num_batches:
+                    feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir)
+                    if wandb_run is not None:
+                        valid_thresholds = feature_thresholds[~torch.isnan(feature_thresholds)]
+                        if len(valid_thresholds) > 0:
+                            wandb_run.log({
+                                "thresholds/mean": torch.mean(valid_thresholds).item(),
+                                "thresholds/median": torch.median(valid_thresholds).item(),
+                                "thresholds/min": torch.min(valid_thresholds).item(),
+                                "thresholds/max": torch.max(valid_thresholds).item(),
+                                "thresholds/std": torch.std(valid_thresholds).item(),
+                                "thresholds/active_features": len(valid_thresholds),
+                            }, step=iter_num)
+                feature_min_activations_buffer = []
+            sae.train()
 
         if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
             save_checkpoint(
@@ -364,23 +415,8 @@ def train_sae(
         )
 
         loss.backward()
-        
-        # Log gradient norms and learning rate before optimizer step
-        if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
-            with torch.no_grad():
-                log_wandb(sae_output, iter_num, wandb_run)
-            total_grad_norm, current_lr = get_gradient_norm(sae, optimizer)
-            
-            # Log to wandb
-            if wandb_run is not None:
-                wandb_run.log({
-                    "training/gradient_norm": total_grad_norm,
-                    "training/learning_rate": current_lr
-                }, step=iter_num)
-        
-        torch.nn.utils.clip_grad_norm_(sae.parameters(), cfg.training.max_grad_norm)
-        sae.make_decoder_weights_and_grad_unit_norm()
-        optimizer.step()
+        if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
+            optimizer.step()
         optimizer.zero_grad()
     # Save final checkpoint
     save_checkpoint(

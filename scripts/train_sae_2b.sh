@@ -42,6 +42,7 @@ training:
   num_batches_in_buffer: 3 
   perf_log_freq: 1
   checkpoint_freq: 10
+  datset_path: /home/woody/b114cb/b114cb23/boxo/new_dataset_train/
   
 resuming:
   resume_from: ${resume_from}
