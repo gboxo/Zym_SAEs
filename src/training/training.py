@@ -145,7 +145,7 @@ def resume_training(
 
 
     sae = BatchTopKSAE(sae_cfg)
-    optimizer = torch.optim.Adam(sae.parameters(), lr=cfg.training.lr)
+    optimizer = torch.optim.Adam(sae.parameters(), lr=cfg.training.lr, amsgrad=True)
 
     
     
@@ -193,14 +193,17 @@ def resume_training(
     
     for iter_num in range(start_iter, start_iter + n_iters):
         # Training mode
+        print("===========")
         sae.train()
         print("Iteration: ", iter_num)
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
+        print("Loss: ", loss)
 
         # Validation and logging
         if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
+            print("Logging WandB and decoder  weights (if diffing)")
             # Switch to eval mode for validation
             sae.eval()
             with torch.no_grad():
@@ -234,10 +237,12 @@ def resume_training(
 
         # Threshold computation
         if iter_num % threshold_compute_freq == 0 and len(feature_min_activations_buffer) < threshold_num_batches:
+            print("Collecting thresholds")
             sae.eval()
             with torch.no_grad():
                 feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer)
                 if len(feature_min_activations_buffer) >= threshold_num_batches:
+                    print("Computing thresholds")
                     feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir)
                     if wandb_run is not None:
                         valid_thresholds = feature_thresholds[~torch.isnan(feature_thresholds)]
@@ -250,6 +255,7 @@ def resume_training(
                                 "thresholds/std": torch.std(valid_thresholds).item(),
                                 "thresholds/active_features": len(valid_thresholds),
                             }, step=iter_num)
+                print("Resetting feature min activations buffer")
                 feature_min_activations_buffer = []
             sae.train()
 
@@ -261,14 +267,15 @@ def resume_training(
             activation_store.current_epoch
         )
         loss.backward()
+        if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
+            optimizer.step()
+        optimizer.zero_grad()
         if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
+            print("Saving checkpoint")
             save_checkpoint(
                 sae, optimizer, cfg, iter_num, checkpoint_dir, 
                  activation_store=activation_store
             )
-        if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
-            optimizer.step()
-        optimizer.zero_grad()
 
 
     # Save final checkpoint
@@ -316,7 +323,7 @@ def train_sae(
     # Normal initialization for new training
     sae = BatchTopKSAE(sae_cfg)
     print("SAE initialized")
-    optimizer = torch.optim.Adam(sae.parameters(), lr=cfg.training.lr)
+    optimizer = torch.optim.Adam(sae.parameters(), lr=cfg.training.lr, amsgrad=True)
     print("Optimizer initialized")
     
     
@@ -344,15 +351,18 @@ def train_sae(
     print("Number of iterations: ", n_iters)
     print("Starting training loop")
     for iter_num in range(n_iters):
+        print("===========")
         # Training mode
         sae.train()
         print("Iteration: ", iter_num)
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]
+        print("Loss: ", loss)
 
         # Validation and logging
         if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
+            print("Logging WandB")
             # Switch to eval mode for validation
             sae.eval()
             with torch.no_grad():
@@ -383,10 +393,12 @@ def train_sae(
 
         # Threshold computation
         if iter_num % threshold_compute_freq == 0 and len(feature_min_activations_buffer) < threshold_num_batches:
+            print("Collecting thresholds")
             sae.eval()
             with torch.no_grad():
                 feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer)
                 if len(feature_min_activations_buffer) >= threshold_num_batches:
+                    print("Computing thresholds")
                     feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir)
                     if wandb_run is not None:
                         valid_thresholds = feature_thresholds[~torch.isnan(feature_thresholds)]
@@ -399,14 +411,10 @@ def train_sae(
                                 "thresholds/std": torch.std(valid_thresholds).item(),
                                 "thresholds/active_features": len(valid_thresholds),
                             }, step=iter_num)
+                print("Resetting feature min activations buffer")
                 feature_min_activations_buffer = []
             sae.train()
 
-        if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
-            save_checkpoint(
-                sae, optimizer, cfg, iter_num, checkpoint_dir, 
-                 activation_store=activation_store
-            )
             
         # Update activation store position
         activation_store.update_position(
@@ -418,6 +426,12 @@ def train_sae(
         if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
             optimizer.step()
         optimizer.zero_grad()
+        if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
+            print("Saving checkpoint")
+            save_checkpoint(
+                sae, optimizer, cfg, iter_num, checkpoint_dir, 
+                 activation_store=activation_store
+            )
     # Save final checkpoint
     save_checkpoint(
         sae, optimizer, cfg, iter_num, checkpoint_dir, 
