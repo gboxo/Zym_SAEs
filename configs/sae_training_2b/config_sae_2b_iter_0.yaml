@@ -19,4 +19,4 @@ training:
 resuming:
   resume_from: 
   resuming: false
-  checkpoint_dir_to: /home/woody/b114cb/b114cb23/boxo/checkpoints/sae_training_iter_0
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_0

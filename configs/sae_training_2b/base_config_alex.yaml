@@ -42,7 +42,6 @@ training:
   checkpoint_freq: 10000
 
 resuming:
-
   resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/
   checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/
   resuming: false

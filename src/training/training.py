@@ -173,12 +173,14 @@ def resume_training(
 
 
     # Compute the number of iterations
+    start_iter = start_iter // cfg.training.model_batch_size
     n_tokens = cfg.training.num_tokens
     n_iters = n_tokens // cfg.training.model_batch_size
-
-
+    print("Number of iterations: ", n_iters)
+    print("Starting training loop")
     
     for iter_num in range(start_iter, start_iter + n_iters):
+        print("Iteration: ", iter_num)
         batch = activation_store.next_batch()
         sae_output = sae(batch)
         loss = sae_output["loss"]

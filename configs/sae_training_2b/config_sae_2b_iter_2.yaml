@@ -17,6 +17,6 @@ training:
   checkpoint_freq: 10
   
 resuming:
-  resume_from: /home/woody/b114cb/b114cb23/boxo/checkpoints/sae_training_iter_1/final
+  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_1/final
   resuming: true
-  checkpoint_dir_to: /home/woody/b114cb/b114cb23/boxo/checkpoints/sae_training_iter_2
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_2
