@@ -370,7 +370,7 @@ def train_sae(
             batch = activation_store.next_batch()
             sae_output = sae(batch)
             loss = sae_output["loss"] / accumulation_steps  # Scale loss by accumulation steps
-            total_loss += loss.item()
+            total_loss += loss.item() * accumulation_steps  # Multiply by accumulation_steps to get true loss
             
             loss.backward()
         

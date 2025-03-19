@@ -47,21 +47,17 @@ count = 0
 error = 0
 
 for name, sequence in sequences.items():
-  print(f"Processing sequence {name}")
-  try:
+    print(f"Processing sequence {name}")
     count += 1  
     with torch.no_grad():
       output = model_esm.infer_pdb(sequence)
       torch.cuda.empty_cache()
       name = name[1:]
       name = name.split("\t")[0]
-      os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/outputs/output_iterations{iteration_num}/PDB", exist_ok=True, parents=True)
+      os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/outputs/output_iterations{iteration_num}/PDB", exist_ok=True)
       with open(f"/home/woody/b114cb/b114cb23/boxo/outputs/output_iterations{iteration_num}/PDB/{name}.pdb", "w") as f:
             f.write(output)
-  except:
-    error += 1
     
     print(f'Sequence {name} is processed. {len(sequences)-count} remaining!') 
-    print(f"Number of errors: {error}")
     torch.cuda.empty_cache()
 del model_esm
