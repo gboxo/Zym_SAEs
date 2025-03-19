@@ -13,6 +13,7 @@ class ActivationsStore:
     ):
         self.model = model
         self.original_dataset = load_from_disk(cfg["dataset_path"])
+        # Permute the dataset
         self.dataset = iter(self.original_dataset)
         self.hook_point = cfg["hook_point"]
         self.context_size = min(cfg["seq_len"], model.cfg.n_ctx)
@@ -77,6 +78,7 @@ class ActivationsStore:
         return cache[self.hook_point]
 
     def _fill_buffer(self):
+        print("Filling buffer")
         all_activations = []
         for _ in range(self.num_batches_in_buffer):
             batch_tokens = self.get_batch_tokens()

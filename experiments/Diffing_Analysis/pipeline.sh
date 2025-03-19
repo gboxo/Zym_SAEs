@@ -6,9 +6,6 @@
 
 
     python activity_prediction.py --iteration_num $i --label $label
-
-
-    echo done!
     # Fold the sequences with ESM fold
     echo Folding started
     python ESM_Fold.py --iteration_num $i  --label $label

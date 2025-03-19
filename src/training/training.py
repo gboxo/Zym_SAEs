@@ -185,21 +185,36 @@ def resume_training(
 
 
     # Compute the number of iterations
-    start_iter = start_iter // cfg.training.model_batch_size
+    start_iter = start_iter // cfg.training.batch_size
     n_tokens = cfg.training.num_tokens
-    n_iters = n_tokens // cfg.training.model_batch_size
+    n_iters = n_tokens // cfg.training.batch_size
     print("Number of iterations: ", n_iters)
     print("Starting training loop")
     
+    accumulation_steps = 4    
     for iter_num in range(start_iter, start_iter + n_iters):
-        # Training mode
         print("===========")
         sae.train()
         print("Iteration: ", iter_num)
-        batch = activation_store.next_batch()
-        sae_output = sae(batch)
-        loss = sae_output["loss"]
-        print("Loss: ", loss)
+        
+        total_loss = 0
+        optimizer.zero_grad()  # Zero gradients at start of accumulation
+        
+        # Accumulate gradients over multiple batches
+        for acc_step in range(accumulation_steps):
+            batch = activation_store.next_batch()
+            sae_output = sae(batch)
+            loss = sae_output["loss"] / accumulation_steps  # Scale loss by accumulation steps
+            total_loss += loss.item()
+            
+            loss.backward()
+        
+        # Update weights after accumulation
+        if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
+            optimizer.step()
+        optimizer.zero_grad()
+        
+        print(f"Average Loss over {accumulation_steps} batches: ", total_loss / accumulation_steps)
 
         # Validation and logging
         if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
@@ -213,15 +228,6 @@ def resume_training(
                 if cfg.resuming.model_diffing:
                     log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
                 
-                # Get validation batch and compute metrics
-                val_batch = activation_store.next_batch()
-                val_output = sae(val_batch)
-                val_loss = val_output["loss"]
-                
-                # Log validation metrics
-                wandb_run.log({
-                    "validation/loss": val_loss.item(),
-                }, step=iter_num)
                 
                 # Get gradient stats
                 total_grad_norm, current_lr = get_gradient_norm(sae, optimizer)
@@ -266,10 +272,7 @@ def resume_training(
             activation_store.current_batch_idx + 1,
             activation_store.current_epoch
         )
-        loss.backward()
-        if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
-            optimizer.step()
-        optimizer.zero_grad()
+
         if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
             print("Saving checkpoint")
             save_checkpoint(
@@ -347,18 +350,36 @@ def train_sae(
 
 
     n_tokens = cfg.training.num_tokens
-    n_iters = n_tokens // cfg.training.model_batch_size
+    n_iters = n_tokens // cfg.training.batch_size
     print("Number of iterations: ", n_iters)
     print("Starting training loop")
+
+    accumulation_steps = 4  # Number of batches to accumulate
+    print(f"Accumulating gradients over {accumulation_steps} steps")
+    
     for iter_num in range(n_iters):
         print("===========")
-        # Training mode
         sae.train()
         print("Iteration: ", iter_num)
-        batch = activation_store.next_batch()
-        sae_output = sae(batch)
-        loss = sae_output["loss"]
-        print("Loss: ", loss)
+        
+        total_loss = 0
+        optimizer.zero_grad()  # Zero gradients at start of accumulation
+        
+        # Accumulate gradients over multiple batches
+        for acc_step in range(accumulation_steps):
+            batch = activation_store.next_batch()
+            sae_output = sae(batch)
+            loss = sae_output["loss"] / accumulation_steps  # Scale loss by accumulation steps
+            total_loss += loss.item()
+            
+            loss.backward()
+        
+        # Update weights after accumulation
+        if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
+            optimizer.step()
+        optimizer.zero_grad()
+        
+        print(f"Average Loss over {accumulation_steps} batches: ", total_loss / accumulation_steps)
 
         # Validation and logging
         if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
@@ -369,16 +390,8 @@ def train_sae(
                 # Log training metrics
                 log_wandb(sae_output, iter_num, wandb_run)
                 
-                # Get validation batch and compute metrics
-                val_batch = activation_store.next_batch()
-                val_output = sae(val_batch)
-                val_loss = val_output["loss"]
                 
                 # Log validation metrics
-                wandb_run.log({
-                    "validation/loss": val_loss.item(),
-                }, step=iter_num)
-                
                 # Get gradient stats
                 total_grad_norm, current_lr = get_gradient_norm(sae, optimizer)
                 
@@ -422,10 +435,6 @@ def train_sae(
             activation_store.current_epoch
         )
 
-        loss.backward()
-        if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
-            optimizer.step()
-        optimizer.zero_grad()
         if iter_num % cfg.training.checkpoint_freq == 0 and iter_num > 0:
             print("Saving checkpoint")
             save_checkpoint(
