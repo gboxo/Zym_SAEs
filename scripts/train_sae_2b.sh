@@ -1,12 +1,12 @@
 #!/bin/bash -l
 
 
-output_dir="configs/sae_training_2b/"
+top_k=32
+output_dir="configs/sae_training_2b_${top_k}/"
 mkdir -p $output_dir
 # Define the array of iteration identifiers or indices
 iterations=("0" "1" "2" "3" "4")  # Adjust as needed
 cp configs/base_config_alex.yaml $output_dir/base_config_alex.yaml
-
 # Iterate over each identifier to create a configuration file and submit job
 for i in "${iterations[@]}"; do
   output_file="$output_dir/config_sae_2b_iter_${i}.yaml"
@@ -17,7 +17,7 @@ for i in "${iterations[@]}"; do
     resuming="false"
   else
     prev_iter=$((${i}-1))
-    resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_${prev_iter}/final"
+    resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_${prev_iter}_${top_k}/final"
     resuming="true"
   fi
   
@@ -35,19 +35,22 @@ base:
   seq_len: 512
 
 training:
-  num_tokens: 500000000
+  num_tokens: 200000000
   name: "sae_training_iter_${i}"
   threshold_compute_freq: 1000
   threshold_num_batches: 20 
   num_batches_in_buffer: 5
   perf_log_freq: 100
   checkpoint_freq: 10000
+  top_k: ${top_k}  
+  top_k_aux: 512 
+  aux_penalty: 0.031
   datset_path: /home/woody/b114cb/b114cb23/boxo/new_dataset_train/
   
 resuming:
   resume_from: ${resume_from}
   resuming: ${resuming}
-  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_${i}
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_${i}_${top_k}
 EOL
 
   echo "YAML file '$output_file' generated successfully."
