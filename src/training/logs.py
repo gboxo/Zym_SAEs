@@ -41,7 +41,7 @@ def init_wandb(cfg, resume=False):
     
     return wandb_run
 
-def log_wandb(output, step, wandb_run, index=None):
+def log_wandb(output, step, wandb_run,model, index=None):
     metrics_to_log = ["loss", "l2_loss", "l1_loss", "l0_norm", "l1_norm", "aux_loss", "num_dead_features"]
     log_dict = {k: output[k].item() for k in metrics_to_log if k in output}
     log_dict["n_dead_in_batch"] = (output["feature_acts"].sum(0) == 0).sum().item()
@@ -90,44 +90,44 @@ def log_decoder_weights(sae, decoder_weights, step, wandb_run):
 
 
 @torch.no_grad()
-def log_model_performance(wandb_run, step, model, activations_store, sae, index=None, batch_tokens=None):
-    if batch_tokens is None:
+def log_model_performance(wandb_run, step, model, activations_store, sae, index=None):
+    with torch.no_grad():
         batch_tokens = activations_store.get_batch_tokens()[:sae.cfg["batch_size"] // sae.cfg["seq_len"]]
-    batch = activations_store.get_activations(batch_tokens).reshape(-1, sae.cfg["act_size"])
+        batch = activations_store.get_activations(batch_tokens).reshape(-1, sae.cfg["act_size"])
 
-    sae_output = sae(batch)["sae_out"].reshape(batch_tokens.shape[0], batch_tokens.shape[1], -1)
+        sae_output = sae(batch)["sae_out"].reshape(batch_tokens.shape[0], batch_tokens.shape[1], -1)
 
-    original_loss = model(batch_tokens, return_type="loss").item()
-    reconstr_loss = model.run_with_hooks(
-        batch_tokens,
-        fwd_hooks=[(sae.cfg["hook_point"], partial(reconstr_hook, sae_out=sae_output))],
-        return_type="loss",
-    ).item()
-    zero_loss = model.run_with_hooks(
-        batch_tokens,
-        fwd_hooks=[(sae.cfg["hook_point"], zero_abl_hook)],
-        return_type="loss",
-    ).item()
-    mean_loss = model.run_with_hooks(
-        batch_tokens,
-        fwd_hooks=[(sae.cfg["hook_point"], mean_abl_hook)],
-        return_type="loss",
-    ).item()
+        original_loss = model(batch_tokens, return_type="loss").item()
+        reconstr_loss = model.run_with_hooks(
+            batch_tokens,
+            fwd_hooks=[(sae.cfg["hook_point"], partial(reconstr_hook, sae_out=sae_output))],
+            return_type="loss",
+        ).item()
+        zero_loss = model.run_with_hooks(
+            batch_tokens,
+            fwd_hooks=[(sae.cfg["hook_point"], zero_abl_hook)],
+            return_type="loss",
+        ).item()
+        mean_loss = model.run_with_hooks(
+            batch_tokens,
+            fwd_hooks=[(sae.cfg["hook_point"], mean_abl_hook)],
+            return_type="loss",
+        ).item()
 
-    ce_degradation = original_loss - reconstr_loss
-    zero_degradation = original_loss - zero_loss
-    mean_degradation = original_loss - mean_loss
+        ce_degradation = original_loss - reconstr_loss
+        zero_degradation = original_loss - zero_loss
+        mean_degradation = original_loss - mean_loss
 
-    log_dict = {
-        "performance/ce_degradation": ce_degradation,
-        "performance/recovery_from_zero": (reconstr_loss - zero_loss) / zero_degradation,
-        "performance/recovery_from_mean": (reconstr_loss - mean_loss) / mean_degradation,
-    }
+        log_dict = {
+            "performance/ce_degradation": ce_degradation,
+            "performance/recovery_from_zero": (reconstr_loss - zero_loss) / zero_degradation,
+            "performance/recovery_from_mean": (reconstr_loss - mean_loss) / mean_degradation,
+        }
 
-    if index is not None:
-        log_dict = {f"{k}_{index}": v for k, v in log_dict.items()}
+        if index is not None:
+            log_dict = {f"{k}_{index}": v for k, v in log_dict.items()}
 
-    wandb_run.log(log_dict, step=step)
+        wandb_run.log(log_dict, step=step)
 
 def save_checkpoint(sae, optimizer, cfg, iter_num, dir_path, activation_store=None, is_final=False):
     """

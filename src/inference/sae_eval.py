@@ -24,7 +24,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from prettytable import PrettyTable
 from src.utils import get_paths
-
+from datasets import load_from_disk
+import seaborn as sns   
+import matplotlib.pyplot as plt
 
 
 class EvalConfig:
@@ -44,7 +46,7 @@ class SAEEval:
         self.tokenizer, model = load_model(cfg.model_path)
         self.load_test_set()
         sae_cfg, sae = load_sae(cfg.sae_path, load_thresholds=False)
-        thresholds = torch.load(cfg.sae_path+"/percentiles/feature_percentile_90.pt")
+        thresholds = torch.load(cfg.sae_path+"/percentiles/feature_percentile_100.pt")
         self.sae_cfg = sae_cfg
         self.hook_point = sae_cfg["hook_point"]
         self.jump_relu = convert_to_jumprelu(sae, thresholds)
@@ -58,12 +60,19 @@ class SAEEval:
 
 
     def load_test_set(self):
-        if not self.cfg.is_tokenized:
+        if not self.cfg.test_set_path.endswith(".txt"):
+            dataset = load_from_disk(self.cfg.test_set_path)
+            dataset = iter(dataset)
+            self.test_set = [torch.tensor(next(dataset)["input_ids"]) for _ in range(100)]
+
+            
+
+        else:
             with open(self.cfg.test_set_path, "r") as f:
                 test_set = f.read()
-            test_set = test_set.split("\n")[:100]
+            test_set = test_set.split("\n")[:1000]
             test_set = [seq.strip("<pad>") for seq in test_set]
-            test_set_tokenized = [self.tokenizer.encode(elem, padding=True, truncation=True, return_tensors="pt", max_length=256) for elem in test_set]
+            test_set_tokenized = [self.tokenizer.encode(elem, return_tensors="pt", max_length=512) for elem in test_set]
             self.test_set = test_set_tokenized
 
 
@@ -77,8 +86,12 @@ class SAEEval:
                 _, cache = self.model.run_with_cache(seq, names_filter=names_filter)
                 activations = cache[self.hook_point]
                 sae_out = self.jump_relu.forward(activations, use_pre_enc_bias=True)
+                out = {}
+                for key, value in sae_out.items():
+                    out[key] = value.cpu()
+                del sae_out
                 all_activations.append(activations.cpu())
-                all_sae_outputs.append(sae_out)
+                all_sae_outputs.append(out)
         
         # Compute metrics across all sequences at once
         self.final_metrics = self.get_metrics_across_sequences(all_activations, all_sae_outputs)
@@ -86,7 +99,14 @@ class SAEEval:
     def get_metrics_across_sequences(self, all_activations, all_sae_outputs):
         # Concatenate feature activations from all sequences
         all_feature_acts = torch.cat([out["feature_acts"][0] for out in all_sae_outputs], dim=0).cpu()
-        
+
+        has_fired = torch.where(all_feature_acts > 0, 1, 0)
+        has_fired_per_token = torch.sum(has_fired, dim=1)
+        has_fired_per_token = has_fired_per_token.cpu().numpy()
+        sns.histplot(has_fired_per_token)
+        plt.xlabel("Number of features fired per token")
+        plt.xlim(0, 300)
+        plt.savefig(os.path.join(self.cfg.sae_path, "evaluation", "has_fired_per_token.png"))
         
         # Calculate MSE loss across all sequences
         mse_loss = torch.mean(torch.tensor([sae_out["loss"] for sae_out in all_sae_outputs]))
@@ -136,7 +156,8 @@ class SAEEval:
             "sparsity": sparsity,
             "max_activation": max_activation,
             "mean_activation": mean_activation,
-            "active_features": active_features
+            "active_features": active_features,
+            "has_fired_per_token": has_fired_per_token
         }
 
     def pretty_table(self):
@@ -162,7 +183,6 @@ class SAEEval:
         
         table.add_row(["Dead Features", f"{dead_features}/{total_features} ({dead_features/total_features*100:.1f}%)"])
         
-        print("\nSparse Autoencoder Evaluation Metrics:")
         print(table)
         
     def save_feature_statistics(self, output_dir=None):
@@ -217,17 +237,21 @@ class SAEEval:
 
 
 if __name__ == "__main__":
-    model_iteration = 1
-    data_iteration = 1
-    model_path = f"/users/nferruz/gboxo/Alpha Amylase/output_iteration{model_iteration}" 
-    sae_path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
-    df_path = f"/users/nferruz/gboxo/Alpha Amylase/dataframe_iteration{data_iteration}.csv"
-    df = pd.read_csv(df_path)
-    sequences = df["sequence"].tolist()
-    txt = "\n".join(sequences)
-    test_set_path = f"/users/nferruz/gboxo/Alpha Amylase/test_set_iteration{data_iteration-1}.txt"
-    with open(test_set_path, "w") as f:
-        f.write(txt)
+    #model_iteration = 1
+    #data_iteration = 1
+    #model_path = f"/users/nferruz/gboxo/Alpha Amylase/output_iteration{model_iteration}" 
+    #sae_path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
+    #df_path = f"/users/nferruz/gboxo/Alpha Amylase/dataframe_iteration{data_iteration}.csv"
+    #df = pd.read_csv(df_path)
+    #sequences = df["sequence"].tolist()
+    #txt = "\n".join(sequences)
+    #test_set_path = f"/users/nferruz/gboxo/Alpha Amylase/test_set_iteration{data_iteration-1}.txt"
+    #with open(test_set_path, "w") as f:
+    #    f.write(txt)
+
+    model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
+    sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_0_100/final/"
+    test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_eval/"
 
 
 

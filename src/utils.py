@@ -74,27 +74,23 @@ def load_sae(sae_path, load_thresholds=False):
             return cfg,sae
     
 
+    with open(sae_path+"config.json", "r") as f:
+        config = json.load(f)
+    
+    cfg = update_cfg(cfg, **config)
+    cfg = post_init_cfg(cfg)
+    
+    state_dict = torch.load(sae_path+"sae.pt")
+    cfg["dtype"] = torch.float32
 
-
-
-
-        with open(sae_path+"config.json", "r") as f:
-            config = json.load(f)
-        
-        cfg = update_cfg(cfg, **config)
-        cfg = post_init_cfg(cfg)
-        
-        state_dict = torch.load(sae_path+"sae.pt")
-        cfg["dtype"] = torch.float32
-
-        sae = BatchTopKSAE(cfg)
-        sae.load_state_dict(state_dict)
-        if load_thresholds:
-            thresholds = torch.load(sae_path+"thresholds.pt")
-            sae.thresholds = thresholds
-            return cfg,sae,thresholds
-        else: 
-            return cfg,sae
+    sae = BatchTopKSAE(cfg)
+    sae.load_state_dict(state_dict)
+    if load_thresholds:
+        thresholds = torch.load(sae_path+"thresholds.pt")
+        sae.thresholds = thresholds
+        return cfg,sae,thresholds
+    else: 
+        return cfg,sae
 
 def load_config(config_path):
     cfg = get_default_cfg()

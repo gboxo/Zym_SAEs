@@ -12,10 +12,6 @@ seed = 1998
 
 def generate_dataset(iteration_num, ec_label):
     data = dict()
-    data = {
-    "sequence" : [],
-    "seq_name" : [],
-    }
 
     with open(f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num-1}.fasta", "r") as f:
         rep_seq = f.readlines()
@@ -34,11 +30,9 @@ def generate_dataset(iteration_num, ec_label):
                                     }
     
 
-    data["sequence"] = [formatting_sequence(elem["sequence"], ec_label) for elem in sequences_rep.values()]
-    print(data["sequence"])
-    data["seq_name"] = [key for key in sequences_rep.keys()]
-        
-    hf_dataset = Dataset.from_pandas(pd.DataFrame(data))
+    data["input_ids"] = [formatting_sequence(elem["sequence"], ec_label) for elem in sequences_rep.values()]
+    df = pd.DataFrame(data)
+    hf_dataset = Dataset.from_pandas(df)
     shuffled_dataset = hf_dataset.shuffle(seed=seed)
     # Split the dataset (80% train, 20% eval)
     split_percent = 0.2
@@ -50,6 +44,7 @@ def generate_dataset(iteration_num, ec_label):
         'train': train_dataset,
         'eval': eval_dataset
         })
+    
         
     final_dataset.save_to_disk(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets/dataset_iteration{iteration_num}")
     
@@ -65,7 +60,7 @@ def seed_everything(seed=2003):
 
 def formatting_sequence(sequence, ec_label):
     sequence = str(f"{ec_label}<sep><start>{sequence}<|endoftext|>")
-    tokens = tokenizer.encode(sequence)
+    tokens = tokenizer.encode(sequence, max_length=512, padding="max_length", truncation=True)
     return tokens
 
 
@@ -87,6 +82,9 @@ if __name__ == "__main__":
     else:
         model_name = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{iteration_num-1}/"
     tokenizer = AutoTokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=True)
+
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = "<pad>"
     if not os.path.exists(f"dataset_iteration{iteration_num}"):
       dataset = generate_dataset(iteration_num, ec_label)
     else:

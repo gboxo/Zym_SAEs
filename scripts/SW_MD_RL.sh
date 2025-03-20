@@ -5,7 +5,7 @@ output_dir="configs/diffing_exp1"
 mkdir -p $output_dir
 
 # Define the array of iteration identifiers or indices
-iterations=("1" "2" "3")  # You can add as many as you need
+iterations=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")  # You can add as many as you need
 
 # Iterate over each identifier to create a configuration file
 for i in "${iterations[@]}"; do

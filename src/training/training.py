@@ -62,6 +62,7 @@ def generate_checkpoint_dir(cfg: SimpleNamespace, resume: bool = False,diffing: 
 
 
 def threshold_loop_collect(sae_output, feature_min_activations_buffer):
+    print("Collecting thresholds")
     with torch.no_grad():
         feature_activations = sae_output["feature_acts"]
         # For each feature, get the minimum activation that is greater than zero
@@ -73,6 +74,7 @@ def threshold_loop_collect(sae_output, feature_min_activations_buffer):
 
 
 def threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir):
+    print("Computing thresholds")
     with torch.no_grad():
         # Stack all collected minimum activations
         all_feature_min_activations = torch.stack(feature_min_activations_buffer)
@@ -85,10 +87,12 @@ def threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir):
         )
         
         # Compute percentiles (0 to 100 in steps of 1)
-        percentiles = torch.linspace(0, 1, 101)
+
+        percentiles = torch.linspace(0, 1, 101).to(all_feature_min_activations.device)
         feature_percentiles = torch.nanquantile(all_feature_min_activations, percentiles, dim=0)
         
         # Save each percentile
+        print("Saving percentiles")
         for i, percentile in enumerate(feature_percentiles):
             torch.save(percentile.cpu(), f"{checkpoint_dir}/percentiles/feature_percentile_{i}.pt")
         
@@ -193,9 +197,7 @@ def resume_training(
     
     accumulation_steps = 4    
     for iter_num in range(start_iter, start_iter + n_iters):
-        print("===========")
         sae.train()
-        print("Iteration: ", iter_num)
         
         total_loss = 0
         optimizer.zero_grad()  # Zero gradients at start of accumulation
@@ -204,10 +206,10 @@ def resume_training(
         for acc_step in range(accumulation_steps):
             batch = activation_store.next_batch()
             sae_output = sae(batch)
-            loss = sae_output["loss"] / accumulation_steps  # Scale loss by accumulation steps
-            total_loss += loss.item()
+            loss = sae_output["loss"]   # Scale loss by accumulation steps
+            total_loss += loss/accumulation_steps
             
-            loss.backward()
+        total_loss.backward()
         
         # Update weights after accumulation
         if validate_and_clip_gradients(sae, optimizer, cfg.training.max_grad_norm, iter_num, wandb_run):
@@ -223,7 +225,9 @@ def resume_training(
             sae.eval()
             with torch.no_grad():
                 # Log training metrics
-                log_wandb(sae_output, iter_num, wandb_run)
+                log_wandb(sae_output, iter_num, wandb_run, model)
+                log_model_performance(wandb_run, iter_num, model, activation_store, sae)
+                
                 
                 if cfg.resuming.model_diffing:
                     log_decoder_weights(sae, decoder_weights, iter_num, wandb_run)
@@ -261,8 +265,8 @@ def resume_training(
                                 "thresholds/std": torch.std(valid_thresholds).item(),
                                 "thresholds/active_features": len(valid_thresholds),
                             }, step=iter_num)
-                print("Resetting feature min activations buffer")
-                feature_min_activations_buffer = []
+                    print("Resetting feature min activations buffer")
+                    feature_min_activations_buffer = []
             sae.train()
 
 
