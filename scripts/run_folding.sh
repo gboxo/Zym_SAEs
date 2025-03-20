@@ -6,7 +6,7 @@
 #SBATCH --time=24:00:00               # Time limit
 #SBATCH --output=slurm_%A_%a.out      # Output file (%A = job ID, %a = array index)
 #SBATCH --error=slurm_%A_%a.err       # Error file
-#SBATCH --array=0-5                   # Array range from 2 to 30
+#SBATCH --array=6-9                   # Array range from 2 to 30
 
 export http_proxy=http://proxy:80
 export https_proxy=http://proxy:80

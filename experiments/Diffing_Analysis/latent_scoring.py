@@ -361,7 +361,6 @@ if __name__ == "__main__":
         data_iteration = iteration_num 
     else:
         data_iteration = iteration_num 
-
         model_iteration = 0
     cs = torch.load("/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/all_cs.pt")
     cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
