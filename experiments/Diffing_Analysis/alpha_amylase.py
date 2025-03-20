@@ -23,12 +23,12 @@ md_indices = [re.findall(r'\d+', file) for file in files]
 
 # Load FT
 sae_dict = {}
-for data_index in range(4):
+for data_index in range(1,7):
     string = f"M0_D{data_index}"
     sae_dict[string] = torch.load(path + string + "/diffing/checkpoint_latest.pt")["model_state_dict"]["W_dec"].detach().cpu()
 
 # Load SAE
-for index in range(4):
+for index in range(1,7):
     string = f"M{index}_D{index}"
     sae_dict[string] = torch.load(path + string + "/diffing/checkpoint_latest.pt")["model_state_dict"]["W_dec"].detach().cpu()
 

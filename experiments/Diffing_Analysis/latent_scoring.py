@@ -1,4 +1,5 @@
 import pandas as pd
+import argparse
 import os
 from src.inference.inference_batch_topk import convert_to_jumprelu
 from src.utils import load_sae, load_model, get_ht_model
@@ -53,8 +54,8 @@ def obtain_features(df):
     """
     sequences = df["sequence"].tolist()
     features = get_all_features(model,jump_relu, tokenizer, sequences)
-    os.makedirs(f"Data/Diffing_Analysis_Data/features", exist_ok=True)
-    pkl.dump(features, open(f"Data/Diffing_Analysis_Data/features/features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features", exist_ok=True)
+    pkl.dump(features, open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features/features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
     del features
     torch.cuda.empty_cache()
 
@@ -93,7 +94,7 @@ def firing_rates(features):
         fa = w.sum(axis=0)>0
         firing_rates_seq.append(fa)
     firing_rates_seq = np.array(firing_rates_seq).mean(axis=0)
-    np.save(f"Data/Diffing_Analysis_Data/firing_rates_M{model_iteration}_D{data_iteration}.npy", firing_rates_seq)
+    np.save(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/firing_rates_M{model_iteration}_D{data_iteration}.npy", firing_rates_seq)
     return firing_rates_seq
 
 
@@ -147,8 +148,8 @@ def get_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
     }
     
     # Save the correlation data
-    os.makedirs(f"Data/Diffing_Analysis_Data/correlations", exist_ok=True)
-    pkl.dump(correlation_data, open(f"Data/Diffing_Analysis_Data/correlations/top_correlations_M{model_iteration}_D{data_iteration}.pkl", "wb"))
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations", exist_ok=True)
+    pkl.dump(correlation_data, open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations/top_correlations_M{model_iteration}_D{data_iteration}.pkl", "wb"))
     
     print(f"Created correlation data with shape: {top_correlations.shape}")
     print(f"Number of significant correlations after correction: {np.sum(~mask)}")
@@ -168,7 +169,7 @@ def plot_correlation_heatmap(correlation_data):
                 xticklabels=["pLDDT", "Activity", "TM-score"])
     plt.title("Top Feature Correlations (masked by significance)")
     plt.tight_layout()
-    plt.savefig(f"Data/Diffing_Analysis_Data/figures/correlation_heatmap_M{model_iteration}_D{data_iteration}.png", dpi=300)
+    plt.savefig(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/correlation_heatmap_M{model_iteration}_D{data_iteration}.png", dpi=300)
     plt.close()
 
 
@@ -184,7 +185,7 @@ def plot_firing_rate_vs_correlation(correlation_data):
     plt.xlabel("Firing Rates")
     plt.ylabel("Activity")
     plt.title("Firing Rates vs Activity")
-    plt.savefig(f"Data/Diffing_Analysis_Data/figures/firing_rates_activity_M{model_iteration}_D{data_iteration}.png", dpi=300)
+    plt.savefig(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/firing_rates_activity_M{model_iteration}_D{data_iteration}.png", dpi=300)
     plt.close()
 
 
@@ -249,11 +250,11 @@ def plot_2d_density(x: np.ndarray, y: np.ndarray, z: np.ndarray):
     )
     
     # Save as interactive HTML
-    os.makedirs(f"Data/Diffing_Analysis_Data/figures", exist_ok=True)
-    fig.write_html(f"Data/Diffing_Analysis_Data/figures/2d_density_plot_interactive_M{model_iteration}_D{data_iteration}.html")
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures", exist_ok=True)
+    fig.write_html(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/2d_density_plot_interactive_M{model_iteration}_D{data_iteration}.html")
     
     # Also save a static image for reference
-    fig.write_image(f"Data/Diffing_Analysis_Data/figures/2d_density_plot_M{model_iteration}_D{data_iteration}.png", scale=2)
+    fig.write_image(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/2d_density_plot_M{model_iteration}_D{data_iteration}.png", scale=2)
 
 
 def plot_3d_density(correlation_data):
@@ -322,11 +323,11 @@ def plot_3d_density(correlation_data):
     )
     
     # Save as interactive HTML
-    os.makedirs(f"Data/Diffing_Analysis_Data/figures", exist_ok=True)
-    fig.write_html(f"Data/Diffing_Analysis_Data/figures/3d_density_plot_interactive_M{model_iteration}_D{data_iteration}.html")
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures", exist_ok=True)
+    fig.write_html(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/3d_density_plot_interactive_M{model_iteration}_D{data_iteration}.html")
     
     # Also save a static image for reference
-    fig.write_image("Data/Diffing_Analysis_Data/figures/3d_density_plot.png", scale=2)
+    fig.write_image("/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/3d_density_plot.png", scale=2)
 
 
 def analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
@@ -345,21 +346,35 @@ def analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
 
 if __name__ == "__main__":
     
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--iteration_num", type=int)
+    parser.add_argument("--label", type=str)
+    # is_rl True if RL, False if SW
+    parser.add_argument("--is_rl", action="store_true", help="Set to True if using RL, False if using SW")
+    args = parser.parse_args()
+    iteration_num = args.iteration_num
+    ec_label = args.label
+    ec_label = ec_label.strip()
 
-    model_iteration = 1
-    data_iteration = 1
-    cs = torch.load("Data/Diffing_Analysis_Data/all_cs.pt")
+    if args.is_rl:
+        model_iteration = iteration_num
+        data_iteration = iteration_num 
+    else:
+        data_iteration = iteration_num 
+
+        model_iteration = 0
+    cs = torch.load("/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/all_cs.pt")
     cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
     # Load the dataframe
-    df_path = f"/users/nferruz/gboxo/Alpha Amylase/dataframe_iteration{data_iteration}.csv"
+    df_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/dataframe_iteration{data_iteration}.csv"
     assert os.path.exists(df_path), "Dataframe does not exist"
     df = pd.read_csv(df_path)
     if True:
         if model_iteration == 0:
             model_path = "AI4PD/ZymCTRL"
         else:
-            model_path = f"/users/nferruz/gboxo/Alpha Amylase/output_iteration{model_iteration}" 
-        sae_path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
+            model_path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{iteration_num-1}/" 
+        sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/"
         cfg, sae = load_sae(sae_path)
         thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
@@ -374,13 +389,13 @@ if __name__ == "__main__":
 
         obtain_features(df)
 
-
-    features = load_features(f"Data/Diffing_Analysis_Data/features/features_M{model_iteration}_D{data_iteration}.pkl")
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features", exist_ok=True)
+    features = load_features(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features/features_M{model_iteration}_D{data_iteration}.pkl")
     f_rates = firing_rates(features)
 
     # Plot the histogram of the firing rates
     plt.hist(f_rates,bins=20)
-    plt.savefig(f"Data/Diffing_Analysis_Data/figures/firing_rates_histogram_M{model_iteration}_D{data_iteration}.png", dpi=300)
+    plt.savefig(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/firing_rates_histogram_M{model_iteration}_D{data_iteration}.png", dpi=300)
     plt.close()
 
 

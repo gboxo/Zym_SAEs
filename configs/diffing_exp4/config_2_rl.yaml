@@ -1,4 +1,4 @@
-base_config: base_config_lex.yaml
+base_config: base_config_alex.yaml
 
 base:
   model_path: /home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration2

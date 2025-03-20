@@ -19,7 +19,7 @@ module load cuda/11.8.0
 module load cudnn/8.9.6.50-11.x
 source /home/woody/b114cb/b114cb23/boxo/pSAE/bin/activate
 # Define the base directory for output files
-output_dir="configs/diffing_exp1"
+output_dir="configs/diffing_exp4"
 mkdir -p $output_dir
 cp configs/base_config_alex.yaml $output_dir/
 # Define the array of iteration identifiers or indices
@@ -39,7 +39,7 @@ for i in "${iterations[@]}"; do
   fi
 
   cat <<EOL > $output_file
-base_config: base_config_lex.yaml
+base_config: base_config_alex.yaml
 
 base:
   model_path: ${model_path}
