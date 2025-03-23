@@ -2,6 +2,10 @@ import pandas as pd
 import os
 import argparse
 
+
+
+
+
 def get_plddt_dict(plddt_path, files):
     """
     Compute the average pLDDT for each PDB file in 'files'.
@@ -11,7 +15,6 @@ def get_plddt_dict(plddt_path, files):
     """
     plddt_dict = {}
     for file in files:
-        print(file)
         pdb_file = os.path.join(plddt_path, file)
         with open(pdb_file, 'r') as f:
             plddt_vals = []
@@ -32,6 +35,17 @@ def get_plddt_dict(plddt_path, files):
     return plddt_dict
 
 def main(iteration_num, label):
+
+    
+    # Load the TM scores
+    #query,target,alntmscore,qtmscore,ttmscore,alnlen
+    tm_score_path = f"/home/woody/b114cb/b114cb23/boxo/outputs/TM_scores/TM_scores_{label}_iteration{iteration_num-1}"
+    df_tm_score = pd.read_csv(tm_score_path, sep="\t", header=None)
+    df_tm_score.columns = ["query", "target", "alntmscore", "qtmscore", "ttmscore", "alnlen"]
+    df_tm_score["label"] = df_tm_score["query"]
+
+    df_alntmscore = df_tm_score[["label", "alntmscore"]]
+    print(df_alntmscore.head())
 
     
     # Load the sequences
@@ -65,6 +79,7 @@ def main(iteration_num, label):
 
     df_merged = pd.merge(df_activity, df_plddt, on="label", how="inner")
     df_merged = pd.merge(df_merged, df_sequences, on="label", how="inner")
+    df_merged = pd.merge(df_merged, df_alntmscore, on="label", how="inner")
     # Further processing of df and plddt_dict goes here.
     df_merged.to_csv(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/dataframe_iteration{iteration_num-1}.csv", index=False)
 

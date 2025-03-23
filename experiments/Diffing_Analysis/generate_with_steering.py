@@ -8,35 +8,41 @@ import os
 import pickle as pkl
 from tqdm import tqdm
 
-def ablation(activations, hook, ablation_feature):
+def steering(activations, hook, steering_direction, steering_factor):
     # Check prompt processing
     if activations.shape[1] > 1:
-        #activations[:,:,ablation_feature] = 0
+        #activations[:,:,steering_feature] = 0
         pass
         
     else:
-        activations[:,:,ablation_feature] = 0
+        activations += steering_factor * steering_direction
     
     return activations
 
 
 
-def generate_with_ablation(model: HookedSAETransformer, sae: SAE, prompt: str, ablation_feature: int, max_new_tokens=256, n_samples=10):
+def generate_with_steering(model: HookedSAETransformer, sae: SAE, prompt: str, steering_direction: torch.Tensor, max_new_tokens=512, n_samples=10):
     input_ids = model.to_tokens(prompt, prepend_bos=sae.cfg.prepend_bos)
     input_ids_batch = input_ids.repeat(n_samples, 1)
     
 
     all_outputs = []
+    steering_direction = sae.state_dict()["W_dec"][steering_feature,:]
+    print(steering_direction.shape)
 
-    ablation_hook = partial(
-        ablation,
-        ablation_feature=ablation_feature,
+    steering_factor = 5
+
+
+    steering_hook = partial(
+        steering,
+        steering_direction=steering_direction,
+        steering_factor=steering_factor,
     )
     
     #for i in range(n_samples):
 
     # standard transformerlens syntax for a hook context for generation
-    with model.hooks(fwd_hooks=[('blocks.26.hook_resid_pre.hook_sae_acts_post', ablation_hook)]):
+    with model.hooks(fwd_hooks=[('blocks.26.hook_resid_pre', steering_hook)]):
         output = model.generate(
             input_ids_batch, 
             top_k=9, #tbd
@@ -83,10 +89,7 @@ if __name__ == "__main__":
         cs = torch.load("/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/all_cs.pt")
         cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
         # Load the dataframe
-        if model_iteration == 0:
-            model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-        else:
-            model_path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{model_iteration}/" 
+        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
         sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M{model_iteration}_D{data_iteration}/diffing/"
         cfg_sae, sae = load_sae(sae_path)
         thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
@@ -98,11 +101,9 @@ if __name__ == "__main__":
 
         sae = SAE(cfg)
         sae.load_state_dict(state_dict)
-        sae.use_error_term = True
 
         tokenizer, model = load_model(model_path)
         model = get_sl_model(model, model.config, tokenizer).to("cuda")
-        model.add_sae(sae)
     
         path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations/top_correlations_M{model_iteration}_D{data_iteration}.pkl"
         with open(path, "rb") as f:
@@ -113,13 +114,13 @@ if __name__ == "__main__":
         prompt = "3.2.1.1<sep><start>"
 
 
-        os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/ablation/M{model_iteration}_D{data_iteration}", exist_ok=True)
+        os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/steering/M{model_iteration}_D{data_iteration}", exist_ok=True)
 
         
         if True:
-            for ablation_feature in tqdm(feature_indices):
-                out = generate_with_ablation(model, sae, prompt, ablation_feature, max_new_tokens=512, n_samples=20)
-                with open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/ablation/M{model_iteration}_D{data_iteration}/ablation_feature_{ablation_feature}.txt", "w") as f:
+            for steering_feature in tqdm(feature_indices):
+                out = generate_with_steering(model, sae, prompt, steering_feature, max_new_tokens=512, n_samples=20)
+                with open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/steering/M{model_iteration}_D{data_iteration}/steering_feature_{steering_feature}.txt", "w") as f:
                     for i, o in enumerate(out):
                         f.write(f">3.2.1.1_{i}\n")
                         f.write(o+"\n")

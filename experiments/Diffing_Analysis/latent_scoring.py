@@ -366,14 +366,27 @@ if __name__ == "__main__":
     cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
     # Load the dataframe
     df_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/dataframe_iteration{data_iteration}.csv"
+
+    
+    
+    # Create the directories
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures", exist_ok=True)
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features", exist_ok=True)
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations", exist_ok=True)
+
+
+
+    
+    
+
     assert os.path.exists(df_path), "Dataframe does not exist"
     df = pd.read_csv(df_path)
     if True:
         if model_iteration == 0:
-            model_path = "AI4PD/ZymCTRL"
+            model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
         else:
-            model_path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{iteration_num-1}/" 
-        sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/"
+            model_path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{iteration_num}/" 
+        sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M{model_iteration}_D{data_iteration}/diffing/"
         cfg, sae = load_sae(sae_path)
         thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
@@ -400,10 +413,10 @@ if __name__ == "__main__":
 
 
     mean_features = get_mean_features(features)[:,0]
-    plddt = df["plddt_score"].tolist()
+    plddt = df["pLDDT"].tolist()
     plddt = np.array(plddt)
 
-    activity = df["activity_esm_1v"].tolist()
+    activity = df["prediction1"].tolist()
     activity = np.array(activity)
 
     tm_score = df["alntmscore"].tolist()

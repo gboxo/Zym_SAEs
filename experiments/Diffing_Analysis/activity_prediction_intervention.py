@@ -86,14 +86,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--iteration_num", type=int, required=True)
     parser.add_argument("--label", type=str, required=True)
+    parser.add_argument("--procedure", type=str, required=True)
     args = parser.parse_args()
 
     iteration_num = args.iteration_num
     ec_label = args.label.strip()
-    feature_indices = None
+    procedure = args.procedure # [ "steering", "ablation"]
+    path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations/top_correlations_M{iteration_num}_D{iteration_num}.pkl"
+    with open(path, "rb") as f:
+        top_correlations = pkl.load(f)
+    feature_indices = top_correlations["feature_indices"]
+    all_seqs_paths = []
+    for feature in feature_indices:
+        seqs_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/{procedure}/M{iteration_num}_D{iteration_num}/{procedure}_feature_{feature}.txt"
+        all_seqs_paths.append(seqs_path)
+    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}/activity_prediction_iteration{iteration_num}_feature_{feature}.txt"
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}", exist_ok=True)
 
-    seqs_path = f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
-    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions/activity_prediction_iteration{iteration_num}.txt"
 
 
 
@@ -102,7 +111,7 @@ if __name__ == "__main__":
 
     print(f"Loading the Oracle model")
 
-    checkpoint = "facebook/esm2_t33_650M_UR50D"
+    checkpoint = "/home/woody/b114cb/b114cb23/models/esm2_t33_650M_UR50D/"
     tokenizer, model = load_model(
         checkpoint,
         "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRa_esm2_3B/esm_GB1_finetuned.pth",
@@ -114,18 +123,24 @@ if __name__ == "__main__":
 
     print(f"Generating the dataset")
 
+    all_predictions1 = {} 
 
-    test_dataloader, names = generate_dataset(seq_path, tokenizer)
+    for i,seq_path in enumerate(all_seqs_paths):
+        feature = feature_indices[i]
+        all_predictions1[feature] = {} 
+        test_dataloader, names = generate_dataset(seq_path, tokenizer)
 
+        print(f"Generating the predictions")
+        predictions = []
+        with torch.no_grad():
+            for batch in tqdm(test_dataloader):
+                input_ids = batch["input_ids"].to(device)
+                attention_mask = batch["attention_mask"].to(device)
+                logits = model(input_ids=input_ids, attention_mask=attention_mask).logits
+                predictions.extend(logits.squeeze().tolist())
+        for name, prediction in zip(names, predictions):
+            all_predictions1[feature][name] = prediction
 
-
-    predictions = []
-    with torch.no_grad():
-        for batch in tqdm(test_dataloader):
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
-            logits = model(input_ids=input_ids, attention_mask=attention_mask).logits
-            predictions.extend(logits.squeeze().tolist())
 
     del model
     torch.cuda.empty_cache()
@@ -139,19 +154,34 @@ if __name__ == "__main__":
     model.to(device)
     model.eval()
 
-    predictions2 = []
-    with torch.no_grad():
-        for batch in tqdm(test_dataloader):
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
-            logits = model(input_ids=input_ids, attention_mask=attention_mask).logits
-            predictions2.extend(logits.squeeze().tolist())
+    all_predictions2 = {} 
 
-    predictions = [(p1 + p2) / 2 for p1, p2 in zip(predictions, predictions2)]
+    for i,seq_path in enumerate(all_seqs_paths):
+        feature = feature_indices[i]
+        all_predictions2[feature] = {} 
+        test_dataloader, names = generate_dataset(seq_path, tokenizer)
 
-    out = "".join(f'{name[:-2]},{prediction}\n' for name, prediction in zip(names, predictions))
-    os.makedirs(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions', exist_ok=True)
-    with open(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions/activity_prediction_iteration{iteration_num}.txt', 'w') as f:
+        print(f"Generating the predictions")
+        predictions2 = []
+        with torch.no_grad():
+            for batch in tqdm(test_dataloader):
+                input_ids = batch["input_ids"].to(device)
+                attention_mask = batch["attention_mask"].to(device)
+                logits = model(input_ids=input_ids, attention_mask=attention_mask).logits
+                predictions2.extend(logits.squeeze().tolist())
+        for name, prediction in zip(names, predictions2):
+            all_predictions2[feature][name] = prediction
+
+    all_predictions = {} 
+    for feature in all_predictions1:
+        all_predictions[feature] = {} 
+        for name in all_predictions1[feature]:
+            all_predictions[feature][name] = (all_predictions1[feature][name] + all_predictions2[feature][name]) / 2
+
+
+    out = "".join(f'{name},{feature},{prediction}\n' for feature, prediction in all_predictions.items() for name, prediction in prediction.items())
+    os.makedirs(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}', exist_ok=True)
+    with open(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}/activity_prediction_iteration{iteration_num}.txt', 'w') as f:
         f.write(out)
 
     del model
