@@ -17,6 +17,9 @@ from scipy.stats import gaussian_kde
 import plotly.graph_objects as go
 from scipy.interpolate import griddata
 from scipy.stats import pearsonr
+from sklearn.metrics import accuracy_score, auc, roc_auc_score
+from sklearn.linear_model import LogisticRegressionCV
+from sklearn.model_selection import train_test_split
 
 
 def get_activations( model, tokenizer, sequence):
@@ -96,6 +99,69 @@ def firing_rates(features):
     firing_rates_seq = np.array(firing_rates_seq).mean(axis=0)
     np.save(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/firing_rates_M{model_iteration}_D{data_iteration}.npy", firing_rates_seq)
     return firing_rates_seq
+
+
+def fit_lr_probe(X_train, y_train, X_test, y_test):
+    """
+    Fit a sparse logistic regression probe to the data, to select the most important features
+    """
+    results = []
+    probes =[]
+    for sparsity in tqdm(np.logspace(-4.5, -3, 10)):
+        lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1)
+        lr_model.fit(X_train, y_train)
+        coefs = lr_model.coef_
+        active_features = np.where(coefs != 0)[1]
+        probes.append(lr_model)
+        y_pred = lr_model.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        
+        roc_auc = roc_auc_score(y_test, y_pred)
+        results.append({
+            "active_features": active_features,
+            "sparsity": sparsity,
+            "accuracy": accuracy,
+            "roc_auc": roc_auc,
+        })
+    return results, probes
+
+
+def get_important_features(X,pred1,pred2,plddt,tm_score):
+    """
+    Fit a sparse logistic regression probe to the data, to select the most important features
+    """
+
+    # Prediction 1
+    X_train, X_test, y_train, y_test = train_test_split(X,pred1>3)
+    results_pred1, probes_pred1 = fit_lr_probe(X_train,y_train, X_test, y_test)
+    # Prediction 2
+    X_train, X_test, y_train, y_test = train_test_split(X,pred2>1.5)
+    results_pred2, probes_pred2 = fit_lr_probe(X_train,y_train, X_test, y_test)
+    # PLDDT 
+    X_train, X_test, y_train, y_test = train_test_split(X,plddt>0.7)
+    results_plddt, probes_plddt = fit_lr_probe(X_train,y_train, X_test, y_test)
+    # TM-score
+    X_train, X_test, y_train, y_test = train_test_split(X,tm_score>0.8)
+    results_tm_score, probes_tm_score = fit_lr_probe(X_train,y_train, X_test, y_test)
+
+    coefs_pred1 = torch.tensor(probes_pred1[-1].coef_)[0]
+    coefs_pred2 = torch.tensor(probes_pred2[-1].coef_)[0]
+    coefs_plddt = torch.tensor(probes_plddt[-1].coef_)[0]
+    coefs_tm_score = torch.tensor(probes_tm_score[-1].coef_)[0]
+
+    unique_coefs = torch.unique(torch.cat([torch.where(coefs_pred1>0)[0],
+                                        torch.where(coefs_pred2>0)[0],
+                                        torch.where(coefs_plddt>0)[0],
+                                        torch.where(coefs_tm_score>0)[0]]))
+    coefs = torch.stack([coefs_pred1, coefs_pred2, coefs_plddt, coefs_tm_score])
+    coefs = coefs[:,unique_coefs]
+
+    return unique_coefs, coefs
+
+
+
+
+
 
 
 
@@ -343,6 +409,22 @@ def analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
     
     return correlation_data
 
+def analyze_important_features(mean_features, activity, activity2, plddt, tm_score):
+    """Main function to analyze important features and create visualizations."""
+    # Calculate correlations and get data
+    unique_coefs, coefs = get_important_features(mean_features, activity, activity2, plddt, tm_score)
+    
+    # Create various plots
+    
+    importance_features = {
+        'unique_coefs': unique_coefs,
+        'coefs': coefs,
+    }
+    
+    # Save the correlation data
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/important_features", exist_ok=True)
+    pkl.dump(importance_features, open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/important_features/important_features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
+    
 
 if __name__ == "__main__":
     
@@ -419,9 +501,13 @@ if __name__ == "__main__":
     activity = df["prediction1"].tolist()
     activity = np.array(activity)
 
+    activity2 = df["prediction2"].tolist()
+    activity2 = np.array(activity2)
+
     tm_score = df["alntmscore"].tolist()
     tm_score = np.array(tm_score)
 
     analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs)
+    analyze_important_features(mean_features, activity, activity2, plddt, tm_score)
 
 

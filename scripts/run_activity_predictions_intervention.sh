@@ -24,12 +24,12 @@ module load cudnn/8.9.6.50-11.x
 source /home/woody/b114cb/b114cb23/boxo/pSAE/bin/activate
 
 # SLURM_ARRAY_TASK_ID will contain the current iteration number
-for i in $(seq 1 5);
+for i in $(seq 1 2);
 do
-	python3 -m experiments.Diffing_Analysis.activity_prediction_intervention --iteration_num ${i} --procedure steering --label 3.2.1.1
+	python3 -m experiments.Diffing_Analysis.activity_prediction_intervention --iteration_num ${i} --procedure steering --label 3.2.1.1 --fsm importance
 done
 
 for i in $(seq 1 5);
 do
-	python3 -m experiments.Diffing_Analysis.activity_prediction_intervention --iteration_num ${i} --procedure ablation --label 3.2.1.1
+	python3 -m experiments.Diffing_Analysis.activity_prediction_intervention --iteration_num ${i} --procedure ablation --label 3.2.1.1 --fsm importance
 done

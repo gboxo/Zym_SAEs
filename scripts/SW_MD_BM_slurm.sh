@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:a100:1
 #SBATCH --partition=a100
 #SBATCH --constraint=a100_80
-#SBATCH --time=10:00:00                   # Time limit
+#SBATCH --time=24:00:00                   # Time limit
 #SBATCH --output=slurm_%j.out             # Output file
 #SBATCH --error=slurm_%j.err              # Error file
 
@@ -25,8 +25,7 @@ cp configs/base_config_alex.yaml $output_dir/
 
 
 # Define the array of iteration identifiers or indices
-iterations=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")  # You can add as many as you need
-
+iterations=($(seq 5 30))
 echo "Starting the script..."
 
 # Iterate over each identifier to create a configuration file

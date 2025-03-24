@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:a100:1
 #SBATCH --partition=a100
 #SBATCH --constraint=a100_80
-#SBATCH --time=10:00:00                   # Time limit
+#SBATCH --time=24:00:00                   # Time limit
 #SBATCH --output=slurm_%j.out             # Output file
 #SBATCH --error=slurm_%j.err              # Error file
 
@@ -23,7 +23,9 @@ output_dir="configs/diffing_exp4"
 mkdir -p $output_dir
 cp configs/base_config_alex.yaml $output_dir/
 # Define the array of iteration identifiers or indices
-iterations=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")  # You can add as many as you need
+# Iterations 0 to 30
+iterations=($(seq 5 30))
+
 
 # Iterate over each identifier to create a configuration file
 for i in "${iterations[@]}"; do
@@ -34,7 +36,7 @@ for i in "${iterations[@]}"; do
     model_path="/home/woody/b114cb/b114cb23/models/ZymCTRL/"
   else
     prev_iter=$((${i}-1))
-    resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M0_D${prev_iter}/diffing"
+    resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M${prev_iter}_D${prev_iter}/diffing"
     model_path="/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration${i}"
   fi
 

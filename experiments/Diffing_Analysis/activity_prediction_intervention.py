@@ -68,13 +68,15 @@ def generate_dataset(seq_path, tokenizer):
     with open(seq_path, "r") as f:
         rep_seq = f.readlines()
     for line in rep_seq:
-        if not line.startswith(">"):
-            encoded = tokenizer(
-                line.strip(), max_length=1024, padding="max_length", truncation=True, return_tensors="pt"
-            )
-            tokenized_sequences.append(encoded)
-        else:
-            names.append(line)
+        line = line.replace("\n","")
+        sections  = line.split(",")
+        seq = sections[1]
+        seq = seq.replace("3. 2. 1. 1 <sep> <start>","").replace("<end>","")
+        encoded = tokenizer(
+            seq, max_length=1024, padding="max_length", truncation=True, return_tensors="pt"
+        )
+        tokenized_sequences.append(encoded)
+        names.append(sections[0])
     dataset = SequenceDataset(tokenized_sequences)
     test_dataloader = DataLoader(dataset, batch_size=16, shuffle=False)
     return test_dataloader, names
@@ -87,27 +89,38 @@ if __name__ == "__main__":
     parser.add_argument("--iteration_num", type=int, required=True)
     parser.add_argument("--label", type=str, required=True)
     parser.add_argument("--procedure", type=str, required=True)
+    parser.add_argument("--fsm", type=str, required=True)
     args = parser.parse_args()
 
     iteration_num = args.iteration_num
     ec_label = args.label.strip()
     procedure = args.procedure # [ "steering", "ablation"]
-    path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations/top_correlations_M{iteration_num}_D{iteration_num}.pkl"
-    with open(path, "rb") as f:
-        top_correlations = pkl.load(f)
-    feature_indices = top_correlations["feature_indices"]
-    all_seqs_paths = []
-    for feature in feature_indices:
-        seqs_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/{procedure}/M{iteration_num}_D{iteration_num}/{procedure}_feature_{feature}.txt"
-        all_seqs_paths.append(seqs_path)
-    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}/activity_prediction_iteration{iteration_num}_feature_{feature}.txt"
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}", exist_ok=True)
-
-
-
-
-
-
+    fsm = args.fsm # [ "importance", "correlation"]
+    if fsm == "importance":
+        path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/important_features/important_features_M{iteration_num}_D{iteration_num}.pkl"
+        with open(path, "rb") as f:
+            important_features = pkl.load(f)
+        feature_indices = important_features["unique_coefs"]
+        all_seqs_paths = []
+        for feature in feature_indices:
+            
+            seqs_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/{procedure}/{fsm}/M{iteration_num}_D{iteration_num}/{procedure}_feature_{feature}.txt"
+            if os.path.exists(seqs_path):
+                all_seqs_paths.append(seqs_path)
+        output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}_{fsm}/activity_prediction_iteration{iteration_num}_feature_{feature}.txt"
+        os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}_{fsm}", exist_ok=True)
+    elif fsm == "correlation":
+        path = f"/home/woody/b14cb/b114cb23/boxo/Diffing_Analysis_Data/correlations/top_correlations_M{iteration_num}_D{iteration_num}.pkl"
+        with open(path, "rb") as f:
+            top_correlations = pkl.load(f)
+        feature_indices = top_correlations["feature_indices"]
+        all_seqs_paths = []
+        for feature in feature_indices:
+            seqs_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/{procedure}/M{iteration_num}_D{iteration_num}/{procedure}_feature_{feature}.txt"
+            if os.path.exists(seqs_path):
+                all_seqs_paths.append(seqs_path)
+    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}_{fsm}/activity_prediction_iteration{iteration_num}_feature_{feature}.txt"
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}_{fsm}", exist_ok=True)
 
     print(f"Loading the Oracle model")
 
@@ -126,7 +139,7 @@ if __name__ == "__main__":
     all_predictions1 = {} 
 
     for i,seq_path in enumerate(all_seqs_paths):
-        feature = feature_indices[i]
+        feature = feature_indices[i].item()
         all_predictions1[feature] = {} 
         test_dataloader, names = generate_dataset(seq_path, tokenizer)
 
@@ -154,10 +167,11 @@ if __name__ == "__main__":
     model.to(device)
     model.eval()
 
+
     all_predictions2 = {} 
 
     for i,seq_path in enumerate(all_seqs_paths):
-        feature = feature_indices[i]
+        feature = feature_indices[i].item()
         all_predictions2[feature] = {} 
         test_dataloader, names = generate_dataset(seq_path, tokenizer)
 
@@ -172,16 +186,22 @@ if __name__ == "__main__":
         for name, prediction in zip(names, predictions2):
             all_predictions2[feature][name] = prediction
 
-    all_predictions = {} 
+    # Write CSV header
+    out = "name,feature,prediction1,prediction2\n"
+    
+    # Add data rows
     for feature in all_predictions1:
-        all_predictions[feature] = {} 
-        for name in all_predictions1[feature]:
-            all_predictions[feature][name] = (all_predictions1[feature][name] + all_predictions2[feature][name]) / 2
+        if feature in all_predictions2:
+            for name in all_predictions1[feature]:
+                pred1 = all_predictions1[feature][name]
+                pred2 = all_predictions2[feature][name]
+                out += f"{name},{feature},{pred1},{pred2}\n"
+        
+    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}_{fsm}/activity_prediction_iteration{iteration_num}.txt"
 
 
-    out = "".join(f'{name},{feature},{prediction}\n' for feature, prediction in all_predictions.items() for name, prediction in prediction.items())
-    os.makedirs(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}', exist_ok=True)
-    with open(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}/activity_prediction_iteration{iteration_num}.txt', 'w') as f:
+    os.makedirs(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions_{procedure}_{fsm}', exist_ok=True)
+    with open(output_path, 'w') as f:
         f.write(out)
 
     del model

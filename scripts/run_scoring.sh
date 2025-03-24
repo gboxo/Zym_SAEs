@@ -1,4 +1,3 @@
-
 #!/bin/bash -l
 #SBATCH --job-name=Latent_Scoring    # Job name
 #SBATCH --ntasks=1                        # uuRun 1 task (process)
@@ -25,7 +24,7 @@ module load cudnn/8.9.6.50-11.x
 source /home/woody/b114cb/b114cb23/boxo/pSAE/bin/activate
 
 # SLURM_ARRAY_TASK_ID will contain the current iteration number
-for i in $(seq 1 6);
+for i in $(seq 0 5);
 do
 	python3 -m experiments.Diffing_Analysis.latent_scoring --iteration_num ${i} --label 3.2.1.1 --is_rl
 done

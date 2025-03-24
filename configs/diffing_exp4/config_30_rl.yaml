@@ -1,0 +1,20 @@
+base_config: base_config_alex.yaml
+
+base:
+  model_path: /home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration30
+
+training:
+  dataset_path: /home/woody/b114cb/b114cb23/boxo/diffing_datasets/dataset_iteration30/
+  name: "Model_Diffing_M30_D30"
+  perf_log_freq: 1
+  threshold_compute_freq: 1
+  aux_penalty: 0
+  top_k_aux: 0
+  num_tokens: 400000
+  threshold_num_batches: 5
+  num_batches_in_buffer: 10
+resuming:
+  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M29_D29/diffing
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M30_D30
+  resuming: true
+  model_diffing: true

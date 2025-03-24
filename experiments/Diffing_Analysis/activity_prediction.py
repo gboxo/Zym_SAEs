@@ -97,9 +97,6 @@ if __name__ == "__main__":
 
 
 
-
-
-
     print(f"Loading the Oracle model")
 
     checkpoint = "facebook/esm2_t33_650M_UR50D"
@@ -115,7 +112,7 @@ if __name__ == "__main__":
     print(f"Generating the dataset")
 
 
-    test_dataloader, names = generate_dataset(seq_path, tokenizer)
+    test_dataloader, names = generate_dataset(seqs_path, tokenizer)
 
 
 
@@ -149,7 +146,7 @@ if __name__ == "__main__":
 
     predictions = [(p1 + p2) / 2 for p1, p2 in zip(predictions, predictions2)]
 
-    out = "".join(f'{name[:-2]},{prediction}\n' for name, prediction in zip(names, predictions))
+    out = "".join(f'{name},{prediction}\n' for name, prediction in zip(names, predictions))
     os.makedirs(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions', exist_ok=True)
     with open(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions/activity_prediction_iteration{iteration_num}.txt', 'w') as f:
         f.write(out)

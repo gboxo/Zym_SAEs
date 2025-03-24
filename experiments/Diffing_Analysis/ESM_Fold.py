@@ -80,18 +80,65 @@ if procedure in ["steering", "ablation"]:
         id = row['id']
         seq = row['sequence'].replace(" ", "")
         feat = row['feature']
+        name = id[1:]
+        name = name.split("\t")[0]
+        name = name + "_" + procedure + "_" + str(feat)
+        output_dir = f"/home/woody/b114cb/b114cb23/boxo/outputs_{procedure}/output_iterations{iteration_num}/PDB"
+        output_file = f"{output_dir}/{name}.pdb"
+
+        # Skip if file already exists
+        if os.path.exists(output_file):
+            print(f"Skipping {name} - PDB file already exists")
+            continue
+
         print(f"Processing sequence {id}")
         print(f"Feature: {feat}")
+        print(f"Sequence: {seq}")
+        if len(seq) > 600:
+            print(f"Skipping {name} - Sequence too long")
+            continue
+
+        with torch.no_grad():
+            output = model_esm.infer_pdb(seq)
+            torch.cuda.empty_cache()
+            os.makedirs(output_dir, exist_ok=True)
+            with open(output_file, "w") as f:
+                f.write(output)
+            del output
+            torch.cuda.empty_cache()
+    del model_esm
+
+else:
+    with open(fasta_path, "r") as f:
+        data = f.read()
+    data = data.split("\n")
+    data = [dat for dat in data if dat != ""]
+    ids = [dat for dat in data if dat.startswith(">")]
+    sequences = [dat for dat in data if dat.startswith(">") == False]
+    sequences = [seq.strip("3. 2. 1. 1 <sep> <start>").strip("<end>") for seq in sequences]
+    ids_seqs = list(zip(ids, sequences))
+    df = pd.DataFrame(ids_seqs, columns=["id", "sequence"])
+
+    for _, row in df.iterrows():
+        id = row['id']
+        seq = row['sequence'].replace(" ", "")
+        name = id[1:]
+        name = name.split("\t")[0]
+        output_dir = f"/home/woody/b114cb/b114cb23/boxo/outputs/output_iterations{iteration_num}/PDB"
+        output_file = f"{output_dir}/{name}.pdb"
+
+        # Skip if file already exists
+        if os.path.exists(output_file):
+            print(f"Skipping {name} - PDB file already exists")
+            continue
+
+        print(f"Processing sequence {id}")
         print(f"Sequence: {seq}")
         with torch.no_grad():
             output = model_esm.infer_pdb(seq)
             torch.cuda.empty_cache()
-            name = id[1:]
-            name = name.split("\t")[0]
-            name = name + "_" + procedure + "_" + str(feat)
-            os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/outputs_{procedure}/output_iterations{iteration_num}/PDB", exist_ok=True)
-            with open(f"/home/woody/b114cb/b114cb23/boxo/outputs_{procedure}/output_iterations{iteration_num}/PDB/{name}.pdb", "w") as f:
-                    f.write(output)
-            
+            os.makedirs(output_dir, exist_ok=True)
+            with open(output_file, "w") as f:
+                f.write(output)
+            del output
             torch.cuda.empty_cache()
-    del model_esm

@@ -9,7 +9,7 @@
 
 
 
-for i in $(seq 1 6);
+for i in $(seq 0 20);
 do
     label="3.2.1.1"
     # Calculate TM Score

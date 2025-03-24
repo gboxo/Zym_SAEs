@@ -14,7 +14,7 @@ training:
   threshold_num_batches: 5
   num_batches_in_buffer: 10
 resuming:
-  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M0_D4/diffing
+  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M4_D4/diffing
   checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M5_D5
   resuming: true
   model_diffing: true
