@@ -16,6 +16,14 @@ import os
 
 
 def get_paths():
+    """Get paths for model, SAE, and mini_brenda based on host environment.
+    
+    Returns:
+        SimpleNamespace: Object with attributes:
+            - model_path: Path to model directory
+            - sae_path: Path to SAE checkpoints
+            - mini_brenda: Path to mini_brenda.txt file
+    """
 
     if not "Workstation" in socket.gethostname():
 
@@ -44,6 +52,16 @@ def get_paths():
         return d_namespace
 
 def load_model(model_name):
+    """Load a pretrained model and tokenizer.
+    
+    Args:
+        model_name (str): Name or path of model to load
+        
+    Returns:
+        tuple: (tokenizer, model) where:
+            - tokenizer: Pretrained tokenizer
+            - model: Pretrained model
+    """
     from transformers import AutoTokenizer, AutoModelForCausalLM
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
@@ -58,6 +76,16 @@ def load_model(model_name):
 
 
 def load_sae(sae_path, load_thresholds=False):
+    """Load a sparse autoencoder from checkpoint.
+    
+    Args:
+        sae_path (str): Path to SAE checkpoint directory
+        load_thresholds (bool): Whether to load feature thresholds
+        
+    Returns:
+        tuple: Configuration and SAE model. If load_thresholds is True,
+              returns (cfg, sae, thresholds) instead.
+    """
     cfg = get_default_cfg()
     if os.path.exists(sae_path+"checkpoint_latest.pt"):
         checkpoint = torch.load(sae_path+"checkpoint_latest.pt")
@@ -93,6 +121,14 @@ def load_sae(sae_path, load_thresholds=False):
         return cfg,sae
 
 def load_config(config_path):
+    """Load and process configuration from YAML file.
+    
+    Args:
+        config_path (str): Path to YAML config file
+        
+    Returns:
+        dict: Configuration dictionary with defaults merged
+    """
     cfg = get_default_cfg()
     cfg["model_name"] = None
     cfg["hook_point"] = None
@@ -111,6 +147,15 @@ def load_config(config_path):
 
 
 def convert_GPT_weights(gpt, cfg: GPT2Config) -> dict:
+    """Convert GPT model weights to TransformerLens format.
+    
+    Args:
+        gpt: GPT model instance
+        cfg: GPT2Config configuration
+        
+    Returns:
+        dict: State dictionary in TransformerLens format
+    """
 
     state_dict = {}
 
@@ -198,6 +243,16 @@ def convert_GPT_weights(gpt, cfg: GPT2Config) -> dict:
 
 
 def get_ht_model(gpt:AutoModelForCausalLM,cfg: GPT2Config, tokenizer=None) -> HookedTransformer:
+    """Convert GPT model to HookedTransformer format.
+    
+    Args:
+        gpt: GPT model instance
+        cfg: GPT2Config configuration
+        tokenizer: Optional tokenizer instance
+        
+    Returns:
+        HookedTransformer: Model in HookedTransformer format
+    """
     state_dict = convert_GPT_weights(gpt, cfg)
 
     cfg_dict = {
@@ -240,6 +295,16 @@ def get_ht_model(gpt:AutoModelForCausalLM,cfg: GPT2Config, tokenizer=None) -> Ho
 
 
 def get_sl_model(gpt:AutoModelForCausalLM,cfg: GPT2Config, tokenizer=None) -> HookedTransformer:
+    """Convert GPT model to HookedSAETransformer format.
+    
+    Args:
+        gpt: GPT model instance
+        cfg: GPT2Config configuration
+        tokenizer: Optional tokenizer instance
+        
+    Returns:
+        HookedSAETransformer: Model in HookedSAETransformer format
+    """
     state_dict = convert_GPT_weights(gpt, cfg)
 
     cfg_dict = {

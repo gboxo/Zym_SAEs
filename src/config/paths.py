@@ -19,6 +19,21 @@ DEFAULT_PATHS = {
         "wandb_dir": "/home/woody/b114cb/b114cb23/boxo/wandb/"
     }
 }
+DEFAULT_DIFFING_PATHS = {   
+    "compute": {
+        "diffing_model_path"
+        "diffing_saes_path": "",
+        "diffing_dataset_path": "",
+        "diffing_analysis_data_path": "",
+        "activity_predictions_path": "",
+        "activity_predictions_path_ablation": "",
+        "activity_predictions_path_steering": "",
+        "outputs_path": "",
+        "outputs_path_ablation_path": "",
+        "outputs_path_steering_path": "",
+        "seq_gens_path": "",
+    },
+}
 
 def detect_environment():
     """
