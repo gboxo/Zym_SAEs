@@ -1,15 +1,24 @@
 # %%
 import torch
-from transformer_lens import HookedTransformer  # Replace with actual import
-import transformer_lens.utils as utils
+from transformer_lens import HookedTransformerKeyValueCache
+from transformer_lens.utilities import devices
+from transformer_lens import HookedTransformerConfig
 from typing import Optional, Union, Literal
-from transformer_lens.HookedTransformer import USE_DEFAULT_VALUE
-from transformer_lens.HookedTransformer import devices
-from transformer_lens.HookedTransformer import HookedTransformerKeyValueCache
 from transformer_lens.utils import sample_logits
 import tqdm
-
+from transformer_lens import utils
+import transformer_lens.utils as utils
+from sae_lens import HookedSAETransformer, SAE, SAEConfig
+from src.utils import load_model, get_sl_model, load_sae
+from functools import partial
+import torch
+import os
 # %%
+
+
+USE_DEFAULT_VALUE = False
+
+
 
 class RepetitionPenaltyLogitsProcessor:
     def __init__(self, penalty: float):
@@ -73,6 +82,13 @@ def sample_logits(
     print(logits)
     np.unique(np.array([sample_logits(logits, top_k=2).item() for i in range(1000)]), return_counts=True)
     """
+
+
+
+
+
+
+
     if temperature == 0.0:
         # Greedy sampling
         return final_logits.argmax(dim=-1)
@@ -87,8 +103,14 @@ def sample_logits(
                 # Get unique tokens in this sequence
                 seq_tokens = tokens[batch_idx]
                 unique_tokens = torch.unique(seq_tokens)
+                scores = final_logits[batch_idx].unsqueeze(0)
                 
                 # Get scores for these tokens
+                score = torch.gather(scores, 1, input_ids)
+
+                score = torch.where(score < 0, score * repetition_penalty, score / repetition_penalty)
+
+                scores_processed = scores.scatter(1, input_ids, score)
                 token_scores = final_logits[batch_idx, unique_tokens]
                 
                 # Apply penalty based on sign of scores
@@ -137,68 +159,344 @@ def sample_logits(
 
 # ====================
 
-class MyModel(HookedTransformer):
+class MyModel(HookedSAETransformer):
     def __init__(self, cfg=None, tokenizer=None, **kwargs):
         # Pass all arguments to parent class
         super().__init__(cfg, tokenizer, **kwargs)
-    
+
+    def get_pos_offset(self, past_kv_cache, batch_size):
+        # If we're doing caching, then we reuse keys and values from previous runs, as that's the
+        # only way that past activations will affect the final logits. The cache contains those so
+        # we don't need to recompute them. This is useful for generating text. As we have absolute
+        # positional encodings, to implement this we have a `pos_offset` variable, defaulting to
+        # zero, which says to offset which positional encodings are used (cached keys and values
+        # were calculated with their own positional encodings).
+        if past_kv_cache is None:
+            pos_offset = 0
+        else:
+            (
+                cached_batch_size,
+                cache_ctx_length,
+                num_heads_in_cache,
+                d_head_in_cache,
+            ) = past_kv_cache[0].past_keys.shape
+            assert cached_batch_size == batch_size
+            if self.cfg.n_key_value_heads is None:
+                assert num_heads_in_cache == self.cfg.n_heads
+            else:
+                assert num_heads_in_cache == self.cfg.n_key_value_heads
+            assert d_head_in_cache == self.cfg.d_head
+            pos_offset = cache_ctx_length
+        return pos_offset
+
+    def get_residual(
+        self,
+        embed,
+        pos_offset,
+        prepend_bos=USE_DEFAULT_VALUE,
+        attention_mask=None,
+        tokens=None,
+        return_shortformer_pos_embed=True,
+        device=None,
+    ):
+        if device is None:
+            device = devices.get_device_for_block_index(0, self.cfg)
+
+        if tokens is None:
+            # Because tokens only need for defining batch size and sequence length, we can simply synthesize them
+            tokens = torch.ones((embed.size(0), embed.size(1))).int().to(device)
+
+        if self.cfg.positional_embedding_type == "standard":
+            pos_embed = self.hook_pos_embed(
+                self.pos_embed(tokens, pos_offset, attention_mask)
+            )  # [batch, pos, d_model]
+            residual = embed + pos_embed  # [batch, pos, d_model]
+            shortformer_pos_embed = None
+        elif self.cfg.positional_embedding_type == "shortformer":
+            # If we're using shortformer style attention, we don't add the positional embedding to
+            # the residual stream. See HookedTransformerConfig for details
+            pos_embed = self.hook_pos_embed(
+                self.pos_embed(tokens, pos_offset, attention_mask)
+            )  # [batch, pos, d_model]
+            residual = embed
+            shortformer_pos_embed = pos_embed
+        elif self.cfg.positional_embedding_type == "rotary":
+            # Rotary doesn't use positional embeddings, instead they're applied when dot producting
+            # keys and queries. See HookedTransformerConfig for details
+            residual = embed
+            shortformer_pos_embed = None
+        elif self.cfg.positional_embedding_type == "alibi":
+            # ALiBi does not add positional embeddings to word embeddings,instead it biases QK attention scores.
+            residual = embed
+            shortformer_pos_embed = None
+        else:
+            raise ValueError(
+                f"Invalid positional_embedding_type passed in {self.cfg.positional_embedding_type}"
+            )
+
+        if return_shortformer_pos_embed:
+            return residual, shortformer_pos_embed
+        else:
+            return residual
+
+
+
+    @torch.inference_mode()
     def generate_with_penalty(
         self,
         input: Union[str, list[str], torch.Tensor] = "",
         max_new_tokens: int = 10,
-        temperature: float = 1.0,
-        repetition_penalty: float = 1.0,
+        stop_at_eos: bool = True,
+        eos_token_id: Optional[int] = 1,
+        do_sample: bool = True,
         top_k: Optional[int] = None,
         top_p: Optional[float] = None,
+        temperature: float = 1.0,
+        repetition_penalty: float = 1.0,
         freq_penalty: float = 0.0,
-        **kwargs
-    ):
+        use_past_kv_cache: bool = True,
+        prepend_bos: Optional[bool] = False,
+        padding_side: Optional[Literal["left", "right"]] = "left",
+        return_type: Optional[str] = "input",
+        verbose: bool = True,
+    ) -> Union[
+            str,
+            list[str],
+            torch.Tensor,
+               ]:
         """Generate text with repetition penalty applied."""
-        # Process input to get tokens
-        if isinstance(input, str):
-            tokens = self.to_tokens(input, prepend_bos=True)
-        elif isinstance(input, list) and all(isinstance(item, str) for item in input):
-            tokens = self.to_tokens(input, prepend_bos=True)
-        elif isinstance(input, torch.Tensor):
-            tokens = input
-        else:
-            raise ValueError(f"Input {input} not recognized")
-        
-        # Initialize the output with the input tokens
-        output_tokens = tokens.clone()
-        batch_size = output_tokens.shape[0]
-        
-        # Generate tokens one by one
-        for _ in range(max_new_tokens):
-            # Get logits from the model
-            with torch.no_grad():
-                logits = self(output_tokens)[:, -1, :]
+        with utils.LocallyOverridenDefaults(
+                self, prepend_bos=prepend_bos, padding_side=padding_side):
+
+            assert isinstance(input, (str, torch.Tensor, list)) and (
+                isinstance(input, list)
+                and all(isinstance(i, str) for i in input)
+                or not isinstance(input, list)
+            ), "Input must be either string, torch.Tensor, or list[str]"
+
+            assert return_type in [
+                "input",
+                "str",
+                "tokens",
+                "embeds",
+            ], "return_type must be one of ['input', 'str', 'tokens', 'embeds']"
+
+            if return_type == "input":
+                if isinstance(input, (str, list)):
+                    return_type = "str"
+                elif input.ndim == 2:
+                    return_type = "tokens"
+                else:
+                    return_type = "embeds"
+
+            if isinstance(input, (str, list)):
+                input_type = "str"
+                # If text, convert to tokens (batch_size=1)
+                assert (
+                    self.tokenizer is not None
+                ), "Must provide a tokenizer if passing a string to the model"
+                input = self.to_tokens(input, prepend_bos=prepend_bos, padding_side=padding_side)
+            elif input.ndim == 2:
+                input_type = "tokens"
+            else:
+                input_type = "embeds"
+
+
+            input_tokens = input if input_type in ["str", "tokens"] else None
+            batch_size, ctx_length = input.shape[0], input.shape[1]
+            device = devices.get_device_for_block_index(0, self.cfg)
+            input = input.to(device)
+            if use_past_kv_cache:
+                past_kv_cache = HookedTransformerKeyValueCache.init_cache(
+                    self.cfg, self.cfg.device, batch_size
+                )
+            else:
+                past_kv_cache = None
             
-            # Sample from the logits with all penalties applied
-            next_token = sample_logits(
-                logits,
-                top_k=top_k,
-                top_p=top_p,
-                temperature=temperature,
-                freq_penalty=freq_penalty,
-                repetition_penalty=repetition_penalty,
-                tokens=output_tokens
-            )
+            shortformer_pos_embed = None
+            embeds = input if input_type == "embeds" else self.embed(input)
+
+            assert isinstance(embeds, torch.Tensor) and embeds.ndim == 3
+
+            stop_tokens: list[int] = []
+            eos_token_for_padding = 0
+            assert self.tokenizer is not None
+            # Initialize the output with the input tokens
+            output_tokens = input.clone()
+            batch_size = output_tokens.shape[0]
+
+
+            if stop_at_eos:
             
-            # Append the new token to the output
-            next_token = next_token.unsqueeze(-1)
-            output_tokens = torch.cat([output_tokens, next_token], dim=-1)
-        
-        return output_tokens
+                tokenizer_has_eos_token = (
+                    self.tokenizer is not None and self.tokenizer.eos_token_id is not None
+                )
+                if eos_token_id is None:
+                    assert (
+                        tokenizer_has_eos_token
+                    ), "Must pass a eos_token_id if stop_at_eos is True and tokenizer is None or has no eos_token_id"
+
+                    eos_token_id = self.tokenizer.eos_token_id
+
+                if isinstance(eos_token_id, int):
+                    stop_tokens = [eos_token_id]
+                    eos_token_for_padding = eos_token_id
+                else:
+                    # eos_token_id is a Sequence (e.g. list or tuple)
+                    stop_tokens = eos_token_id
+                    eos_token_for_padding = (
+                        self.tokenizer.eos_token_id if tokenizer_has_eos_token else eos_token_id[0]
+                    )
+
+                # An array to track which sequences in the batch have finished.
+                finished_sequences = torch.zeros(batch_size, dtype=torch.bool, device=self.cfg.device)
+
+                # Currently nothing in HookedTransformer changes with eval, but this is here in case
+                    
+                self.eval()
+                sampled_tokens_list = []
+                for index in tqdm.tqdm(range(max_new_tokens), disable=not verbose):
+                    pos_offset = self.get_pos_offset(past_kv_cache, batch_size)
+
+                    tokens = torch.zeros((embeds.size(0), embeds.size(1))).to(torch.int)
+                    attention_mask = utils.get_attention_mask(
+                        self.tokenizer, tokens, False if prepend_bos is None else prepend_bos
+                    ).to(device)
+                    residual, shortformer_pos_embed = self.get_residual(
+                        embeds,
+                        pos_offset,
+                        return_shortformer_pos_embed=True,
+                        device=device,
+                        attention_mask=attention_mask,
+                    )
+
+                    # While generating, we keep generating logits, throw away all but the final logits,
+                    # and then use those logits to sample from the distribution We keep adding the
+                    # sampled tokens to the end of tokens.
+                    start_at_layer = 0  # Make forward returns embeddings
+                    if use_past_kv_cache:
+                        # We just take the final tokens, as a [batch, 1] tensor
+                        if index > 0:
+                            logits = self.forward(
+                                residual[:, -1:],
+                                return_type="logits",
+                                prepend_bos=prepend_bos,
+                                padding_side=padding_side,
+                                past_kv_cache=past_kv_cache,
+                                start_at_layer=start_at_layer,
+                                shortformer_pos_embed=shortformer_pos_embed,
+                            )
+                        else:
+                            logits = self.forward(
+                                residual,
+                                return_type="logits",
+                                prepend_bos=prepend_bos,
+                                padding_side=padding_side,
+                                past_kv_cache=past_kv_cache,
+                                start_at_layer=start_at_layer,
+                                shortformer_pos_embed=shortformer_pos_embed,
+                            )
+                    else:
+                        # We input the entire sequence, as a [batch, pos] tensor, since we aren't using
+                        # the cache.
+                        logits = self.forward(
+                            residual,
+                            return_type="logits",
+                            prepend_bos=prepend_bos,
+                            padding_side=padding_side,
+                            start_at_layer=start_at_layer,
+                            shortformer_pos_embed=shortformer_pos_embed,
+                        )
+                    final_logits = logits[:, -1, :]
+
+                    if do_sample:
+                        if input_type in [
+                            "str",
+                            "tokens",
+                        ]:  # Those types of inputs support frequency penalty
+                            sampled_tokens = sample_logits(
+                                final_logits,
+                                top_k=top_k,
+                                top_p=top_p,
+                                temperature=temperature,
+                                freq_penalty=freq_penalty,
+                                repetition_penalty=repetition_penalty,
+                                tokens=torch.cat(
+                                    (input_tokens, torch.cat(sampled_tokens_list, dim=1)), dim=1) if "sampled_tokens" in locals() else input_tokens,
+                            ).to(devices.get_device_for_block_index(0, self.cfg))
+                        else:
+                            sampled_tokens = utils.sample_logits(
+                                final_logits, top_k=top_k, top_p=top_p, temperature=temperature
+                            ).to(devices.get_device_for_block_index(0, self.cfg))
+                    else:
+                        sampled_tokens = final_logits.argmax(-1).to(
+                            devices.get_device_for_block_index(0, self.cfg)
+                        )
+                    sampled_tokens_list.append(sampled_tokens.unsqueeze(1))
+                    if stop_at_eos:
+                        # For all unfinished sequences, add on the next token. If a sequence was
+                        # finished, throw away the generated token and add eos_token_for_padding
+                        # instead.
+                        sampled_tokens[finished_sequences] = eos_token_for_padding
+                        finished_sequences.logical_or_(
+                            torch.isin(
+                                sampled_tokens.to(self.cfg.device),
+                                torch.tensor(stop_tokens).to(self.cfg.device),
+                            )
+                        )
+
+                    embeds = torch.hstack([embeds, self.embed(sampled_tokens.unsqueeze(-1))])
+
+                    if stop_at_eos and finished_sequences.all():
+                        break
+
+                sampled_tokens = torch.cat(sampled_tokens_list, dim=1)
+                if input_type in ["str", "tokens"]:
+                    output_tokens = torch.cat((input_tokens, sampled_tokens), dim=1)
+                else:
+                    output_tokens = sampled_tokens
+
+                if return_type == "str":
+                    decoded_texts = [
+                        self.tokenizer.decode(tokens, skip_special_tokens=True)
+                        for tokens in output_tokens
+                    ]
+                    return decoded_texts[0] if len(decoded_texts) == 1 else decoded_texts
+                elif return_type == "tokens":
+                    return output_tokens
+                else:
+                    return embeds
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
-    model = MyModel.from_pretrained("gpt2")  # Initialize model
-    # %%
-    tokens = model.tokenizer.encode("Hello, how are you?", return_tensors="pt")
-    output = model.generate_with_penalty(tokens, max_new_tokens=10, repetition_penalty=1.5, temperature=0.8,do_sample=True)
-    
-    # Decode and print the output
-    print(model.tokenizer.decode(output[0]))
 
+
+    for model_iteration, data_iteration in [(5,5)]:
+        print(f"Model iteration: {model_iteration}, Data iteration: {data_iteration}")
+        # Load the dataframe
+
+        model = MyModel.from_pretrained("gpt2")
+
+        input_ids = model.to_tokens("The quick brown fox jumps over the lazy dog")
+        input_ids_batch = input_ids.repeat(3, 1)
+        all_outputs = []
+        output = model.generate_with_penalty(
+                                            input_ids_batch,
+                                            max_new_tokens=100,
+                                            repetition_penalty=1.2,
+                                            eos_token_id=1,
+                                            top_k=9,
+                                            do_sample=True)
+        
 # %%
+
+
+
