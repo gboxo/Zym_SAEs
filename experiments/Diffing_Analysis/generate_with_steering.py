@@ -29,7 +29,7 @@ def generate_with_steering(model: HookedSAETransformer, sae: SAE, prompt: str, s
     all_outputs = []
     steering_direction = sae.state_dict()["W_dec"][steering_feature,:]
 
-    steering_factor = 5
+    steering_factor = 0
 
 
     steering_hook = partial(
@@ -38,7 +38,6 @@ def generate_with_steering(model: HookedSAETransformer, sae: SAE, prompt: str, s
         steering_factor=steering_factor,
     )
     
-    #for i in range(n_samples):
 
     # standard transformerlens syntax for a hook context for generation
     with model.hooks(fwd_hooks=[('blocks.26.hook_resid_pre', steering_hook)]):
