@@ -68,16 +68,20 @@ def generate_dataset(seq_path, tokenizer):
     with open(seq_path, "r") as f:
         rep_seq = f.readlines()
     for line in rep_seq:
-        line = line.replace("\n","")
-        sections  = line.split(",")
-        seq = sections[1]
-        seq = seq.replace("3. 2. 1. 1 <sep> <start>","").replace("<end>","")
-        #if not line.startswith(">"):
-        encoded = tokenizer(
-            seq, max_length=1024, padding="max_length", truncation=True, return_tensors="pt"
-        )
-        tokenized_sequences.append(encoded)
-        names.append(sections[0])
+        #line = line.replace("\n","")
+        #sections  = line.split(",")
+        #seq = sections[1]
+        #seq = seq.replace("3. 2. 1. 1 <sep> <start>","").replace("<end>","")
+        
+        if not line.startswith(">"):
+            seq = line.strip()
+            encoded = tokenizer(
+                seq, max_length=1024, padding="max_length", truncation=True, return_tensors="pt"
+            )
+            tokenized_sequences.append(encoded)
+        else:
+            names.append(line.split(" ")[0])
+
     dataset = SequenceDataset(tokenized_sequences)
     test_dataloader = DataLoader(dataset, batch_size=16, shuffle=False)
     return test_dataloader, names
@@ -95,10 +99,10 @@ if __name__ == "__main__":
     ec_label = args.label.strip()
     feature_indices = None
 
-    #seqs_path = f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
-    #output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions/activity_prediction_iteration{iteration_num}.txt"
-    seqs_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/without_penalty/M{iteration_num}_D{iteration_num}/sequences.txt"
-    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_no_penalty/activity_prediction_iteration{iteration_num}.txt"
+    seqs_path = f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
+    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions/activity_prediction_iteration{iteration_num}.txt"
+    #seqs_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/without_penalty/M{iteration_num}_D{iteration_num}/sequences_bm.txt"
+    #output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_no_penalty/activity_prediction_iteration{iteration_num}_bm.txt"
 
 
 
@@ -158,7 +162,7 @@ if __name__ == "__main__":
     for name, prediction1, prediction2 in zip(names, predictions, predictions2):
         out += f"{name},{prediction1},{prediction2}\n"
         
-    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_no_penalty/activity_prediction_iteration{iteration_num}.txt"
+    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_no_penalty/activity_prediction_iteration{iteration_num}_bm.txt"
 
 
     os.makedirs(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions_no_penalty', exist_ok=True)

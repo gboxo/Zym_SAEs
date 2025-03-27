@@ -34,8 +34,8 @@ def generate_dataset(iteration_num, ec_label, mixture_ratio=0.8):
     fasta_input_ids = [formatting_sequence(elem["sequence"], ec_label) for elem in sequences_rep.values()]
     
     # Load existing tokenized dataset
-    existing_dataset = load_from_disk("/home/woody/b114cb/b114cb23/boxo/final_dataset_big/")
-    existing_input_ids = existing_dataset['train']['input_ids']
+    existing_dataset = load_from_disk("/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/")
+    existing_input_ids = existing_dataset['input_ids']
     
     # Calculate number of sequences to take from each source
     total_size = len(fasta_input_ids)
@@ -64,7 +64,9 @@ def generate_dataset(iteration_num, ec_label, mixture_ratio=0.8):
         'eval': eval_dataset
         })
     
-    final_dataset.save_to_disk(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets/dataset_iteration{iteration_num}")
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_mixture/dataset_iteration{iteration_num}", exist_ok=True)
+    
+    final_dataset.save_to_disk(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_mixture/dataset_iteration{iteration_num}")
     
     return final_dataset
      

@@ -16,7 +16,7 @@ def generate_without_penalty(model: HookedSAETransformer, prompt: str, max_new_t
     all_outputs = []
     output = model.generate(
         input_ids_batch, 
-        top_k=9, #tbd
+        top_k=9, 
         eos_token_id=1,
         do_sample=True,
         verbose=False,

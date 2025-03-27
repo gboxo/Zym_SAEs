@@ -1,4 +1,5 @@
 # %%
+import os
 import torch
 from transformer_lens import HookedTransformerKeyValueCache
 from transformer_lens.utilities import devices
@@ -11,8 +12,15 @@ import transformer_lens.utils as utils
 from sae_lens import HookedSAETransformer, SAE, SAEConfig
 from src.utils import load_model, get_sl_model, load_sae
 from functools import partial
-import torch
-import os
+from transformer_lens import HookedTransformerConfig
+from typing import Optional, Union, Literal
+from transformer_lens.utils import sample_logits
+import tqdm
+from src.utils import convert_GPT_weights
+
+from sae_lens import HookedSAETransformer, SAE, SAEConfig
+from src.utils import load_model, get_sl_model, load_sae
+from functools import partial
 # %%
 
 
@@ -479,24 +487,102 @@ class MyModel(HookedSAETransformer):
 if __name__ == "__main__":
 
 
-    for model_iteration, data_iteration in [(5,5)]:
-        print(f"Model iteration: {model_iteration}, Data iteration: {data_iteration}")
-        # Load the dataframe
 
-        model = MyModel.from_pretrained("gpt2")
-
-        input_ids = model.to_tokens("The quick brown fox jumps over the lazy dog")
-        input_ids_batch = input_ids.repeat(3, 1)
-        all_outputs = []
-        output = model.generate_with_penalty(
-                                            input_ids_batch,
-                                            max_new_tokens=100,
-                                            repetition_penalty=1.2,
-                                            eos_token_id=1,
-                                            top_k=9,
-                                            do_sample=True)
         
 # %%
 
 
 
+
+    for model_iteration, data_iteration in [(5,5)]:
+        print(f"Model iteration: {model_iteration}, Data iteration: {data_iteration}")
+        # Load the dataframe
+        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
+
+
+        tokenizer, model = load_model(model_path)
+        if False:
+            cfg = model.config
+            state_dict = convert_GPT_weights(model, cfg)
+
+            cfg_dict = {
+                "eps": cfg.layer_norm_epsilon,
+                "attn_only": False,
+                "act_fn": "gelu_new",
+                "d_model": cfg.n_embd,
+                "d_head": cfg.n_embd // cfg.n_head,
+                "n_heads": cfg.n_head,
+                "n_layers": cfg.n_layer,
+                "n_ctx": cfg.n_ctx,  # Capped bc the actual ctx length is 30k and the attn mask would be too big
+                "d_vocab": cfg.vocab_size,
+                "use_attn_scale": True,
+                "normalization_type": "LN",
+                "positional_embedding_type": "standard",
+                "tokenizer_prepends_bos": True,
+                "default_prepend_bos": False,
+                "use_normalization_before_and_after": False,
+                "attention_dir": "causal"
+
+
+            }
+
+
+
+            cfg_ht = HookedTransformerConfig(**cfg_dict)
+
+
+
+            model = MyModel(cfg_ht,tokenizer=tokenizer)
+            model.load_and_process_state_dict(
+                state_dict,
+                fold_ln = False,
+                center_writing_weights = False,
+                center_unembed=False,
+                fold_value_biases = False,
+                refactor_factored_attn_matrices = False,
+            )
+            model.to("cuda")
+            input_ids = model.to_tokens(prompt, prepend_bos=False)
+        else:
+            model.to("cuda")
+            prompt = "3.2.1.1<sep><start>"
+            input_ids = tokenizer.encode(prompt, return_tensors="pt").to("cuda")
+            
+
+
+
+        os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/without_penalty/M{model_iteration}_D{data_iteration}", exist_ok=True)
+
+        n_samples = 20
+        input_ids_batch = input_ids.repeat(n_samples, 1)
+        all_outputs = []
+        for _ in range(10):
+            if False:
+                output = model.generate_with_penalty(
+                                                    input_ids_batch,
+                                                    max_new_tokens=800,
+                                                    repetition_penalty=1.2,
+                                                    eos_token_id=1,
+                                                    top_k=9,
+                                                    do_sample=True)
+                seqs = model.tokenizer.batch_decode(output)
+            else:
+                output = model.generate(
+                                            input_ids_batch,
+                                            max_new_tokens=800,
+                                            repetition_penalty=1.2,
+                                            eos_token_id=1,
+                                            pad_token_id=0,
+                                            top_k=9,
+                                            do_sample=True)
+                seqs = tokenizer.batch_decode(output)
+                
+            all_outputs.extend(seqs)
+
+        all_outputs = [o.replace("<|endoftext|>", "") for o in all_outputs]
+        with open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/without_penalty/M{model_iteration}_D{data_iteration}/sequences_bm.txt", "w") as f:
+            for i, o in enumerate(all_outputs):
+                f.write(f">3.2.1.1_{i},"+o+"\n")
+        
+    torch.cuda.empty_cache()
+# %%
