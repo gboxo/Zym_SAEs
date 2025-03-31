@@ -13,10 +13,8 @@ class ActivationsStore:
     ):
         self.model = model
         dataset = load_from_disk(cfg["dataset_path"])
-        print(dataset)
         # Check if dataset has splits and get train split if available
         self.original_dataset = dataset['train'] if 'train' in dataset else dataset
-        print(self.original_dataset)
         # Permute the dataset
         self.dataset = iter(self.original_dataset)
         self.hook_point = cfg["hook_point"]

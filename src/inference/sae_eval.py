@@ -250,7 +250,7 @@ if __name__ == "__main__":
     #    f.write(txt)
 
     model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-    sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_0_100/final/"
+    sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final"
     test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_eval/"
 
 
