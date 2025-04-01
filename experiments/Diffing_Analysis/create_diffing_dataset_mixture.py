@@ -1,6 +1,4 @@
-import torch
 from transformers import AutoTokenizer
-import numpy as np
 import os
 import random
 import argparse
@@ -32,21 +30,26 @@ def generate_dataset(iteration_num, ec_label, mixture_ratio=0.8):
     
     # Get sequences from fasta file
     fasta_input_ids = [formatting_sequence(elem["sequence"], ec_label) for elem in sequences_rep.values()]
+    print("Length of fasta_input_ids: ", len(fasta_input_ids))
+    rest = int((len(fasta_input_ids) - int(len(fasta_input_ids) * mixture_ratio))/mixture_ratio)
+    print("Rest: ", rest)
     
     # Load existing tokenized dataset
     existing_dataset = load_from_disk("/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/")
+    existing_dataset = existing_dataset.shuffle(seed=seed)
+
+    existing_dataset = existing_dataset[:10000]
+    # Shuffle the existing dataset
+
     existing_input_ids = existing_dataset['input_ids']
-    
-    # Calculate number of sequences to take from each source
-    total_size = len(fasta_input_ids)
-    fasta_size = int(total_size * mixture_ratio)
-    existing_size = total_size - fasta_size
+
     
     # Randomly sample from existing dataset
-    sampled_existing = random.sample(existing_input_ids, existing_size)
-    
+    print("Taking a sample of ", rest, " sequences from existing dataset")
+    sampled_existing = existing_input_ids[:rest]
     # Combine both sources
-    data["input_ids"] = fasta_input_ids[:fasta_size] + sampled_existing
+    print("Combining both sources")
+    data["input_ids"] = fasta_input_ids + sampled_existing
 
     # Continue with the existing code
     df = pd.DataFrame(data)
@@ -71,12 +74,6 @@ def generate_dataset(iteration_num, ec_label, mixture_ratio=0.8):
     return final_dataset
      
 
-def seed_everything(seed=2003):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-
 
 def formatting_sequence(sequence, ec_label):
     sequence = str(f"{ec_label}<sep><start>{sequence}<|endoftext|>")
@@ -95,7 +92,6 @@ if __name__ == "__main__":
     iteration_num = args.iteration_num
     ec_label = args.label.strip()
     mixture_ratio = args.mixture_ratio
-    seed_everything(seed)
     
     if int(iteration_num) == 1:
 
@@ -104,13 +100,12 @@ if __name__ == "__main__":
     else:
         model_name = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{iteration_num-1}/"
     tokenizer = AutoTokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=True)
+    print(tokenizer)
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = "<pad>"
-    if not os.path.exists(f"dataset_iteration{iteration_num}"):
-      dataset = generate_dataset(iteration_num, ec_label, mixture_ratio)
-    else:
-      dataset = load_from_disk(f"dataset_iteration{iteration_num}")
+
+    dataset = generate_dataset(iteration_num, ec_label, mixture_ratio)
     
 
 

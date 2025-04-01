@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #SBATCH --job-name=SAE_Train_2b_0         # Job name
 #SBATCH --ntasks=1                        # Run 1 task (process)
 #SBATCH --gres=gpu:a100:1
@@ -17,7 +17,7 @@ export WANDB_CACHE_DIR=/home/woody/b114cb/b114cb23/boxo/
 module load python
 module load cuda/11.8.0
 module load cudnn/8.9.6.50-11.x
-source /home/woody/b114cb/b114cb23/boxo/pSAE/bin/activate
+source /home/woody/b114cb/b114cb23/boxo/pSAE2/bin/activate
 
 # Run the Python script with the specific config
 python3 -m run_topk --config configs/sae_training_2b_32//config_sae_2b_iter_0.yaml

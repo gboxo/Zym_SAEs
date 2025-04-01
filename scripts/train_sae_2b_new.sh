@@ -1,10 +1,22 @@
 #!/bin/bash -l
 
+
+
+
+
+
+# Number of top k features to use
 top_k=32
+# Dimension of SAE
+d_sae=15360
+# Layer
+layer=5
+# Current date
+date=$(date +%Y_%m_%d)
 output_dir="configs/sae_training_2b_${top_k}/"
 mkdir -p $output_dir
 # Define the array of iteration identifiers or indices
-iterations=("0" "1")  # Adjust as needed
+iterations=("0" "1" "2")  # Adjust as needed
 cp configs/base_config_alex_new.yaml $output_dir/base_config_alex_new.yaml
 # Iterate over each identifier to create a configuration file and submit job
 for i in "${iterations[@]}"; do
@@ -12,14 +24,12 @@ for i in "${iterations[@]}"; do
   
   # Determine resume settings based on iteration
   if [ "$i" = "0" ]; then
-    checkpoint_dir="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_${top_k}/"
+    checkpoint_dir="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}/sae_training_iter_0/"
     resume_from=""
     resuming="false"
   else
-    checkpoint_dir=""
-    prev_iter=$((${i}-1))
-    resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_${prev_iter}_${top_k}/final"
-    resuming="true"
+    checkpoint_dir="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}/sae_training_iter_${prev_iter}/final"
+    resume_from=""
   fi
   
   # Calculate tokens for this iteration (increase with each iteration)
@@ -30,21 +40,26 @@ for i in "${iterations[@]}"; do
 base_config: base_config_alex_new.yaml
 base:
   model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
-  d_sae: 15360
+  d_sae: ${d_sae}
   batch_size: 4096
   model_batch_size: 512 
   seq_len: 512
+sae:
+  model_type: BatchTopKSAE
+  sae_type: BathcTopKSAE
+  site: resid_pre
+  layer: ${layer}
 
 training:
   checkpoint_dir: ${checkpoint_dir}
-  lr: 0.0003
+  lr: 0.0005
   num_tokens: 200000000
   name: "sae_training_iter_${i}"
   threshold_compute_freq: 100
   threshold_num_batches: 20 
   num_batches_in_buffer: 5
   perf_log_freq: 100
-  checkpoint_freq: 10000
+  checkpoint_freq: 1000
   top_k: ${top_k}  
   top_k_aux: 512 
   aux_penalty: 0.031
@@ -53,7 +68,7 @@ training:
 resuming:
   resume_from: ${resume_from}
   resuming: ${resuming}
-  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_${i}_${top_k}
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}/sae_training_iter_${i}/
 EOL
 
   echo "YAML file '$output_file' generated successfully."
@@ -62,7 +77,7 @@ EOL
   slurm_script="$output_dir/slurm_sae_2b_iter_${i}.sh"
   
   cat <<EOL > $slurm_script
-#!/bin/bash
+#!/bin/bash -l
 #SBATCH --job-name=SAE_Train_2b_${i}         # Job name
 #SBATCH --ntasks=1                        # Run 1 task (process)
 #SBATCH --gres=gpu:a100:1
@@ -81,7 +96,7 @@ export WANDB_CACHE_DIR=/home/woody/b114cb/b114cb23/boxo/
 module load python
 module load cuda/11.8.0
 module load cudnn/8.9.6.50-11.x
-source /home/woody/b114cb/b114cb23/boxo/pSAE/bin/activate
+source /home/woody/b114cb/b114cb23/boxo/pSAE2/bin/activate
 
 # Run the Python script with the specific config
 python3 -m run_topk --config ${output_file}

@@ -12,9 +12,16 @@ class ActivationsStore:
         activation_store_state: dict = None
     ):
         self.model = model
+<<<<<<< HEAD
         dataset = load_from_disk(cfg["dataset_path"])
         # Check if dataset has splits and get train split if available
         self.original_dataset = dataset['train'] if 'train' in dataset else dataset
+=======
+        #dataset = load_from_disk(cfg["dataset_path"])
+        # Check if dataset has splits and get train split if available
+        #self.original_dataset = dataset['train'] if 'train' in dataset else dataset
+        self.original_dataset = load_from_disk(cfg["dataset_path"])
+>>>>>>> a5745df (oracle generation)
         # Permute the dataset
         self.dataset = iter(self.original_dataset)
         self.hook_point = cfg["hook_point"]
@@ -93,11 +100,35 @@ class ActivationsStore:
 
     def next_batch(self):
         try:
+            # Check if we have a dataloader_iter and if we've used more than half the buffer
+            if hasattr(self, 'dataloader_iter') and hasattr(self, 'samples_used'):
+                self.samples_used += self.batch_size
+                buffer_size = len(self.activation_buffer)
+                
+                # If we've used more than half the buffer, refill it
+                if self.samples_used >= buffer_size // 2:
+                    print("Buffer half empty, refilling...")
+                    new_activations = self._fill_buffer()
+                    
+                    # Concatenate remaining unused activations with new ones
+                    remaining_indices = torch.randperm(buffer_size - self.samples_used)
+                    remaining_activations = self.activation_buffer[remaining_indices + self.samples_used]
+                    self.activation_buffer = torch.cat([remaining_activations, new_activations], dim=0)
+                    
+                    # Reset dataloader with reshuffled buffer
+                    self.dataloader = self._get_dataloader()
+                    self.dataloader_iter = iter(self.dataloader)
+                    self.samples_used = 0
+            
+            # Try to get next batch
             return next(self.dataloader_iter)[0]
+        
         except (StopIteration, AttributeError):
+            # Initial buffer fill or complete refill if we've run out
             self.activation_buffer = self._fill_buffer()
             self.dataloader = self._get_dataloader()
             self.dataloader_iter = iter(self.dataloader)
+            self.samples_used = 0
             return next(self.dataloader_iter)[0]
 
     def update_position(self, batch_idx, epoch):

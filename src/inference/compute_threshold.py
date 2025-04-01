@@ -24,42 +24,44 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
     Returns:
         torch.Tensor: A tensor containing the computed threshold for each feature.
     """
-    activations_store = ActivationsStore(model, config)
 
-    all_feature_min_activations = []
-    for _ in tqdm(range(num_batches)):
-        tokens = activations_store.get_batch_tokens()
-        batch_activations = activations_store.get_activations(tokens)
+    with torch.no_grad():
+        activations_store = ActivationsStore(model, config)
 
-        batch_feature_min_activations = []
-        for activation in batch_activations:
-            feature_activations = sparse_autoencoder(activation)["feature_acts"].cpu()
-            # For each feature, get the minimum activation that is greater than zero
-            filtered_activations = torch.where(feature_activations > 0, feature_activations, float('inf'))
-            feature_min_activations = torch.min(filtered_activations, dim=0).values
-            feature_min_activations = torch.where(feature_min_activations == float('inf'), torch.nan, feature_min_activations)
-            batch_feature_min_activations.append(feature_min_activations)
+        all_feature_min_activations = []
+        for _ in tqdm(range(num_batches)):
+            tokens = activations_store.get_batch_tokens()
+            batch_activations = activations_store.get_activations(tokens)
 
-        batch_feature_min_activations = torch.stack(batch_feature_min_activations)
-        filtered_activations = torch.where(batch_feature_min_activations > 0, batch_feature_min_activations, float('inf'))
-        batch_min_activations = torch.min(filtered_activations, dim=0).values
-        batch_min_activations = torch.where(batch_min_activations == float('inf'), torch.nan, batch_min_activations)
-        all_feature_min_activations.append(batch_min_activations)
+            batch_feature_min_activations = []
+            for activation in batch_activations:
+                feature_activations = sparse_autoencoder(activation)["feature_acts"].cpu()
+                # For each feature, get the minimum activation that is greater than zero
+                filtered_activations = torch.where(feature_activations > 0, feature_activations, float('inf'))
+                feature_min_activations = torch.min(filtered_activations, dim=0).values
+                feature_min_activations = torch.where(feature_min_activations == float('inf'), torch.nan, feature_min_activations)
+                batch_feature_min_activations.append(feature_min_activations)
 
-        # Clean up to free GPU memory
-        del batch_min_activations, batch_feature_min_activations, filtered_activations, feature_activations, batch_activations
-        torch.cuda.empty_cache()
+            batch_feature_min_activations = torch.stack(batch_feature_min_activations)
+            filtered_activations = torch.where(batch_feature_min_activations > 0, batch_feature_min_activations, float('inf'))
+            batch_min_activations = torch.min(filtered_activations, dim=0).values
+            batch_min_activations = torch.where(batch_min_activations == float('inf'), torch.nan, batch_min_activations)
+            all_feature_min_activations.append(batch_min_activations)
 
-    all_feature_min_activations = torch.stack(all_feature_min_activations)
-    all_feature_min_activations = torch.where(all_feature_min_activations > 0, all_feature_min_activations, 0)
-    # Compute the deciles of the activations
-    feature_deciles = torch.quantile(all_feature_min_activations, torch.linspace(0, 1, 101), dim=0)
-    os.makedirs(path+"/percentiles", exist_ok=True)
-    for i in range(feature_deciles.shape[0]):
-        
-        torch.save(feature_deciles[i], f"{path}/percentiles/feature_percentile_{i}.pt")
-    feature_thresholds = torch.mean(feature_deciles, dim=0)
-    return feature_thresholds
+            # Clean up to free GPU memory
+            del batch_min_activations, batch_feature_min_activations, filtered_activations, feature_activations, batch_activations
+            torch.cuda.empty_cache()
+
+        all_feature_min_activations = torch.stack(all_feature_min_activations)
+        all_feature_min_activations = torch.where(all_feature_min_activations > 0, all_feature_min_activations, 0)
+        # Compute the deciles of the activations
+        feature_deciles = torch.quantile(all_feature_min_activations, torch.linspace(0, 1, 101), dim=0)
+        os.makedirs(path+"/percentiles", exist_ok=True)
+        for i in range(feature_deciles.shape[0]):
+            
+            torch.save(feature_deciles[i], f"{path}/percentiles/feature_percentile_{i}.pt")
+        feature_thresholds = torch.mean(feature_deciles, dim=0)
+        return feature_thresholds
 
 
 def main(path, model_path, n_batches, cfg):
@@ -107,14 +109,15 @@ if __name__ == "__main__":
     if True:
 
         #path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
-        n_batches = 5
+        n_batches = 100 
 
         #model_path = f"/users/nferruz/gboxo/Alpha Amylase/output_iteration{model_iteration}" 
         #sae_path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
-        path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_0_100/final/"
+        path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
         model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-        sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/sae_training_iter_0_100/final/"
 
+        sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
+        test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_eval/"
 
 
         

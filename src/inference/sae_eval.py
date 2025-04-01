@@ -46,7 +46,7 @@ class SAEEval:
         self.tokenizer, model = load_model(cfg.model_path)
         self.load_test_set()
         sae_cfg, sae = load_sae(cfg.sae_path, load_thresholds=False)
-        thresholds = torch.load(cfg.sae_path+"/percentiles/feature_percentile_100.pt")
+        thresholds = torch.load(cfg.sae_path+"/percentiles/feature_percentile_50.pt")
         self.sae_cfg = sae_cfg
         self.hook_point = sae_cfg["hook_point"]
         self.jump_relu = convert_to_jumprelu(sae, thresholds)
@@ -103,11 +103,12 @@ class SAEEval:
         has_fired = torch.where(all_feature_acts > 0, 1, 0)
         has_fired_per_token = torch.sum(has_fired, dim=1)
         has_fired_per_token = has_fired_per_token.cpu().numpy()
+        os.makedirs(os.path.join(self.cfg.sae_path, "evaluation"), exist_ok=True)
         sns.histplot(has_fired_per_token)
         plt.xlabel("Number of features fired per token")
         plt.xlim(0, 300)
         plt.savefig(os.path.join(self.cfg.sae_path, "evaluation", "has_fired_per_token.png"))
-        
+        plt.close()
         # Calculate MSE loss across all sequences
         mse_loss = torch.mean(torch.tensor([sae_out["loss"] for sae_out in all_sae_outputs]))
         
@@ -250,8 +251,13 @@ if __name__ == "__main__":
     #    f.write(txt)
 
     model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
+<<<<<<< HEAD
     sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final"
     test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_eval/"
+=======
+    sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
+    test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/"
+>>>>>>> a5745df (oracle generation)
 
 
 

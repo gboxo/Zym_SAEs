@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #SBATCH --job-name=SAE_Diffing_RL          # Job name
 #SBATCH --ntasks=1                        # Run 1 task (process)
 #SBATCH --gres=gpu:a100:1

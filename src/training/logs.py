@@ -41,7 +41,7 @@ def init_wandb(cfg, resume=False):
     
     return wandb_run
 
-def log_wandb(output, step, wandb_run,model, index=None):
+def log_wandb(output, step, wandb_run, index=None):
     metrics_to_log = ["loss", "l2_loss", "l1_loss", "l0_norm", "l1_norm", "aux_loss", "num_dead_features"]
     log_dict = {k: output[k].item() for k in metrics_to_log if k in output}
     log_dict["n_dead_in_batch"] = (output["feature_acts"].sum(0) == 0).sum().item()
