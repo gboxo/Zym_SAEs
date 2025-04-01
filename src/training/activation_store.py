@@ -12,16 +12,10 @@ class ActivationsStore:
         activation_store_state: dict = None
     ):
         self.model = model
-<<<<<<< HEAD
         dataset = load_from_disk(cfg["dataset_path"])
         # Check if dataset has splits and get train split if available
-        self.original_dataset = dataset['train'] if 'train' in dataset else dataset
-=======
-        #dataset = load_from_disk(cfg["dataset_path"])
-        # Check if dataset has splits and get train split if available
         #self.original_dataset = dataset['train'] if 'train' in dataset else dataset
-        self.original_dataset = load_from_disk(cfg["dataset_path"])
->>>>>>> a5745df (oracle generation)
+        self.original_dataset = dataset
         # Permute the dataset
         self.dataset = iter(self.original_dataset)
         self.hook_point = cfg["hook_point"]
@@ -93,7 +87,7 @@ class ActivationsStore:
             batch_tokens = self.get_batch_tokens()
             activations = self.get_activations(batch_tokens).reshape(-1, self.cfg["act_size"])
             all_activations.append(activations)
-        return torch.cat(all_activations, dim=0)
+        return torch.cat(all_activations, dim=0).to("cpu")
 
     def _get_dataloader(self):
         return DataLoader(TensorDataset(self.activation_buffer), batch_size=self.batch_size, shuffle=True)
@@ -121,7 +115,7 @@ class ActivationsStore:
                     self.samples_used = 0
             
             # Try to get next batch
-            return next(self.dataloader_iter)[0]
+            return next(self.dataloader_iter)[0].to(self.device)
         
         except (StopIteration, AttributeError):
             # Initial buffer fill or complete refill if we've run out

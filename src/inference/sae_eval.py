@@ -251,13 +251,10 @@ if __name__ == "__main__":
     #    f.write(txt)
 
     model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-<<<<<<< HEAD
     sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final"
     test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_eval/"
-=======
-    sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
-    test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/"
->>>>>>> a5745df (oracle generation)
+    #sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
+    #test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/"
 
 
 

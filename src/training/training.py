@@ -161,6 +161,7 @@ def resume_training(
         # Accumulate gradients over multiple batches
         for acc_step in range(accumulation_steps):
             batch = activation_store.next_batch()
+            batch = batch.to(device)
             sae_output = sae(batch)
             loss = sae_output["loss"] / accumulation_steps  # Scale loss
             loss.backward()  # Perform backward pass for each mini-batch
@@ -301,12 +302,14 @@ def train_sae(
     os.makedirs(os.path.join(checkpoint_dir, "percentiles"), exist_ok=True)
     print("Checkpoint directory created")
     # Initialize feature activation stats tracking
-    n_features = sae.state_dict()["W_dec"].shape[0]
-    feature_mitnum_batches = cfg.training.threshold_num_batches  # How many batches to collect before computing
 
     feature_min_activations_buffer = []
     threshold_compute_freq = cfg.training.threshold_compute_freq  # How often to compute thresholds
     threshold_num_batches = cfg.training.threshold_num_batches  # How many batches to collect before computing
+
+    print("Threshold compute frequency: ", threshold_compute_freq)
+    print("Threshold number of batches: ", threshold_num_batches)
+
 
 
     accumulation_steps = 4  # Number of batches to accumulate
@@ -316,18 +319,16 @@ def train_sae(
     print("Starting training loop")
 
     print(f"Accumulating gradients over {accumulation_steps} steps")
-    
+    print(torch.cuda.memory_allocated())
     for iter_num in range(0,n_iters):
-        print("===========")
         sae.train()
-        print("Iteration: ", iter_num)
         
         total_loss = 0
         optimizer.zero_grad()  # Zero gradients at start of accumulation
         
         # Accumulate gradients over multiple batches
         for acc_step in range(accumulation_steps):
-            batch = activation_store.next_batch()
+            batch = activation_store.next_batch().to(device)
             sae_output = sae(batch)
             loss = sae_output["loss"] / accumulation_steps  # Scale loss by accumulation steps
             loss.backward()  # Backward pass for each mini-batch
@@ -338,7 +339,6 @@ def train_sae(
             optimizer.step()
         optimizer.zero_grad()  # Zero gradients after step
         
-        print(f"Average Loss over {accumulation_steps} batches: ", total_loss / accumulation_steps)
 
         # Validation and logging
         if iter_num % cfg.training.perf_log_freq == 0 and wandb_run is not None:
@@ -366,10 +366,11 @@ def train_sae(
 
         # Threshold computation
         if iter_num % threshold_compute_freq == 0 and len(feature_min_activations_buffer) < threshold_num_batches:
-            print("Collecting thresholds")
+            print("Collecting thresholds", len(feature_min_activations_buffer),"out of", threshold_num_batches)
             sae.eval()
             with torch.no_grad():
                 feature_min_activations_buffer = threshold_loop_collect(sae_output, feature_min_activations_buffer)
+                print("Collected thresholds", len(feature_min_activations_buffer),"out of", threshold_num_batches)
                 if len(feature_min_activations_buffer) >= threshold_num_batches:
                     print("Computing thresholds")
                     feature_thresholds = threshold_loop_compute(feature_min_activations_buffer, checkpoint_dir)
@@ -384,8 +385,8 @@ def train_sae(
                                 "thresholds/std": torch.std(valid_thresholds).item(),
                                 "thresholds/active_features": len(valid_thresholds),
                             }, step=iter_num)
-                print("Resetting feature min activations buffer")
-                feature_min_activations_buffer = []
+                    print("Resetting feature min activations buffer")
+                    feature_min_activations_buffer = []
             sae.train()
 
             

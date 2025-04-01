@@ -1,10 +1,4 @@
 #!/bin/bash -l
-
-
-
-
-
-
 # Number of top k features to use
 top_k=32
 # Dimension of SAE
@@ -12,8 +6,8 @@ d_sae=15360
 # Layer
 layer=5
 # Current date
-date=$(date +%Y_%m_%d)
-output_dir="configs/sae_training_2b_${top_k}/"
+date=2025_04_01
+output_dir="configs/sae_training_2b_${top_k}_${d_sae}_${layer}/"
 mkdir -p $output_dir
 # Define the array of iteration identifiers or indices
 iterations=("0" "1" "2")  # Adjust as needed
@@ -24,12 +18,14 @@ for i in "${iterations[@]}"; do
   
   # Determine resume settings based on iteration
   if [ "$i" = "0" ]; then
-    checkpoint_dir="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}/sae_training_iter_0/"
+    checkpoint_dir="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}_${layer}/sae_training_iter_0/"
     resume_from=""
     resuming="false"
   else
-    checkpoint_dir="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}/sae_training_iter_${prev_iter}/final"
-    resume_from=""
+    prev_iter=$((i-1))
+    checkpoint_dir="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}_${layer}/sae_training_iter_${i}/"
+    resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}_${layer}/sae_training_iter_${prev_iter}/final"
+    resuming="true"
   fi
   
   # Calculate tokens for this iteration (increase with each iteration)
@@ -53,13 +49,13 @@ sae:
 training:
   checkpoint_dir: ${checkpoint_dir}
   lr: 0.0005
-  num_tokens: 200000000
+  num_tokens: 5000000
   name: "sae_training_iter_${i}"
-  threshold_compute_freq: 100
+  threshold_compute_freq: 10
   threshold_num_batches: 20 
   num_batches_in_buffer: 5
-  perf_log_freq: 100
-  checkpoint_freq: 1000
+  perf_log_freq: 10
+  checkpoint_freq: 100
   top_k: ${top_k}  
   top_k_aux: 512 
   aux_penalty: 0.031
@@ -68,7 +64,7 @@ training:
 resuming:
   resume_from: ${resume_from}
   resuming: ${resuming}
-  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}/sae_training_iter_${i}/
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_${date}_${top_k}_${d_sae}_${layer}/sae_training_iter_${i}/
 EOL
 
   echo "YAML file '$output_file' generated successfully."
