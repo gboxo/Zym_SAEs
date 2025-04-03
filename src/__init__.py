@@ -9,7 +9,7 @@ language model activations. The main components are:
 - Configuration: get_default_cfg, update_cfg, post_init_cfg
 - Model loading: load_model, load_sae, load_config, get_ht_model
 """
-
+"""
 from .utils import (
     load_model,  # Load pretrained language models
     load_sae,    # Load trained sparse autoencoder
@@ -59,3 +59,4 @@ from .inference.sae_eval import (
     SAEEval,   # Class for evaluating sparse autoencoder performance
     EvalConfig # Configuration for SAE evaluation
 )
+"""

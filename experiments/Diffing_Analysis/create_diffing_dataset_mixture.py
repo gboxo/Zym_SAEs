@@ -12,7 +12,10 @@ def generate_dataset(iteration_num, ec_label, mixture_ratio=0.8):
     data = dict()
     
     # Load sequences from fasta file
-    with open(f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num-1}.fasta", "r") as f:
+    #fasta_path = "/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_amylase_iteration1.fasta"
+    fasta_path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_3.2.1.1_iteration{iteration_num}.fasta"
+
+    with open(fasta_path, "r") as f:
         rep_seq = f.readlines()
 
     sequences_rep = dict()

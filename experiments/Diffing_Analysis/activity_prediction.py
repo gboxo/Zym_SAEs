@@ -160,12 +160,11 @@ if __name__ == "__main__":
     
     # Add data rows
     for name, prediction1, prediction2 in zip(names, predictions, predictions2):
+        name = name.split("\t")[0]
         out += f"{name},{prediction1},{prediction2}\n"
         
-    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_no_penalty/activity_prediction_iteration{iteration_num}_bm.txt"
+    print("Saving the predictions on ", output_path)
 
-
-    os.makedirs(f'/home/woody/b114cb/b114cb23/boxo/activity_predictions_no_penalty', exist_ok=True)
     with open(output_path, 'w') as f:
         f.write(out)
 

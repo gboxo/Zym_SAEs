@@ -13,8 +13,9 @@ class ActivationsStore:
     ):
         self.model = model
         dataset = load_from_disk(cfg["dataset_path"])
+        dataset = dataset['train'] if 'train' in dataset else dataset
+        dataset = dataset.shuffle()
         # Check if dataset has splits and get train split if available
-        #self.original_dataset = dataset['train'] if 'train' in dataset else dataset
         self.original_dataset = dataset
         # Permute the dataset
         self.dataset = iter(self.original_dataset)

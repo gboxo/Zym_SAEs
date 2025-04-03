@@ -14,6 +14,7 @@ We will evaluate the performance of the SAE in a hold out test set of 1000 seque
     - Number of active features per sequence
     - Cosine Similarity 
 """
+from argparse import ArgumentParser
 import pandas as pd
 import os
 import torch
@@ -39,14 +40,15 @@ class EvalConfig:
 
 class SAEEval:
     def __init__(self, 
-                 cfg: EvalConfig):
+                 cfg: EvalConfig,
+                 percentile: int = 50):
         self.cfg = cfg
         torch.cuda.empty_cache()
 
         self.tokenizer, model = load_model(cfg.model_path)
         self.load_test_set()
         sae_cfg, sae = load_sae(cfg.sae_path, load_thresholds=False)
-        thresholds = torch.load(cfg.sae_path+"/percentiles/feature_percentile_50.pt")
+        thresholds = torch.load(cfg.sae_path+f"/percentiles/feature_percentile_{percentile}.pt")
         self.sae_cfg = sae_cfg
         self.hook_point = sae_cfg["hook_point"]
         self.jump_relu = convert_to_jumprelu(sae, thresholds)
@@ -238,6 +240,14 @@ class SAEEval:
 
 
 if __name__ == "__main__":
+
+    parser = ArgumentParser()
+    parser.add_argument("--percentile", type=int, default=50)
+    parser.add_argument("--layer", type=int, default=25)
+    args = parser.parse_args()
+    percentile = args.percentile
+    layer = args.layer
+    
     #model_iteration = 1
     #data_iteration = 1
     #model_path = f"/users/nferruz/gboxo/Alpha Amylase/output_iteration{model_iteration}" 
@@ -251,7 +261,7 @@ if __name__ == "__main__":
     #    f.write(txt)
 
     model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-    sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final"
+    sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_{layer}/sae_training_iter_0/final/"
     test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_eval/"
     #sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
     #test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/"
@@ -272,7 +282,7 @@ if __name__ == "__main__":
     cfg.sae_path = sae_path
     cfg.test_set_path = test_set_path
     cfg.is_tokenized = False
-    eval = SAEEval(cfg)
+    eval = SAEEval(cfg, percentile=percentile)
     eval.evaluation_loop()
     eval.pretty_table()
     eval.save_feature_statistics()  # Save feature statistics

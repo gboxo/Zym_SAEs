@@ -75,7 +75,7 @@ def load_model(model_name):
 
 
 
-def load_sae(sae_path, load_thresholds=False):
+def load_sae(sae_path, load_thresholds=False, checkpoint_name="checkpoint_latest.pt"):
     """Load a sparse autoencoder from checkpoint.
     
     Args:
@@ -87,8 +87,8 @@ def load_sae(sae_path, load_thresholds=False):
               returns (cfg, sae, thresholds) instead.
     """
     cfg = get_default_cfg()
-    if os.path.exists(sae_path+"checkpoint_latest.pt"):
-        checkpoint = torch.load(sae_path+"checkpoint_latest.pt")
+    if os.path.exists(sae_path+"/checkpoint_latest.pt"):
+        checkpoint = torch.load(sae_path+checkpoint_name)
         cfg = checkpoint["cfg"]
         cfg["dtype"] = torch.float32
         state_dict = checkpoint["model_state_dict"]
@@ -100,7 +100,7 @@ def load_sae(sae_path, load_thresholds=False):
             return cfg,sae,thresholds
         else:
             return cfg,sae
-    
+
 
     with open(sae_path+"config.json", "r") as f:
         config = json.load(f)

@@ -1,0 +1,33 @@
+
+base_config: base_config_alex_new.yaml
+base:
+  model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
+  d_sae: 15360
+  batch_size: 4096
+  model_batch_size: 512 
+  seq_len: 512
+sae:
+  model_type: BatchTopKSAE
+  sae_type: BathcTopKSAE
+  site: resid_pre
+  layer: 35 
+
+training:
+  checkpoint_dir: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_35/sae_training_iter_0/
+  lr: 0.0005
+  num_tokens: 500000000
+  name: "sae_training_iter_0"
+  threshold_compute_freq: 100
+  threshold_num_batches: 20 
+  num_batches_in_buffer: 5
+  perf_log_freq: 100
+  checkpoint_freq: 10000
+  top_k: 32  
+  top_k_aux: 512 
+  aux_penalty: 0.031
+  datset_path: /home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/
+  
+resuming:
+  resume_from: 
+  resuming: false
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_35/sae_training_iter_0/
