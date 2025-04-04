@@ -119,6 +119,9 @@ def resume_training(
         optimizer=optimizer,
         device=device
     )
+    
+    # Change the learning rate of the optimizer
+    optimizer.param_groups[0]['lr'] = cfg.training.lr
 
 
     if cfg.resuming.model_diffing:

@@ -71,7 +71,7 @@ if __name__=='__main__':
     if iteration_num == 0:
       model_name = '/home/woody/b114cb/b114cb23/models/ZymCTRL/'
     else:
-      model_name = f'/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{iteration_num}/'
+      model_name = f'/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration{iteration_num}/'
     
     print(f'{model_name} loaded')
     tokenizer = AutoTokenizer.from_pretrained(model_name) # change to ZymCTRL location

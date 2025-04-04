@@ -12,8 +12,9 @@ seed = 1998
 
 def generate_dataset(iteration_num, ec_label):
     data = dict()
-
-    with open(f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num-1}.fasta", "r") as f:
+    path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
+    path = f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
+    with open(path, "r") as f:
         rep_seq = f.readlines()
 
     sequences_rep = dict()
@@ -46,7 +47,7 @@ def generate_dataset(iteration_num, ec_label):
         })
     
         
-    final_dataset.save_to_disk(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets/dataset_iteration{iteration_num}")
+    final_dataset.save_to_disk(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_big/dataset_iteration{iteration_num}")
     
     return final_dataset
      
@@ -75,12 +76,10 @@ if __name__ == "__main__":
     ec_label = ec_label.strip()
     seed_everything(seed)
     
-    if int(iteration_num) == 1:
 
-        model_name = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
+    model_name = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
         
-    else:
-        model_name = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{iteration_num-1}/"
+ 
     tokenizer = AutoTokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=True)
 
     if tokenizer.pad_token is None:

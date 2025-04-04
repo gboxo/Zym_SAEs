@@ -96,12 +96,8 @@ if __name__ == "__main__":
     ec_label = args.label.strip()
     mixture_ratio = args.mixture_ratio
     
-    if int(iteration_num) == 1:
+    model_name = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
 
-        model_name = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-        
-    else:
-        model_name = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{iteration_num-1}/"
     tokenizer = AutoTokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=True)
     print(tokenizer)
 

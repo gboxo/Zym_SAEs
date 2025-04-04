@@ -28,6 +28,6 @@ training:
   datset_path: /home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/
   
 resuming:
-  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_35/sae_training_iter_0/
+  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_35/sae_training_iter_0/final/
   resuming: true
   checkpoint_dir_to_resume: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_35/sae_training_iter_1/

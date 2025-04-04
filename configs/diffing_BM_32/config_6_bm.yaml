@@ -12,7 +12,7 @@ training:
   threshold_compute_freq: 1
   aux_penalty: 0
   top_k_aux: 0
-  num_tokens: 3500000
+  num_tokens: 1000000
   threshold_num_batches: 5
   num_batches_in_buffer: 10
 resuming:
