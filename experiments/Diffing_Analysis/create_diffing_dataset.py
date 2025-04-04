@@ -13,7 +13,7 @@ seed = 1998
 def generate_dataset(iteration_num, ec_label):
     data = dict()
     path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
-    path = f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
+    #path = f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
     with open(path, "r") as f:
         rep_seq = f.readlines()
 
@@ -46,8 +46,8 @@ def generate_dataset(iteration_num, ec_label):
         'eval': eval_dataset
         })
     
-        
-    final_dataset.save_to_disk(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_big/dataset_iteration{iteration_num}")
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_0_30/dataset_iteration{iteration_num}", exist_ok=True)    
+    final_dataset.save_to_disk(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_0_30/dataset_iteration{iteration_num}")
     
     return final_dataset
      
