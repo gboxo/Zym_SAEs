@@ -15,7 +15,7 @@ training:
   num_tokens: 4000000
   threshold_num_batches: 1
   num_batches_in_buffer: 1
-  lr: 0.0005
+  lr: 0.0003
 resuming:
   resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_25/sae_training_iter_0/final
   checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase Mixture 32/last_iteration/M30_D30

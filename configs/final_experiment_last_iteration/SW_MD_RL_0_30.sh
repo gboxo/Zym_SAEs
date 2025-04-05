@@ -1,8 +1,9 @@
 #!/bin/bash -l
 #SBATCH --job-name=SAE_Diffing_RL_32_0_30          # Job name
 #SBATCH --ntasks=1                        # Run 1 task (process)
-#SBATCH --gres=gpu:a40:1
-#SBATCH --partition=a40
+#SBATCH --gres=gpu:a100:1
+#SBATCH --partition=a100
+#SBATCH --constraint=a100_80
 #SBATCH --time=24:00:00                   # Time limit
 #SBATCH --output=slurm_rl_32_%j.out             # Output file
 #SBATCH --error=slurm_rl_32_%j.err              # Error file

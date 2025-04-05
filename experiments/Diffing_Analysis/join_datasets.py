@@ -1,7 +1,7 @@
 from datasets import load_from_disk, concatenate_datasets, DatasetDict
 import os
 
-path = "/home/woody/b114cb/b114cb23/boxo/diffing_datasets_big/"
+path = "/home/woody/b114cb/b114cb23/boxo/diffing_datasets_0_30/"
 folders = os.listdir(path)
 
 
@@ -23,4 +23,4 @@ final_dataset = DatasetDict({
 })
 
 print(final_dataset)
-final_dataset.save_to_disk("/home/woody/b114cb/b114cb23/boxo/diffing_datasets_big/final_dataset_iteration_0_4")
+final_dataset.save_to_disk("/home/woody/b114cb/b114cb23/boxo/diffing_datasets_0_30/final_dataset_iteration_0_30")
