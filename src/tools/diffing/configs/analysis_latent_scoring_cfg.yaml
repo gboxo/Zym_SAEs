@@ -1,0 +1,13 @@
+paths:
+  output_dir: "/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/latent_scoring_figures"
+  base_path: "/home/woody/b114cb/b114cb23/boxo/activity_predictions/activity_prediction_iteration{iteration_num-1}.txt"
+  ablation_path: "/home/woody/b114cb/b114cb23/boxo/activity_predictions_ablation/activity_prediction_iteration{iteration_num}.txt"
+  steering_path: "/home/woody/b114cb/b114cb23/boxo/activity_predictions_steering/activity_prediction_iteration{iteration_num}.txt"
+
+iterations:
+  start: 0
+  end: 5
+
+
+
+
