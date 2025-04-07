@@ -87,10 +87,11 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg_path", type=str)
+    parser.add_argument("--iteration_num", type=int)
     args = parser.parse_args()
     cfg_path = args.cfg_path
+    iteration_num = args.iteration_num
     config = load_config(cfg_path)
-    iteration_num = config["iteration_num"]
     ec_label = config["label"].strip()
     mixture_ratio = config["mixture_ratio"]
     fasta_path = config["paths"]["fasta_path"].format(ec_label, iteration_num)

@@ -1,10 +1,12 @@
 import torch
-from transformers import GPT2LMHeadModel, AutoTokenizer, AutoModelForCausalLM
+from transformers import GPT2LMHeadModel, AutoTokenizer
 import os
 from tqdm import tqdm
 import math
 import argparse
+from argparse import ArgumentParser
 from generate_utils import load_config
+
 
 
 def remove_characters(sequence, char_list):
@@ -64,7 +66,7 @@ if __name__=='__main__':
     config = load_config(cfg_path)
     iteration_num = args.iteration_num
     ec_label = config["label"]
-    labels = [ec_label.strip()]
+    out_dir = config["paths"]["out_dir"].format(iteration_num)
 
     device = torch.device("cuda") # Replace with 'cpu' if you don't have a GPU - but it will be slow
     print('Reading pretrained model and tokenizer')
@@ -73,9 +75,8 @@ if __name__=='__main__':
     if iteration_num == 0:
       model_name = '/home/woody/b114cb/b114cb23/models/ZymCTRL/'
     else:
-      model_name = f'/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration{iteration_num}/'
+      model_path = config["paths"]["model_path"].format(iteration_num)
     
-    print(f'{model_name} loaded')
     tokenizer = AutoTokenizer.from_pretrained(model_name) # change to ZymCTRL location
     model = GPT2LMHeadModel.from_pretrained(model_name).to(device) # change to ZymCTRL location
     special_tokens = ['<start>', '<end>', '<|endoftext|>','<pad>',' ', '<sep>']
@@ -85,29 +86,27 @@ if __name__=='__main__':
     canonical_amino_acids = set("ACDEFGHIKLMNPQRSTVWY")  # Set of canonical amino acids
     print("Starting sequence generation")
     
-    for label in labels:
-        all_sequences = []
-        for i in tqdm(range(50)):
-            sequences = main(label, model, special_tokens, device, tokenizer)
-            for key, value in sequences.items():
-                for index, val in enumerate(value):
-                    if all(char in canonical_amino_acids for char in val[0]):
-                        sequence_info = {
-                            'label': label,
-                            'batch': i,
-                            'index': index,
-                            'pepr': float(val[1]),
-                            'fasta': f">{label}_{i}_{index}_iteration{iteration_num}\t{val[1]}\n{val[0]}\n"
-                        }
-                        all_sequences.append(sequence_info)
-        fasta_content = ''.join(seq['fasta'] for seq in all_sequences)
+    all_sequences = []
+    for i in tqdm(range(50)):
+        sequences = main(label, model, special_tokens, device, tokenizer)
+        for key, value in sequences.items():
+            for index, val in enumerate(value):
+                if all(char in canonical_amino_acids for char in val[0]):
+                    sequence_info = {
+                        'label': label,
+                        'batch': i,
+                        'index': index,
+                        'pepr': float(val[1]),
+                        'fasta': f">{label}_{i}_{index}_iteration{iteration_num}\t{val[1]}\n{val[0]}\n"
+                    }
+                    all_sequences.append(sequence_info)
+    fasta_content = ''.join(seq['fasta'] for seq in all_sequences)
 
-        os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/seq_gens", exist_ok=True)
-        
-        output_filename = f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{label}_iteration{iteration_num}.fasta"
-        print(fasta_content)
-        with open(output_filename, "w") as fn:
+    os.makedirs(out_dir, exist_ok=True)
+    output_filename = f"{out_dir}/seq_gen_{label}_iteration{iteration_num}.fasta"
+    print(fasta_content)
+    with open(output_filename, "w") as fn:
             fn.write(fasta_content)
         
-        fn.close()
-    
+    fn.close()
+        

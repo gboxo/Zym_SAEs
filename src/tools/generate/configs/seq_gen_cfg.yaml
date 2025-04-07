@@ -1,0 +1,5 @@
+paths:
+  model_path: "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/{model_iteration}/"
+  out_dir: "/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/ablation/importance/M{model_iteration}_D{data_iteration}"
+
+label: 3.2.1.1

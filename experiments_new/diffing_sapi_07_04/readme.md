@@ -44,6 +44,7 @@ In this second stage we will analyze the resulting SAEs from the previous step:
         - pLDDT
         - Sequence Alignment
         - Oracle activity 
+        - Ratio of key residues that are present 
     - Use sparse probes to get important features to predict `high` and `low` instances of the metrics 
     - Use difference in mean probes to get important features to predict `high` and `low` instances of the metrics 
     - Maybe try to annptate as much features as possible by iteratively fitting probes and zeroing rows of the activations
@@ -92,13 +93,39 @@ This experiments will be repeated for:
 - Each iteration
 - Each one of the 2 branches M0DX or MXDX
 - Each key metric
+- Each direction of effect (increase the metric or decrease the metric)
 
 
 
+For each generated sequence we will measure the following properties:
+- Length
+- TM Score
+- pLDDT
+- Activity
+- Ratio of key residues that are present 
+
+
+**We should see an agreement between the intervention and the importance and directionality of the feature (group of features)**
+
+
+----
 
 
 
+## Fourth Stage
 
+
+In this stage we will analyse all the gathered information about the diffing such as:
+
+- Fitness of a features
+- Evolution of that feature along the iterations
+- Presence of the feature in the 2 streams
+- Absolute change in CS/norm/firing rate/etc
+
+
+----------
+
+# Process
 
 
 

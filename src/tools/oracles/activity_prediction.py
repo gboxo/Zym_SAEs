@@ -7,7 +7,7 @@ import argparse
 import pickle as pkl
 from peft import LoraConfig, inject_adapter_in_model
 from datasets import Dataset
-
+from oracles_utils import load_config
 
 class SequenceDataset(Dataset):
     def __init__(self, tokenized_sequences):
@@ -68,10 +68,10 @@ def generate_dataset(seq_path, tokenizer):
     with open(seq_path, "r") as f:
         rep_seq = f.readlines()
     for line in rep_seq:
-        #line = line.replace("\n","")
-        #sections  = line.split(",")
-        #seq = sections[1]
-        #seq = seq.replace("3. 2. 1. 1 <sep> <start>","").replace("<end>","")
+        line = line.replace("\n","")
+        sections  = line.split(",")
+        seq = sections[1]
+        seq = seq.replace("3. 2. 1. 1 <sep> <start>","").replace("<end>","")
         
         if not line.startswith(">"):
             seq = line.strip()
@@ -91,27 +91,27 @@ def generate_dataset(seq_path, tokenizer):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--cfg_path", type=str, required=True)
     parser.add_argument("--iteration_num", type=int, required=True)
-    parser.add_argument("--label", type=str, required=True)
+
     args = parser.parse_args()
-
+    cfg_path = args.cfg_path
     iteration_num = args.iteration_num
-    ec_label = args.label.strip()
-    feature_indices = None
+    config = load_config(cfg_path)
+    ec_label = config["label"]
 
-    seqs_path = f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
-    output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions/activity_prediction_iteration{iteration_num}.txt"
-    #seqs_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/without_penalty/M{iteration_num}_D{iteration_num}/sequences_bm.txt"
-    #output_path = f"/home/woody/b114cb/b114cb23/boxo/activity_predictions_no_penalty/activity_prediction_iteration{iteration_num}_bm.txt"
+
+    seqs_path = config["paths"]["seqs_path"].format(ec_label, iteration_num)
+    output_path = config["paths"]["output_path"].format(iteration_num)
 
 
 
     print(f"Loading the Oracle model")
 
-    checkpoint = "/home/woody/b114cb/b114cb23/models/esm2_t33_650M_UR50D"
+    checkpoint = config["paths"]["oracle_path1"]
     tokenizer, model = load_model(
         checkpoint,
-        "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRa_esm2_3B/esm_GB1_finetuned.pth",
+        config["paths"]["checkpoint_path1"],
         num_labels=1
     )
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -136,10 +136,10 @@ if __name__ == "__main__":
     del model
     torch.cuda.empty_cache()
 
-    checkpoint = "/home/woody/b114cb/b114cb23/models/esm1v_t33_650M_UR90S_1"
+    checkpoint = config["paths"]["oracle_path2"]
     tokenizer, model = load_model(
         checkpoint,
-        "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRA_esm1v/Esm1v_GB1_finetuned.pth",
+        config["paths"]["checkpoint_path2"],
         num_labels=1
     )
     model.to(device)

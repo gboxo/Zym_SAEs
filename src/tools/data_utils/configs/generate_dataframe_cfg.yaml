@@ -5,5 +5,4 @@ paths:
   plddt_path: "/home/woody/b114cb/b114cb23/boxo/outputs/output_iterations{iteration_num-1}/PDB/"
   out_path: "/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/dataframe_iteration{iteration_num-1}.csv"
 
-iteration_num: 0
 label: 3.2.1.1

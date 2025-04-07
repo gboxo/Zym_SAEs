@@ -2,5 +2,4 @@ paths:
   fasta_path: "/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
   out_path: "/home/woody/b114cb/b114cb23/boxo/diffing_datasets_0_30/dataset_iteration{iteration_num}"
 
-iteration_num: 0
 label: 3.2.1.1

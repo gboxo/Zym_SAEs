@@ -3,6 +3,5 @@ paths:
   dataset_path: "/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_eval"
   out_path: "/home/woody/b114cb/b114cb23/boxo/diffing_datasets_0_30/dataset_iteration{iteration_num}"
 
-iteration_num: 0
 label: 3.2.1.1
 mixture_ratio: 0.1

@@ -36,7 +36,7 @@ def get_plddt_dict(plddt_path, files):
                 plddt_dict[file.strip(".pdb")] = None
     return plddt_dict
 
-def main(iteration_num, label, out_path, tm_score_path, sequences_path, activity_path, plddt_path):
+def main(out_path, tm_score_path, sequences_path, activity_path, plddt_path):
 
     
     df_tm_score = pd.read_csv(tm_score_path, sep="\t", header=None)
@@ -83,18 +83,16 @@ def main(iteration_num, label, out_path, tm_score_path, sequences_path, activity
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg_path", type=str)
+    parser.add_argument("--iteration_num", type=int)
     args = parser.parse_args()
     cfg_path = args.cfg_path
     config = load_config(cfg_path)
 
-
-
-
-    iteration_num = config["iteration_num"]
     label = config["label"]
+    iteration_num = args.iteration_num
     out_path = config["paths"]["out_path"].format(iteration_num)
     tm_score_path = config["paths"]["tm_score_path"].format(label, iteration_num)
     sequences_path = config["paths"]["sequences_path"].format(label, iteration_num)
     activity_path = config["paths"]["activity_path"].format(iteration_num)
     plddt_path = config["paths"]["plddt_path"].format(iteration_num)
-    main(iteration_num, label, out_path, tm_score_path, sequences_path, activity_path, plddt_path)
+    main(out_path, tm_score_path, sequences_path, activity_path, plddt_path)
