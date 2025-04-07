@@ -4,16 +4,15 @@ import random
 import argparse
 import pandas as pd
 from datasets import Dataset, load_from_disk, DatasetDict
+from src.tools.data_utils.data_utils import load_config
+from argparse import ArgumentParser
 
 seed = 1998
 
 
-def generate_dataset(iteration_num, ec_label, mixture_ratio=0.8):
+def generate_dataset(fasta_path, dataset_path, out_path, tokenizer, mixture_ratio):
     data = dict()
     
-    # Load sequences from fasta file
-    #fasta_path = "/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_amylase_iteration1.fasta"
-    fasta_path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_3.2.1.1_iteration{iteration_num}.fasta"
 
     with open(fasta_path, "r") as f:
         rep_seq = f.readlines()
@@ -38,7 +37,7 @@ def generate_dataset(iteration_num, ec_label, mixture_ratio=0.8):
     print("Rest: ", rest)
     
     # Load existing tokenized dataset
-    existing_dataset = load_from_disk("/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/")
+    existing_dataset = load_from_disk(dataset_path)
     existing_dataset = existing_dataset.shuffle(seed=seed)
 
     existing_dataset = existing_dataset[:10000]
@@ -70,9 +69,9 @@ def generate_dataset(iteration_num, ec_label, mixture_ratio=0.8):
         'eval': eval_dataset
         })
     
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_mixture/dataset_iteration{iteration_num}", exist_ok=True)
+    os.makedirs(out_path, exist_ok=True)
     
-    final_dataset.save_to_disk(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_mixture/dataset_iteration{iteration_num}")
+    final_dataset.save_to_disk(out_path)
     
     return final_dataset
      
@@ -87,15 +86,16 @@ def formatting_sequence(sequence, ec_label):
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--iteration_num", type=int)
-    parser.add_argument("--label", type=str)
-    parser.add_argument("--mixture_ratio", type=float, default=0.8, 
-                       help="Ratio of sequences from fasta file (default: 0.8)")
+    parser.add_argument("--cfg_path", type=str)
     args = parser.parse_args()
-    iteration_num = args.iteration_num
-    ec_label = args.label.strip()
-    mixture_ratio = args.mixture_ratio
-    
+    cfg_path = args.cfg_path
+    config = load_config(cfg_path)
+    iteration_num = config["iteration_num"]
+    ec_label = config["label"].strip()
+    mixture_ratio = config["mixture_ratio"]
+    fasta_path = config["paths"]["fasta_path"].format(ec_label, iteration_num)
+    dataset_path = config["paths"]["dataset_path"]
+    out_path = config["paths"]["out_path"].format(iteration_num)
     model_name = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=True)
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     if tokenizer.pad_token is None:
         tokenizer.pad_token = "<pad>"
 
-    dataset = generate_dataset(iteration_num, ec_label, mixture_ratio)
+    dataset = generate_dataset(fasta_path, dataset_path, out_path, tokenizer, mixture_ratio)
     
 
 

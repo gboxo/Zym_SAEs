@@ -1,3 +1,4 @@
+from diffing_utils import load_config
 import pandas as pd
 import argparse
 import os
@@ -6,12 +7,11 @@ from src.utils import load_sae, load_model, get_ht_model
 from src.training.sae import JumpReLUSAE
 import torch
 import numpy as np
-from scipy.sparse import coo_matrix, vstack
+from scipy.sparse import coo_matrix
 from tqdm import tqdm
 import pickle as pkl
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import spearmanr
 from statsmodels.stats.multitest import multipletests
 from scipy.stats import gaussian_kde
 import plotly.graph_objects as go
@@ -26,9 +26,9 @@ def get_activations( model, tokenizer, sequence):
     sequence = "3.2.1.1<sep><start>" + sequence
     inputs = tokenizer.encode(sequence, return_tensors="pt").to("cuda")
     with torch.no_grad():
-        names_filter = lambda x: x.endswith("26.hook_resid_pre")
+        names_filter = lambda x: x.endswith("25.hook_resid_pre")
         _, cache = model.run_with_cache(inputs, names_filter=names_filter)
-        activations = cache["blocks.26.hook_resid_pre"]
+        activations = cache["blocks.25.hook_resid_pre"]
     return activations
 
 def get_features(sae: JumpReLUSAE, activations):
@@ -51,14 +51,14 @@ def get_all_features(model, sae, tokenizer, sequences):
         torch.cuda.empty_cache()
     return all_features
 
-def obtain_features(df):
+def obtain_features(df, output_dir):
     """
     Obtain features from natural sequences
     """
     sequences = df["sequence"].tolist()
     features = get_all_features(model,jump_relu, tokenizer, sequences)
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features", exist_ok=True)
-    pkl.dump(features, open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features/features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
+    os.makedirs(f"{output_dir}/features", exist_ok=True)
+    pkl.dump(features, open(f"{output_dir}/features/features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
     del features
     torch.cuda.empty_cache()
 
@@ -82,7 +82,7 @@ def get_mean_features(features):
 
 
 
-def firing_rates(features):
+def firing_rates(features, output_dir):
     """
     Get the firing rates of the features
 
@@ -97,7 +97,6 @@ def firing_rates(features):
         fa = w.sum(axis=0)>0
         firing_rates_seq.append(fa)
     firing_rates_seq = np.array(firing_rates_seq).mean(axis=0)
-    np.save(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/firing_rates_M{model_iteration}_D{data_iteration}.npy", firing_rates_seq)
     return firing_rates_seq
 
 
@@ -165,7 +164,7 @@ def get_important_features(X,pred1,pred2,plddt,tm_score):
 
 
 
-def get_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
+def get_correlations(mean_features, plddt, activity, tm_score, f_rates, cs, output_dir):
     """Calculate correlations between features and metrics."""
     # Calculate correlations between features and metrics
     correlations = []
@@ -214,8 +213,8 @@ def get_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
     }
     
     # Save the correlation data
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations", exist_ok=True)
-    pkl.dump(correlation_data, open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations/top_correlations_M{model_iteration}_D{data_iteration}.pkl", "wb"))
+    os.makedirs(f"{output_dir}/correlations", exist_ok=True)
+    pkl.dump(correlation_data, open(f"{output_dir}/correlations/top_correlations_M{model_iteration}_D{data_iteration}.pkl", "wb"))
     
     print(f"Created correlation data with shape: {top_correlations.shape}")
     print(f"Number of significant correlations after correction: {np.sum(~mask)}")
@@ -223,7 +222,7 @@ def get_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
     return correlation_data
 
 
-def plot_correlation_heatmap(correlation_data):
+def plot_correlation_heatmap(correlation_data, output_dir):
     """Plot a heatmap of the top correlations."""
     correlations = correlation_data['correlations']
     top_indices = np.abs(correlations).sum(axis=1).argsort()[-100:][::-1]
@@ -235,27 +234,25 @@ def plot_correlation_heatmap(correlation_data):
                 xticklabels=["pLDDT", "Activity", "TM-score"])
     plt.title("Top Feature Correlations (masked by significance)")
     plt.tight_layout()
-    plt.savefig(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/correlation_heatmap_M{model_iteration}_D{data_iteration}.png", dpi=300)
+    plt.savefig(f"{output_dir}/figures/correlation_heatmap_M{model_iteration}_D{data_iteration}.png", dpi=300)
     plt.close()
 
 
-def plot_firing_rate_vs_correlation(correlation_data):
+def plot_firing_rate_vs_correlation(correlation_data, output_dir):
     """Plot firing rates vs mean absolute correlation."""
     f_rates = correlation_data['f_rates']
     correlations = correlation_data['correlations']
-    print(correlations)
     top_indices = np.abs(correlations).sum(axis=1).argsort()[-100:][::-1]
-    print(top_indices)
     plt.figure(figsize=(10, 10))
     plt.scatter(f_rates[top_indices], correlations[top_indices,1], cmap="coolwarm")
     plt.xlabel("Firing Rates")
     plt.ylabel("Activity")
     plt.title("Firing Rates vs Activity")
-    plt.savefig(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/firing_rates_activity_M{model_iteration}_D{data_iteration}.png", dpi=300)
+    plt.savefig(f"{output_dir}/figures/firing_rates_activity_M{model_iteration}_D{data_iteration}.png", dpi=300)
     plt.close()
 
 
-def plot_2d_density(x: np.ndarray, y: np.ndarray, z: np.ndarray):
+def plot_2d_density(x: np.ndarray, y: np.ndarray, z: np.ndarray, output_dir):
     """Create a 2D density plot for CS and firing rate, colored by mean absolute correlation."""
     # Get data
     
@@ -316,14 +313,13 @@ def plot_2d_density(x: np.ndarray, y: np.ndarray, z: np.ndarray):
     )
     
     # Save as interactive HTML
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures", exist_ok=True)
-    fig.write_html(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/2d_density_plot_interactive_M{model_iteration}_D{data_iteration}.html")
+    fig.write_html(f"{output_dir}/figures/2d_density_plot_interactive_M{model_iteration}_D{data_iteration}.html")
     
     # Also save a static image for reference
-    fig.write_image(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/2d_density_plot_M{model_iteration}_D{data_iteration}.png", scale=2)
+    fig.write_image(f"{output_dir}/figures/2d_density_plot_M{model_iteration}_D{data_iteration}.png", scale=2)
 
 
-def plot_3d_density(correlation_data):
+def plot_3d_density(correlation_data, output_dir):
     """Create an interactive 3D density plot."""
     # Get data
     x = correlation_data['f_rates']  # Firing rates
@@ -389,11 +385,11 @@ def plot_3d_density(correlation_data):
     )
     
     # Save as interactive HTML
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures", exist_ok=True)
-    fig.write_html(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/3d_density_plot_interactive_M{model_iteration}_D{data_iteration}.html")
+    os.makedirs(f"{output_dir}/figures", exist_ok=True)
+    fig.write_html(f"{output_dir}/figures/3d_density_plot_interactive_M{model_iteration}_D{data_iteration}.html")
     
     # Also save a static image for reference
-    fig.write_image("/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/3d_density_plot.png", scale=2)
+    fig.write_image(f"{output_dir}/figures/3d_density_plot.png", scale=2)
 
 
 def analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
@@ -402,10 +398,10 @@ def analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
     correlation_data = get_correlations(mean_features, plddt, activity, tm_score, f_rates, cs)
     
     # Create various plots
-    plot_correlation_heatmap(correlation_data)
-    plot_firing_rate_vs_correlation(correlation_data)
-    plot_2d_density(correlation_data['f_rates'], correlation_data['cs'], correlation_data['correlations'][:,1])
-    plot_3d_density(correlation_data)
+    plot_correlation_heatmap(correlation_data, output_dir)
+    plot_firing_rate_vs_correlation(correlation_data, output_dir)
+    plot_2d_density(correlation_data['f_rates'], correlation_data['cs'], correlation_data['correlations'][:,1], output_dir)
+    plot_3d_density(correlation_data, output_dir)
     
     return correlation_data
 
@@ -422,39 +418,38 @@ def analyze_important_features(mean_features, activity, activity2, plddt, tm_sco
     }
     
     # Save the correlation data
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/important_features", exist_ok=True)
-    pkl.dump(importance_features, open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/important_features/important_features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
+    os.makedirs(f"{output_dir}/important_features", exist_ok=True)
+    pkl.dump(importance_features, open(f"{output_dir}/important_features/important_features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
     
 
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--iteration_num", type=int)
-    parser.add_argument("--label", type=str)
-    # is_rl True if RL, False if SW
-    parser.add_argument("--is_rl", action="store_true", help="Set to True if using RL, False if using SW")
+    parser.add_argument("--cfg_path", type=str)
     args = parser.parse_args()
-    iteration_num = args.iteration_num
-    ec_label = args.label
-    ec_label = ec_label.strip()
+    cfg_path = args.cfg_path
+    config = load_config(cfg_path)
+    iteration_num = config["iteration_num"]
+    model_iteration = config["model_iteration"]
+    data_iteration = config["data_iteration"]
+    ec_label = config["label"]
+    cs_path = config["paths"]["cs_path"]
+    df_path = config["paths"]["df_path"]
+    output_dir = config["paths"]["output_dir"]
+    model_path = config["paths"]["model_path"].format(iteration_num)
+    sae_path = config["paths"]["sae_path"].format(model_iteration, data_iteration)
 
-    if args.is_rl:
-        model_iteration = iteration_num
-        data_iteration = iteration_num 
-    else:
-        data_iteration = iteration_num 
-        model_iteration = 0
-    cs = torch.load("/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/all_cs.pt")
+    cs = torch.load(cs_path)
     cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
-    # Load the dataframe
-    df_path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/dataframe_iteration{data_iteration}.csv"
 
     
     
     # Create the directories
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures", exist_ok=True)
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features", exist_ok=True)
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations", exist_ok=True)
+    os.makedirs(f"{output_dir}/figures", exist_ok=True)
+    os.makedirs(f"{output_dir}/features", exist_ok=True)
+    os.makedirs(f"{output_dir}/correlations", exist_ok=True)
+    os.makedirs(f"{output_dir}/important_features", exist_ok=True)
+    os.makedirs(f"{output_dir}/features", exist_ok=True)
 
 
 
@@ -464,13 +459,8 @@ if __name__ == "__main__":
     assert os.path.exists(df_path), "Dataframe does not exist"
     df = pd.read_csv(df_path)
     if True:
-        if model_iteration == 0:
-            model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-        else:
-            model_path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{iteration_num}/" 
-        sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M{model_iteration}_D{data_iteration}/diffing/"
         cfg, sae = load_sae(sae_path)
-        thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
+        thresholds = torch.load(sae_path+"/percentiles/feature_percentile_50.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
         sae.to("cuda")
         jump_relu = convert_to_jumprelu(sae, thresholds)
@@ -481,15 +471,14 @@ if __name__ == "__main__":
         model = get_ht_model(model, model.config).to("cuda")
         torch.cuda.empty_cache()
 
-        obtain_features(df)
+        obtain_features(df, output_dir)
 
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features", exist_ok=True)
-    features = load_features(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/features/features_M{model_iteration}_D{data_iteration}.pkl")
-    f_rates = firing_rates(features)
+    features = load_features(f"{output_dir}/features/features_M{model_iteration}_D{data_iteration}.pkl")
+    f_rates = firing_rates(features, output_dir)
 
     # Plot the histogram of the firing rates
     plt.hist(f_rates,bins=20)
-    plt.savefig(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/figures/firing_rates_histogram_M{model_iteration}_D{data_iteration}.png", dpi=300)
+    plt.savefig(f"{output_dir}/figures/firing_rates_histogram_M{model_iteration}_D{data_iteration}.png", dpi=300)
     plt.close()
 
 
@@ -507,7 +496,7 @@ if __name__ == "__main__":
     tm_score = df["alntmscore"].tolist()
     tm_score = np.array(tm_score)
 
-    analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs)
-    analyze_important_features(mean_features, activity, activity2, plddt, tm_score)
+    analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs, output_dir)
+    analyze_important_features(mean_features, activity, activity2, plddt, tm_score, output_dir)
 
 

@@ -6,15 +6,15 @@ import random
 import argparse
 import pandas as pd
 from datasets import Dataset, load_from_disk, DatasetDict
+from src.tools.data_utils.data_utils import load_config
+
 
 seed = 1998
 
 
-def generate_dataset(iteration_num, ec_label):
+def generate_dataset(fasta_path, out_path, tokenizer):
     data = dict()
-    path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
-    #path = f"/home/woody/b114cb/b114cb23/boxo/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
-    with open(path, "r") as f:
+    with open(fasta_path, "r") as f:
         rep_seq = f.readlines()
 
     sequences_rep = dict()
@@ -46,8 +46,8 @@ def generate_dataset(iteration_num, ec_label):
         'eval': eval_dataset
         })
     
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_0_30/dataset_iteration{iteration_num}", exist_ok=True)    
-    final_dataset.save_to_disk(f"/home/woody/b114cb/b114cb23/boxo/diffing_datasets_0_30/dataset_iteration{iteration_num}")
+    os.makedirs(out_path, exist_ok=True)    
+    final_dataset.save_to_disk(out_path)
     
     return final_dataset
      
@@ -68,14 +68,16 @@ def formatting_sequence(sequence, ec_label):
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--iteration_num", type=int)
-    parser.add_argument("--label", type=str)
+    parser.add_argument("--cfg_path", type=str)
     args = parser.parse_args()
-    iteration_num = args.iteration_num
-    ec_label = args.label
-    ec_label = ec_label.strip()
+    cfg_path = args.cfg_path
     seed_everything(seed)
-    
+    config = load_config(cfg_path)
+    iteration_num = config["iteration_num"]
+    ec_label = config["label"]
+
+    fasta_path = config["paths"]["fasta_path"].format(ec_label, iteration_num)
+    out_path = config["paths"]["out_path"].format(iteration_num)
 
     model_name = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
         
@@ -84,10 +86,7 @@ if __name__ == "__main__":
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = "<pad>"
-    if not os.path.exists(f"dataset_iteration{iteration_num}"):
-      dataset = generate_dataset(iteration_num, ec_label)
-    else:
-      dataset = load_from_disk(f"dataset_iteration{iteration_num}")
+    dataset = generate_dataset(fasta_path, out_path, tokenizer)
     
 
 

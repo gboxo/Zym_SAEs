@@ -1,4 +1,5 @@
-#from SAELens.sae_lens import HookedSAETransformer, SAE, SAEConfig
+from argparse import ArgumentParser
+from generate_utils import load_config
 import random
 from sae_lens import HookedSAETransformer, SAE, SAEConfig
 from src.utils import load_model, get_sl_model, load_sae
@@ -12,17 +13,11 @@ import pickle as pkl
 from peft import LoraConfig, inject_adapter_in_model
 import pandas as pd
 
-def get_model_sae(model_iteration, data_iteration):
+def get_model_sae(model_path, sae_path):
 
-    if model_iteration == 0:
-        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-    else:
-        model_path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{model_iteration}/" 
-    #sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M{model_iteration}_D{data_iteration}/diffing/"
-    sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
     cfg_sae, sae = load_sae(sae_path)
 
-    thresholds = torch.load(sae_path+"/percentiles/feature_percentile_13.pt")
+    thresholds = torch.load(sae_path+"/percentiles/feature_percentile_50.pt")
     thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
     state_dict = sae.state_dict()
     state_dict["threshold"] = thresholds
@@ -51,7 +46,7 @@ cfg = SAEConfig(
     finetuning_scaling_factor=False,
     context_size=512,
     model_name="ZymCTRL",
-    hook_name="blocks.26.hook_resid_pre",
+    hook_name="blocks.25.hook_resid_pre",
     hook_layer=26,
     hook_head_index=None,
     prepend_bos=False,

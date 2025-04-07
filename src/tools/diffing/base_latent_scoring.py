@@ -75,7 +75,7 @@ def get_mean_features(features):
 
 
 
-def firing_rates(features, output_dir):
+def firing_rates(features, output_dir, model_iteration, data_iteration):
     """
     Get the firing rates of the featuris
 
@@ -237,7 +237,7 @@ def main(config_path):
 
     os.makedirs(f"{output_dir}/features_32", exist_ok=True)
     features = load_features(f"{output_dir}/features_32/features_M{model_iteration}_D{data_iteration}.pkl")
-    f_rates = firing_rates(features, output_dir)
+    f_rates = firing_rates(features, output_dir, model_iteration, data_iteration)
 
     mean_features = get_mean_features(features)[:,0]
     plddt = df["pLDDT"].tolist()

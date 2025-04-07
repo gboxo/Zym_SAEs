@@ -1,17 +1,16 @@
-#from SAELens.sae_lens import HookedSAETransformer, SAE, SAEConfig
+from argparse import ArgumentParser
+from generate_utils import load_config
 from sae_lens import HookedSAETransformer, SAE, SAEConfig
 from src.utils import load_model, get_sl_model, load_sae
 from functools import partial
 import torch
-import pandas as pd
 import os
 import pickle as pkl
 from tqdm import tqdm
 
-def ablation(activations, hook, ablation_feature):
+def ablation(activations:torch.Tensor, hook, ablation_feature:list[int]):
     # Check prompt processing
     if activations.shape[1] > 1:
-        #activations[:,:,ablation_feature] = 0
         pass
         
     else:
@@ -37,7 +36,7 @@ def generate_with_ablation(model: HookedSAETransformer, sae: SAE, prompt: str, a
     #for i in range(n_samples):
 
     # standard transformerlens syntax for a hook context for generation
-    with model.hooks(fwd_hooks=[('blocks.26.hook_resid_pre.hook_sae_acts_post', ablation_hook)]):
+    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_post', ablation_hook)]):
         output = model.generate(
             input_ids_batch, 
             top_k=9, #tbd
@@ -58,14 +57,14 @@ def generate_with_ablation(model: HookedSAETransformer, sae: SAE, prompt: str, a
 cfg = SAEConfig(
     architecture="jumprelu",
     d_in=1280,
-    d_sae=10240,
+    d_sae=12*1280,
     activation_fn_str="relu",
     apply_b_dec_to_input=True,
     finetuning_scaling_factor=False,
     context_size=256,
     model_name="ZymCTRL",
-    hook_name="blocks.26.hook_resid_pre",
-    hook_layer=26,
+    hook_name="blocks.25.hook_resid_pre",
+    hook_layer=25,
     hook_head_index=None,
     prepend_bos=False,
     dtype="float32",
@@ -77,19 +76,32 @@ cfg = SAEConfig(
 )
 
 if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("--cfg_path", type=str)
+    args = parser.parse_args()
+    cfg_path = args.cfg_path
+    config = load_config(cfg_path)
 
-    FEATURE_SELECTION_METHOD = "importance" # "importance" or "correlation"
-
-    for model_iteration, data_iteration in [(1,1),(2,2),(3,3),(4,4),(5,5)]:
-        print(f"Model iteration: {model_iteration}, Data iteration: {data_iteration}")
-        cs = torch.load("/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/all_cs.pt")
-        cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
-        # Load the dataframe
-        if model_iteration == 0:
+    for model_iteration, data_iteration in zip(range(30), range(30)):
+        if model_iteration == 0 and data_iteration == 0:
             model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
         else:
-            model_path = f"/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_alphamylase/output_iteration{model_iteration}/" 
-        sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/Diffing Alpha Amylase New/M{model_iteration}_D{data_iteration}/diffing/"
+            model_path = config["paths"]["model_path"].format(model_iteration)
+
+        sae_path = config["paths"]["sae_path"]
+        top_features_path = config["paths"]["top_features_path"].format(model_iteration, data_iteration)
+        df_path = config["paths"]["df_path"].format(data_iteration)
+        FEATURE_SELECTION_METHOD = config["FEATURE_SELECTION_METHOD"]
+        out_dir = config["paths"]["out_dir"].format(model_iteration, data_iteration)
+
+
+
+
+
+
+
+
+
         cfg_sae, sae = load_sae(sae_path)
         thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
@@ -106,28 +118,20 @@ if __name__ == "__main__":
         model = get_sl_model(model, model.config, tokenizer).to("cuda")
         model.add_sae(sae)
 
-        if FEATURE_SELECTION_METHOD == "importance":
-            path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/important_features/important_features_M{model_iteration}_D{data_iteration}.pkl"
-            with open(path, "rb") as f:
-                important_features = pkl.load(f)
-            feature_indices = important_features["unique_coefs"]
-        elif FEATURE_SELECTION_METHOD == "correlation":
-            path = f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/correlations/top_correlations_M{model_iteration}_D{data_iteration}.pkl"
-            with open(path, "rb") as f:
-                top_correlations = pkl.load(f)
-            feature_indices = top_correlations["feature_indices"]
-        
+        with open(top_features_path, "rb") as f:
+            important_features = pkl.load(f)
+        feature_indices = important_features["unique_coefs"]
+            
 
         prompt = "3.2.1.1<sep><start>"
 
 
-        os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/ablation/{FEATURE_SELECTION_METHOD}/M{model_iteration}_D{data_iteration}", exist_ok=True)
+        os.makedirs(out_dir, exist_ok=True)
 
-        print(feature_indices)
         for ablation_feature in tqdm(feature_indices):
             out = generate_with_ablation(model, sae, prompt, ablation_feature, max_new_tokens=1024, n_samples=10)
-            with open(f"/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/ablation/{FEATURE_SELECTION_METHOD}/M{model_iteration}_D{data_iteration}/ablation_feature_{ablation_feature}.txt", "w") as f:
+            with open(f"{out_dir}/ablation_feature_{ablation_feature}.txt", "w") as f:
                 for i, o in enumerate(out):
                     f.write(f">3.2.1.1_{i},"+o+"\n")
     del model, sae 
-    torch.cuda.empty_cache()
+torch.cuda.empty_cache()

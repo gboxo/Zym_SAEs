@@ -1,0 +1,11 @@
+paths:
+  model_path: "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/{model_iteration}/"
+  sae_path: "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
+  df_path: "/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/dataframe_iteration{data_iteration}.csv"
+  top_features_path: "/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/important_features/important_features_M{model_iteration}_D{data_iteration}.pkl"
+  out_dir: "/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/ablation/importance/M{model_iteration}_D{data_iteration}"
+
+label: 3.2.1.1
+FEATURE_SELECTION_METHOD: "importance"
+model_iteration: 30
+data_iteration: 30

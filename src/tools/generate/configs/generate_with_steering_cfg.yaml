@@ -1,0 +1,13 @@
+paths:
+  model_path: "/path/to/model/iteration_{}"
+  sae_path: "/path/to/sae/"
+  important_features_path: "/path/to/important_features/important_features_M{}_D{}.pkl"
+  correlations_path: "/path/to/correlations/top_correlations_M{}_D{}.pkl"
+  out_dir: "/path/to/output/steering/{}/M{}_D{}"
+
+FEATURE_SELECTION_METHOD: "importance"  # or "correlation"
+
+generation:
+  prompt: "3.2.1.1<sep><start>"
+  max_new_tokens: 1024
+  n_samples: 10 
