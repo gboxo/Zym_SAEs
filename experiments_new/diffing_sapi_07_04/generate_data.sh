@@ -5,9 +5,9 @@
 #SBATCH --partition=a100
 #SBATCH --constraint=a100_80
 #SBATCH --time=24:00:00                   # Time limit
-#SBATCH --output=slurm_%A_%a.out          # Output file (%A = job ID, %a = array index)
-#SBATCH --error=slurm_%A_%a.err           # Error file
-#SBATCH --array=0-9                     # Run iterations 2 through 30
+#SBATCH --output=generate_data_%A_%a.out          # Output file (%A = job ID, %a = array index)
+#SBATCH --error=generate_data_%A_%a.err           # Error file
+#SBATCH --array=0-9                     # Run iterations 0 through 9
 
 export http_proxy=http://proxy:80
 export https_proxy=http://proxy:80
