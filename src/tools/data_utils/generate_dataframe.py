@@ -77,6 +77,7 @@ def main(out_path, tm_score_path, sequences_path, activity_path, plddt_path):
     df_merged = pd.merge(df_merged, df_sequences, on="label", how="inner")
     df_merged = pd.merge(df_merged, df_alntmscore, on="label", how="inner")
     # Further processing of df and plddt_dict goes here.
+    os.makedirs(out_path, exist_ok=True)
     df_merged.to_csv(out_path, index=False)
 
     
