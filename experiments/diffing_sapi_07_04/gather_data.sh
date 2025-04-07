@@ -5,6 +5,8 @@ export https_proxy=http://proxy:80
 export HF_HOME=/home/woody/b114cb/b114cb23/boxo/
 export WANDB_CACHE_DIR=/home/woody/b114cb/b114cb23/boxo/
 
+
+source /home/woody/b114cb/b114cb23/boxo/pSAE2/bin/activate
 set -e
 set -u
 set -o pipefail

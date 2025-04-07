@@ -128,5 +128,12 @@ In this stage we will analyse all the gathered information about the diffing suc
 # Process
 
 
+## Obtain the data
+
+
+```{bash}
+bash experiments/diffing_sapi_07_04/gather_data.sh
+```
+
 
 
