@@ -1,4 +1,5 @@
 import pandas as pd
+from pathlib import Path
 import os
 import argparse
 from src.tools.data_utils.data_utils import load_config
@@ -36,7 +37,7 @@ def get_plddt_dict(plddt_path, files):
                 plddt_dict[file.strip(".pdb")] = None
     return plddt_dict
 
-def main(out_path, tm_score_path, sequences_path, activity_path, plddt_path):
+def main(out_path, tm_score_path, sequences_path, activity_path, plddt_path, iteration_num):
 
     
     df_tm_score = pd.read_csv(tm_score_path, sep="\t", header=None)
@@ -44,7 +45,6 @@ def main(out_path, tm_score_path, sequences_path, activity_path, plddt_path):
     df_tm_score["label"] = df_tm_score["query"]
 
     df_alntmscore = df_tm_score[["label", "alntmscore"]]
-    print(df_alntmscore.head())
 
     
     # Load the sequences
@@ -77,7 +77,9 @@ def main(out_path, tm_score_path, sequences_path, activity_path, plddt_path):
     df_merged = pd.merge(df_merged, df_sequences, on="label", how="inner")
     df_merged = pd.merge(df_merged, df_alntmscore, on="label", how="inner")
     # Further processing of df and plddt_dict goes here.
-    os.makedirs(out_path, exist_ok=True)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    if os.path.isdir(out_path):
+        out_path = os.path.join(out_path, f"dataframe_iteration{iteration_num}.csv")
     df_merged.to_csv(out_path, index=False)
 
     
@@ -91,9 +93,9 @@ if __name__ == "__main__":
 
     label = config["label"]
     iteration_num = args.iteration_num
-    out_path = config["paths"]["out_path"].format(iteration_num)
-    tm_score_path = config["paths"]["tm_score_path"].format(label, iteration_num)
-    sequences_path = config["paths"]["sequences_path"].format(label, iteration_num)
-    activity_path = config["paths"]["activity_path"].format(iteration_num)
-    plddt_path = config["paths"]["plddt_path"].format(iteration_num)
-    main(out_path, tm_score_path, sequences_path, activity_path, plddt_path)
+    out_path = config["paths"]["out_path"].format(iteration_num=iteration_num)
+    tm_score_path = config["paths"]["tm_score_path"].format(ec_label=label, iteration_num=iteration_num)
+    sequences_path = config["paths"]["sequences_path"].format(ec_label=label, iteration_num=iteration_num)
+    activity_path = config["paths"]["activity_path"].format(iteration_num=iteration_num)
+    plddt_path = config["paths"]["plddt_path"].format(iteration_num=iteration_num)
+    main(out_path, tm_score_path, sequences_path, activity_path, plddt_path, iteration_num)

@@ -1,8 +1,8 @@
 paths:
-  tm_score_path: "/home/woody/b114cb/b114cb23/boxo/outputs/TM_scores/TM_scores_{label}_iteration{iteration_num-1}"
-  sequences_path: "/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_{label}_iteration{iteration_num}.fasta"
+  tm_score_path: "/home/woody/b114cb/b114cb23/boxo/outputs/TM_scores/TM_scores_{ec_label}_iteration{iteration_num-1}"
+  sequences_path: "/home/woody/b114cb/b114cb23/Filippo/Q4_2024/DPO/DPO_Clean/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
   activity_path: "/home/woody/b114cb/b114cb23/boxo/activity_predictions/activity_prediction_iteration{iteration_num-1}.txt"
-  plddt_path: "/home/woody/b114cb/b114cb23/boxo/outputs/output_iterations{iteration_num-1}/PDB/"
+  plddt_path: "/home/woody/b114cb/b114cb23/boxo/outputs/output_iteration{iteration_num-1}/PDB/"
   out_path: "/home/woody/b114cb/b114cb23/boxo/Diffing_Analysis_Data/dataframe_iteration{iteration_num-1}.csv"
 
 label: 3.2.1.1

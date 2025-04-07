@@ -94,9 +94,9 @@ if __name__ == "__main__":
     config = load_config(cfg_path)
     ec_label = config["label"].strip()
     mixture_ratio = config["mixture_ratio"]
-    fasta_path = config["paths"]["fasta_path"].format(ec_label, iteration_num)
-    dataset_path = config["paths"]["dataset_path"]
-    out_path = config["paths"]["out_path"].format(iteration_num)
+    fasta_path = config["paths"]["fasta_path"].format(ec_label=ec_label, iteration_num=iteration_num)
+    dataset_path = config["paths"]["dataset_path"].format(iteration_num=iteration_num)
+    out_path = config["paths"]["out_path"].format(iteration_num=iteration_num)
     model_name = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=True)

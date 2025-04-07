@@ -73,12 +73,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     cfg_path = args.cfg_path
     seed_everything(seed)
+    ec_label = "3.2.1.1"
     config = load_config(cfg_path)
     iteration_num = args.iteration_num
-    ec_label = config["label"]
-
-    fasta_path = config["paths"]["fasta_path"].format(ec_label, iteration_num)
-    out_path = config["paths"]["out_path"].format(iteration_num)
+    fasta_path = config["paths"]["fasta_path"].format(ec_label=ec_label, iteration_num=iteration_num)
+    out_path = config["paths"]["out_path"].format(iteration_num=iteration_num)
 
     model_name = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
         
