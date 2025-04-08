@@ -13,9 +13,6 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 from statsmodels.stats.multitest import multipletests
 from scipy.stats import pearsonr
-from sklearn.metrics import accuracy_score, auc, roc_auc_score
-from sklearn.linear_model import LogisticRegressionCV
-from sklearn.model_selection import train_test_split
 from plots_diffing import plot_correlation_heatmap, plot_firing_rate_vs_correlation, plot_2d_density, plot_3d_density
 
 def get_activations( model, tokenizer, sequence):
@@ -94,97 +91,6 @@ def firing_rates(features, output_dir):
         firing_rates_seq.append(fa)
     firing_rates_seq = np.array(firing_rates_seq).mean(axis=0)
     return firing_rates_seq
-
-
-def fit_lr_probe(X_train, y_train, X_test, y_test):
-    """
-    Fit a sparse logistic regression probe to the data, to select the most important features
-    """
-    results = []
-    probes =[]
-    for sparsity in tqdm(np.logspace(-4.5, -3, 10)):
-        lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1)
-        lr_model.fit(X_train, y_train)
-        coefs = lr_model.coef_
-        active_features = np.where(coefs != 0)[1]
-        probes.append(lr_model)
-        y_pred = lr_model.predict(X_test)
-        accuracy = accuracy_score(y_test, y_pred)
-        
-        roc_auc = roc_auc_score(y_test, y_pred)
-        results.append({
-            "active_features": active_features,
-            "sparsity": sparsity,
-            "accuracy": accuracy,
-            "roc_auc": roc_auc,
-        })
-    return results, probes
-
-
-def get_important_features(X, pred1, pred2, plddt, tm_score, thresholds, directions='upper'):
-    """
-    Fit a sparse logistic regression probe to the data, to select the most important features
-    
-    Args:
-        X: Input features
-        pred1, pred2, plddt, tm_score: Metrics to analyze
-        thresholds: dict with keys 'pred1', 'pred2', 'plddt', 'tm_score' containing threshold values
-        directions: str or dict, either 'upper' or 'lower' for all metrics, or dict with keys for each metric
-    """
-    # Standardize directions if string
-    if isinstance(directions, str):
-        directions = {k: directions for k in ['pred1', 'pred2', 'plddt', 'tm_score']}
-
-    def get_mask(values, threshold, direction):
-        return values > threshold if direction == 'upper' else values < threshold
-
-    def get_assert(y_train, y_test):
-        """
-        Assert that y_train and y_test are have more than one class
-        """
-        assert len(np.unique(y_train)) > 1, "y_train must have more than one class"
-        assert len(np.unique(y_test)) > 1, "y_test must have more than one class"
-    # Prediction 1
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, get_mask(pred1, thresholds['pred1'], directions['pred1']))
-    get_assert(y_train, y_test)
-
-    results_pred1, probes_pred1 = fit_lr_probe(X_train, y_train, X_test, y_test)
-
-    # Prediction 2
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, get_mask(pred2, thresholds['pred2'], directions['pred2']))
-    get_assert(y_train, y_test)
-
-    results_pred2, probes_pred2 = fit_lr_probe(X_train, y_train, X_test, y_test)
-
-    # PLDDT 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, get_mask(plddt, thresholds['plddt'], directions['plddt']))
-    get_assert(y_train, y_test)
-
-    results_plddt, probes_plddt = fit_lr_probe(X_train, y_train, X_test, y_test)
-
-    # TM-score
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, get_mask(tm_score, thresholds['tm_score'], directions['tm_score']))
-    get_assert(y_train, y_test)
-
-    results_tm_score, probes_tm_score = fit_lr_probe(X_train, y_train, X_test, y_test)
-
-    coefs_pred1 = torch.tensor(probes_pred1[-1].coef_)[0]
-    coefs_pred2 = torch.tensor(probes_pred2[-1].coef_)[0]
-    coefs_plddt = torch.tensor(probes_plddt[-1].coef_)[0]
-    coefs_tm_score = torch.tensor(probes_tm_score[-1].coef_)[0]
-
-    unique_coefs = torch.unique(torch.cat([torch.where(coefs_pred1>0)[0],
-                                        torch.where(coefs_pred2>0)[0],
-                                        torch.where(coefs_plddt>0)[0],
-                                        torch.where(coefs_tm_score>0)[0]]))
-    coefs = torch.stack([coefs_pred1, coefs_pred2, coefs_plddt, coefs_tm_score])
-    coefs = coefs[:,unique_coefs]
-
-    return unique_coefs, coefs
 
 
 
@@ -267,22 +173,6 @@ def analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
     
     return correlation_data
 
-def analyze_important_features(mean_features, activity, activity2, plddt, tm_score):
-    """Main function to analyze important features and create visualizations."""
-    # Calculate correlations and get data
-    unique_coefs, coefs = get_important_features(mean_features, activity, activity2, plddt, tm_score)
-    
-    # Create various plots
-    
-    importance_features = {
-        'unique_coefs': unique_coefs,
-        'coefs': coefs,
-    }
-    
-    # Save the correlation data
-    os.makedirs(f"{output_dir}/important_features", exist_ok=True)
-    pkl.dump(importance_features, open(f"{output_dir}/important_features/important_features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
-    
 
 if __name__ == "__main__":
     
@@ -359,6 +249,5 @@ if __name__ == "__main__":
     tm_score = np.array(tm_score)
 
     analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs, output_dir)
-    analyze_important_features(mean_features, activity, activity2, plddt, tm_score, output_dir)
 
 

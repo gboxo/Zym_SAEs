@@ -27,8 +27,6 @@ In this second stage we will analyze the resulting SAEs from the previous step:
     - The pariwise cosine similarity
     - Check for non-index aligned decoder directions:
         - This is check for decoder vectors that are not aligned in the index but that have the same direction, norm, etc
-        - For non dead features from M0DX and MXDX plot the distribution of:
-            - Ratio between index aligned cosine similarity over max cosine similarity for a given index
 
 2. Get some metrics for the feature firings:
     - Distribution of firings for each feature
