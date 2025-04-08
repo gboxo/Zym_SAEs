@@ -47,7 +47,7 @@ In this second stage we will analyze the resulting SAEs from the previous step:
         - Ratio of key residues that are present 
     - Use sparse probes to get important features to predict `high` and `low` instances of the metrics 
     - Use difference in mean probes to get important features to predict `high` and `low` instances of the metrics 
-    - Maybe try to annptate as much features as possible by iteratively fitting probes and zeroing rows of the activations
+    - Maybe try to anotate as much features as possible by iteratively fitting probes and zeroing rows of the activations
 
 5. Correlate the important features with previous metrics like:
     - Important features vs cosine similarity
@@ -182,7 +182,17 @@ sbatch experiments/diffing_sapi_07_04/eval_SAEs_RL_amylase_slurm.sh
 python3 -m src.tools.diffing.compute_cs --config_path experiments/diffign_sapi_07_04/compute_cs_cfg.yaml
 ```
 
+# Latent Scoring (BM)
 
 
+```{bash}
+sbatch experiments/diffing_sapi_07_04/eval_SAEs_RL_amylase_slurm.sh
+```
 
+# Latent Scoring (RL)
+
+
+```{bash}
+sbatch experiments/diffing_sapi_07_04/eval_SAEs_RL_amylase_slurm.sh
+```
 

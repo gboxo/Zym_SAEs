@@ -4,7 +4,8 @@ from diffing_utils import load_config
 import torch.nn.functional as F
 import os
 import re
-
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 """
 Things to compute:
@@ -55,12 +56,31 @@ def get_cs(sae_dict):
         cs = compute_CS(sae_dict[f"M{i}_D{i}"], sae_dict[f"M{i-1}_D{i-1}"])
         all_cs[f"M{i}_D{i}_vs_M{i-1}_D{i-1}"] = cs
 
+def plot_cs(all_cs,output_dir):
+    """
+    We plot all the scatterplots of the type:
+    cs(M0_DX,M0_D0) vs cs(MX_DX,M0_D0)
+    """
+
+    for i in range(1,30):
+        cs_m0d0 = all_cs[f"M0_D{i}_vs_M0_D0"]
+        cs_mxd0 = all_cs[f"M{i}_D{i}_vs_M0_D0"]
+        sns.scatterplot(x=cs_m0d0, y=cs_mxd0, alpha=0.5 )
+        plt.title(f"CS(M0_D{i},M0_D0) vs CS(M{i}_D{i},M0_D0)")
+        plt.xlabel("CS(M0_D{i},M0_D0)")
+        plt.ylabel("CS(M{i}_D{i},M0_D0)")
+        plt.savefig(f"{output_dir}/M0_D{i}_vs_M{i}_D{i}.png")
+        plt.close()
+
+    
 
 
 
 
-def main(config_path):
-    config = load_config(config_path)
+
+
+
+def main(config):
     base_path = config["paths"]["base_sae"]
     diffing_path = config["paths"]["diffing"]
     output_dir = config["paths"]["output_dir"]
@@ -73,15 +93,17 @@ def main(config_path):
 
     os.makedirs(output_dir, exist_ok=True)
     torch.save(all_cs, f"{output_dir}/all_cs.pt")
+    return all_cs
 
 if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument("--config_path", type=str, default="")
     args = argparser.parse_args()
     config_path = args.config_path
-    main(config_path)
 
-
+    config = load_config(config_path)
+    all_cs = main(config)
+    plot_cs(all_cs,config["paths"]["output_dir"])
 
 
 
