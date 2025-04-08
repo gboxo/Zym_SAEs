@@ -1,6 +1,6 @@
 import torch
 from argparse import ArgumentParser
-from diffing_utils import load_config
+from src.tools.diffing.diffing_utils import load_config
 import torch.nn.functional as F
 import os
 import re
@@ -21,6 +21,7 @@ def compute_CS(W_dec, W_dec_ref):
 
 
 def load_decoders(base_sae_path, diffing_path, device, start_index=0, end_index=30):
+    print(f"Loading decoders from {base_sae_path} and {diffing_path}")
     sae_dict = {}
 
     string = "M0_D0"
@@ -30,7 +31,7 @@ def load_decoders(base_sae_path, diffing_path, device, start_index=0, end_index=
         string = f"M0_D{data_index}"
         sae_dict[string] = torch.load(diffing_path + string + "/diffing/checkpoint_latest.pt", map_location=device)["model_state_dict"]["W_dec"].detach().cpu()
 
-    for index in range(1,30):
+    for index in range(1,end_index):
         string = f"M{index}_D{index}"
         sae_dict[string] = torch.load(diffing_path + string + "/diffing/checkpoint_latest.pt", map_location=device)["model_state_dict"]["W_dec"].detach().cpu()
 
@@ -38,7 +39,8 @@ def load_decoders(base_sae_path, diffing_path, device, start_index=0, end_index=
 
 
 
-def get_cs(sae_dict):
+def get_cs(sae_dict, start_index, end_index):
+    print(f"Computing CS for {start_index} to {end_index}")
     all_cs = {} 
     # All vs M0_D0
     for key in sae_dict.keys():
@@ -47,22 +49,30 @@ def get_cs(sae_dict):
         all_cs[key+"_vs_M0_D0"] = cs
 
     # Stage wise CS FT
-    for i in range(1,30):
+    for i in range(1, end_index):
         cs = compute_CS(sae_dict[f"M0_D{i}"], sae_dict[f"M0_D{i-1}"])
         all_cs[f"M0_D{i}_vs_M0_D{i-1}"] = cs
 
     # Stage wise CS RL
-    for i in range(1,30):
+    for i in range(1, end_index):
         cs = compute_CS(sae_dict[f"M{i}_D{i}"], sae_dict[f"M{i-1}_D{i-1}"])
         all_cs[f"M{i}_D{i}_vs_M{i-1}_D{i-1}"] = cs
 
-def plot_cs(all_cs,output_dir):
+    # Stage wise BM vs RL
+    for i in range(1, end_index):
+        cs = compute_CS(sae_dict[f"M{i}_D{i}"], sae_dict[f"M0_D{i}"])
+        all_cs[f"M{i}_D{i}_vs_M0_D{i}"] = cs
+
+    return all_cs
+
+def plot_cs(all_cs,output_dir, end_index):
     """
     We plot all the scatterplots of the type:
     cs(M0_DX,M0_D0) vs cs(MX_DX,M0_D0)
     """
+    print(f"Plotting CS for {end_index}")
 
-    for i in range(1,30):
+    for i in range(1,end_index):
         cs_m0d0 = all_cs[f"M0_D{i}_vs_M0_D0"]
         cs_mxd0 = all_cs[f"M{i}_D{i}_vs_M0_D0"]
         sns.scatterplot(x=cs_m0d0, y=cs_mxd0, alpha=0.5 )
@@ -80,7 +90,9 @@ def plot_cs(all_cs,output_dir):
 
 
 
-def main(config):
+def main(config, start_index, end_index):
+
+
     base_path = config["paths"]["base_sae"]
     diffing_path = config["paths"]["diffing"]
     output_dir = config["paths"]["output_dir"]
@@ -88,22 +100,24 @@ def main(config):
     files = os.listdir(diffing_path)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     md_indices = [re.findall(r'\d+', file) for file in files]
-    sae_dict = load_decoders(base_path, diffing_path, device)
-    all_cs = get_cs(sae_dict)
+    sae_dict = load_decoders(base_path, diffing_path, device, start_index=start_index, end_index=end_index)
+    all_cs = get_cs(sae_dict, start_index=start_index, end_index=end_index)
 
     os.makedirs(output_dir, exist_ok=True)
     torch.save(all_cs, f"{output_dir}/all_cs.pt")
     return all_cs
 
 if __name__ == "__main__":
+    start_index = 0
+    end_index = 25
     argparser = ArgumentParser()
     argparser.add_argument("--config_path", type=str, default="")
     args = argparser.parse_args()
     config_path = args.config_path
 
     config = load_config(config_path)
-    all_cs = main(config)
-    plot_cs(all_cs,config["paths"]["output_dir"])
+    all_cs = main(config, start_index=start_index, end_index=end_index)
+    plot_cs(all_cs,config["paths"]["output_dir"], end_index=end_index)
 
 
 

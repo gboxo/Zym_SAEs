@@ -7,14 +7,18 @@ This will be a series of Diffing experiments on the model `/home/woody/b114cb/b1
 
 
 First will run experiment to generate data and train SAE will be separated in several steps:
-1. Data gathering
+1. Data gathering:
 2. Data generation
     - Scoring
     - Folding
     - Sequence alignment
 3. Create a dataset with the data (if generated also include it)
+    - Diffing Datasets: `/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/diffing_datasets/`
 4. Use the extracted data to create a dataframe for further analysis
+    - DataFrames: `/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/dataframes/`
 5. Use the datasets to train iterative SAEs on the generated sequences 
+    - SAEs: `/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_07_04/`
+
 
 
 ## Second Stage
@@ -22,7 +26,7 @@ First will run experiment to generate data and train SAE will be separated in se
 In this second stage we will analyze the resulting SAEs from the previous step:
 
 1. For all the SAEs compute the following weight focus metrics:
-    - Cosine Similarity with the base (decoders)
+    - Cosine Similarity with the base (decoders): `/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/cs_data/`
     - The norm of the encoder/decoder
     - The pariwise cosine similarity
     - Check for non-index aligned decoder directions:
@@ -30,11 +34,14 @@ In this second stage we will analyze the resulting SAEs from the previous step:
         - For non dead features from M0DX and MXDX plot the distribution of:
             - Ratio between index aligned cosine similarity over max cosine similarity for a given index
 
-2. Get some metrics for the feature firings:
+2. Get some metrics for the feature firings: `/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/firing_rates/`
+
     - Distribution of firings for each feature
     - Percentage of firings (at least 1 time in the sequence)
     - Collect the ranks of the firing positions
     - Find which features only appear in the prompt
+    - Average length og an activation strike
+    - Average number of activation strike
 
 3. Evaluate each SAE in the eval part of the dataset: 
     - L2 loss
