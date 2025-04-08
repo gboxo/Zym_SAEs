@@ -6,7 +6,9 @@ import os
 import re
 import seaborn as sns
 import matplotlib.pyplot as plt
-
+from tqdm import tqdm
+import concurrent.futures
+from functools import partial
 """
 Things to compute:
     - For each type, each iteration CS with M0_D0
@@ -20,22 +22,91 @@ def compute_CS(W_dec, W_dec_ref):
     return cs
 
 
-def load_decoders(base_sae_path, diffing_path, device, start_index=0, end_index=30):
+def load_single_decoder(path_info, device):
+    key, path = path_info
+    try:
+        decoder = torch.load(path, map_location=device)["model_state_dict"]["W_dec"]
+        return key, decoder
+    except Exception as e:
+        print(f"Failed to load {path}: {e}")
+        return key, None
+
+def load_single_threshold(path_info, device):
+    key, path = path_info
+    try:
+        threshold = torch.load(path, map_location=device)
+        return key, threshold
+    except Exception as e:
+        print(f"Failed to load {path}: {e}")
+        return key, None
+
+def load_decoders(base_sae_path, diffing_path, device, start_index=0, end_index=30, max_workers=4):
     print(f"Loading decoders from {base_sae_path} and {diffing_path}")
     sae_dict = {}
 
-    string = "M0_D0"
-    sae_dict[string] = torch.load(base_sae_path, map_location=device)["model_state_dict"]["W_dec"].detach().cpu()
+    # Load base model
+    sae_dict["M0_D0"] = torch.load(base_sae_path, map_location=device)["model_state_dict"]["W_dec"]
 
-    for data_index in range(start_index,end_index):
-        string = f"M0_D{data_index}"
-        sae_dict[string] = torch.load(diffing_path + string + "/diffing/checkpoint_latest.pt", map_location=device)["model_state_dict"]["W_dec"].detach().cpu()
+    # Prepare all paths
+    paths_to_load = []
+    # M0_DX paths
+    paths_to_load.extend([(f"M0_D{i}", f"{diffing_path}M0_D{i}/diffing/checkpoint_latest.pt") 
+                         for i in range(start_index, end_index)])
+    # MX_DX paths
+    paths_to_load.extend([(f"M{i}_D{i}", f"{diffing_path}M{i}_D{i}/diffing/checkpoint_latest.pt") 
+                         for i in range(1, end_index)])
 
-    for index in range(1,end_index):
-        string = f"M{index}_D{index}"
-        sae_dict[string] = torch.load(diffing_path + string + "/diffing/checkpoint_latest.pt", map_location=device)["model_state_dict"]["W_dec"].detach().cpu()
+    # Load models in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        load_fn = partial(load_single_decoder, device=device)
+        futures = list(tqdm(
+            executor.map(load_fn, paths_to_load),
+            total=len(paths_to_load),
+            desc="Loading models"
+        ))
+        
+        # Add successfully loaded models to dictionary
+        for key, decoder in futures:
+            if decoder is not None:
+                sae_dict[key] = decoder
 
     return sae_dict
+
+def load_thresholds(base_sae_path, diffing_path, device, start_index=0, end_index=30, max_workers=4):
+    print(f"Loading thresholds from {base_sae_path} and {diffing_path}")
+    thresholds = {}
+
+    # Load base model
+    thresholds["M0_D0"] = torch.load(os.path.dirname(base_sae_path)+"/thresholds.pt", map_location=device)
+
+    # Prepare all paths
+    paths_to_load = []
+    # M0_DX paths
+    paths_to_load.extend([(f"M0_D{i}", f"{diffing_path}M0_D{i}/diffing/thresholds.pt") 
+                         for i in range(start_index, end_index)])
+    # MX_DX paths
+    paths_to_load.extend([(f"M{i}_D{i}", f"{diffing_path}M{i}_D{i}/diffing/thresholds.pt") 
+                         for i in range(1, end_index)])
+
+    # Load models in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        load_fn = partial(load_single_threshold, device=device)
+        futures = list(tqdm(
+            executor.map(load_fn, paths_to_load),
+            total=len(paths_to_load),
+            desc="Loading thresholds"
+        ))
+        
+        # Add successfully loaded models to dictionary
+        for key, threshold in futures:
+            if threshold is not None:
+                thresholds[key] = threshold
+
+    final_thresholds = {}
+    for key,val in thresholds.items():
+        val = torch.where(val > 0, val, torch.zeros_like(val))
+        final_thresholds[key] = val.cpu().numpy()
+    return final_thresholds
 
 
 
@@ -43,23 +114,23 @@ def get_cs(sae_dict, start_index, end_index):
     print(f"Computing CS for {start_index} to {end_index}")
     all_cs = {} 
     # All vs M0_D0
-    for key in sae_dict.keys():
+    for key in tqdm(sae_dict.keys()):
         if key == "M0_D0": continue
         cs = compute_CS(sae_dict[key], sae_dict["M0_D0"])
         all_cs[key+"_vs_M0_D0"] = cs
 
     # Stage wise CS FT
-    for i in range(1, end_index):
+    for i in tqdm(range(1, end_index)):
         cs = compute_CS(sae_dict[f"M0_D{i}"], sae_dict[f"M0_D{i-1}"])
         all_cs[f"M0_D{i}_vs_M0_D{i-1}"] = cs
 
     # Stage wise CS RL
-    for i in range(1, end_index):
+    for i in tqdm(range(1, end_index)):
         cs = compute_CS(sae_dict[f"M{i}_D{i}"], sae_dict[f"M{i-1}_D{i-1}"])
         all_cs[f"M{i}_D{i}_vs_M{i-1}_D{i-1}"] = cs
 
     # Stage wise BM vs RL
-    for i in range(1, end_index):
+    for i in tqdm(range(1, end_index)):
         cs = compute_CS(sae_dict[f"M{i}_D{i}"], sae_dict[f"M0_D{i}"])
         all_cs[f"M{i}_D{i}_vs_M0_D{i}"] = cs
 
@@ -71,53 +142,109 @@ def plot_cs(all_cs,output_dir, end_index):
     cs(M0_DX,M0_D0) vs cs(MX_DX,M0_D0)
     """
     print(f"Plotting CS for {end_index}")
-
-    for i in range(1,end_index):
+    os.makedirs(f"{output_dir}/scatter_cs", exist_ok=True)
+    for i in tqdm(range(1,end_index)):
         cs_m0d0 = all_cs[f"M0_D{i}_vs_M0_D0"]
         cs_mxd0 = all_cs[f"M{i}_D{i}_vs_M0_D0"]
         sns.scatterplot(x=cs_m0d0, y=cs_mxd0, alpha=0.5 )
         plt.title(f"CS(M0_D{i},M0_D0) vs CS(M{i}_D{i},M0_D0)")
-        plt.xlabel("CS(M0_D{i},M0_D0)")
-        plt.ylabel("CS(M{i}_D{i},M0_D0)")
-        plt.savefig(f"{output_dir}/M0_D{i}_vs_M{i}_D{i}.png")
+        plt.xlabel(f"CS(M0_D{i},M0_D0)")
+        plt.ylabel(f"CS(M{i}_D{i},M0_D0)")
+        plt.savefig(f"{output_dir}/scatter_cs/M0_D{i}_vs_M{i}_D{i}.png")
         plt.close()
 
+def plot_cs_iteration_wise(all_cs, output_dir, end_index):
+    """
+    We plot violin plots for each iteration showing the distribution of cosine similarities
+    Split into two subplots: one for M0_D comparisons and one for M_D comparisons
+    """
+    print(f"Plotting CS for {end_index}")
     
+    # Separate data for each type
+    m0d_data = []
+    m0d_labels = []
+    md_data = []
+    md_labels = []
+
+    for i in tqdm(range(1, end_index)):
+        # Convert tensors to numpy arrays
+        cs_m0d0 = all_cs[f"M0_D{i}_vs_M0_D{i-1}"].cpu().numpy().flatten()
+        cs_mxd0 = all_cs[f"M{i}_D{i}_vs_M{i-1}_D{i-1}"].cpu().numpy().flatten()
+        
+        # Store data separately
+        m0d_data.extend(cs_m0d0)
+        m0d_labels.extend([f"D{i} vs D{i-1}"] * len(cs_m0d0))
+        
+        md_data.extend(cs_mxd0)
+        md_labels.extend([f"M{i}D{i} vs M{i-1}D{i-1}"] * len(cs_mxd0))
+
+    # Create figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 12))
+    
+    # Plot M0_D comparisons
+    sns.violinplot(x=m0d_labels, y=m0d_data, ax=ax1)
+    ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45, ha='right')
+    ax1.set_title("Distribution of Cosine Similarities (Fine-tuning)")
+    ax1.set_xlabel("Model Comparison")
+    ax1.set_ylabel("Cosine Similarity")
+    
+    # Plot M_D comparisons
+    sns.violinplot(x=md_labels, y=md_data, ax=ax2)
+    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha='right')
+    ax2.set_title("Distribution of Cosine Similarities (RL Training)")
+    ax2.set_xlabel("Model Comparison")
+    ax2.set_ylabel("Cosine Similarity")
+    
+    # Adjust layout to prevent overlap
+    plt.tight_layout()
+    
+    # Save figure
+    os.makedirs(output_dir, exist_ok=True)
+    plt.savefig(f"{output_dir}/iteration_wise_cs_split.png")
+    plt.close()
 
 
-
-
-
-
-
-def main(config, start_index, end_index):
-
-
+def main(config, start_index, end_index, max_workers=4):
     base_path = config["paths"]["base_sae"]
     diffing_path = config["paths"]["diffing"]
     output_dir = config["paths"]["output_dir"]
 
-    files = os.listdir(diffing_path)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    md_indices = [re.findall(r'\d+', file) for file in files]
-    sae_dict = load_decoders(base_path, diffing_path, device, start_index=start_index, end_index=end_index)
-    all_cs = get_cs(sae_dict, start_index=start_index, end_index=end_index)
+    if False:
+        sae_dict = load_decoders(base_path, diffing_path, device, 
+                                start_index=start_index, 
+                                end_index=end_index,
+                                max_workers=max_workers)
+        all_cs = get_cs(sae_dict, start_index=start_index, end_index=end_index)
+        os.makedirs(output_dir, exist_ok=True)
+        torch.save(all_cs, f"{output_dir}/all_cs.pt")
+    else:
+        all_cs = torch.load(f"{output_dir}/all_cs.pt")
 
-    os.makedirs(output_dir, exist_ok=True)
-    torch.save(all_cs, f"{output_dir}/all_cs.pt")
     return all_cs
+
+
+
+
+
+
 
 if __name__ == "__main__":
     start_index = 0
-    end_index = 25
+    end_index = 30
     argparser = ArgumentParser()
     argparser.add_argument("--config_path", type=str, default="")
     args = argparser.parse_args()
     config_path = args.config_path
 
     config = load_config(config_path)
-    all_cs = main(config, start_index=start_index, end_index=end_index)
-    plot_cs(all_cs,config["paths"]["output_dir"], end_index=end_index)
+    #all_cs = main(config, start_index=start_index, end_index=end_index, max_workers=50)
+    #plot_cs(all_cs,config["paths"]["output_dir"], end_index=end_index)
+    #plot_cs_iteration_wise(all_cs,config["paths"]["output_dir"], end_index=end_index)
+    thresholds = load_thresholds(config["paths"]["base_sae"], config["paths"]["diffing"], "cpu", start_index=start_index, end_index=end_index, max_workers=50)
+    print(thresholds)
+    
+
 
 
 
