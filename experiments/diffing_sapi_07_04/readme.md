@@ -130,10 +130,59 @@ In this stage we will analyse all the gathered information about the diffing suc
 
 ## Obtain the data
 
-
 ```{bash}
 bash experiments/diffing_sapi_07_04/gather_data.sh
 ```
+
+
+## Finetuen the SAE (BM) 
+
+```{bash}
+sbatch experiments/diffing_sapi_07_04/SW_MD_BM_slurm.sh
+```
+
+
+## Finetuen the SAE (RL) 
+
+```{bash}
+sbatch experiments/diffing_sapi_07_04/SW_MD_RL_slurm.sh
+```
+
+
+## Evaluate the SAE (BM brenda dataset) 
+
+```{bash}
+sbatch experiments/diffing_sapi_07_04/eval_SAEs_BM_brenda_slurm.sh
+```
+
+
+## Evaluate the SAE (RL brenda dataset) 
+
+```{bash}
+sbatch experiments/diffing_sapi_07_04/eval_SAEs_RL_brenda_slurm.sh
+```
+
+
+## Evaluate the SAE (BM amylase dataset) 
+
+```{bash}
+sbatch experiments/diffing_sapi_07_04/eval_SAEs_BM_amylase_slurm.sh
+```
+
+
+## Evaluate the SAE (RL amylase dataset) 
+
+```{bash}
+sbatch experiments/diffing_sapi_07_04/eval_SAEs_RL_amylase_slurm.sh
+```
+
+## Compute the CS of the SAEs  
+
+```{bash}
+python3 -m src.tools.diffing.compute_cs --config_path experiments/diffign_sapi_07_04/compute_cs_cfg.yaml
+```
+
+
 
 
 

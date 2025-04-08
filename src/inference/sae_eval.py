@@ -14,6 +14,7 @@ We will evaluate the performance of the SAE in a hold out test set of 1000 seque
     - Number of active features per sequence
     - Cosine Similarity 
 """
+from src.tools.data_utils.data_utils import load_config
 from argparse import ArgumentParser
 import pandas as pd
 import os
@@ -35,6 +36,8 @@ class EvalConfig:
     sae_path: str
     test_set_path: str
     is_tokenized: bool
+    out_dir: str
+    samples: int
 
 
 
@@ -65,14 +68,14 @@ class SAEEval:
         if not self.cfg.test_set_path.endswith(".txt"):
             dataset = load_from_disk(self.cfg.test_set_path)
             dataset = iter(dataset)
-            self.test_set = [torch.tensor(next(dataset)["input_ids"]) for _ in range(100)]
+            self.test_set = [torch.tensor(next(dataset)["input_ids"]) for _ in range(self.cfg.samples)]
 
             
 
         else:
             with open(self.cfg.test_set_path, "r") as f:
                 test_set = f.read()
-            test_set = test_set.split("\n")[:1000]
+            test_set = test_set.split("\n")[:self.cfg.samples]
             test_set = [seq.strip("<pad>") for seq in test_set]
             test_set_tokenized = [self.tokenizer.encode(elem, return_tensors="pt", max_length=512) for elem in test_set]
             self.test_set = test_set_tokenized
@@ -105,11 +108,11 @@ class SAEEval:
         has_fired = torch.where(all_feature_acts > 0, 1, 0)
         has_fired_per_token = torch.sum(has_fired, dim=1)
         has_fired_per_token = has_fired_per_token.cpu().numpy()
-        os.makedirs(os.path.join(self.cfg.sae_path, "evaluation"), exist_ok=True)
+        os.makedirs(os.path.join(self.cfg.out_dir, "evaluation"), exist_ok=True)
         sns.histplot(has_fired_per_token)
         plt.xlabel("Number of features fired per token")
         plt.xlim(0, 300)
-        plt.savefig(os.path.join(self.cfg.sae_path, "evaluation", "has_fired_per_token.png"))
+        plt.savefig(os.path.join(self.cfg.out_dir, "evaluation", "has_fired_per_token.png"))
         plt.close()
         # Calculate MSE loss across all sequences
         mse_loss = torch.mean(torch.tensor([sae_out["loss"] for sae_out in all_sae_outputs]))
@@ -185,8 +188,10 @@ class SAEEval:
         total_features = len(feat_usage)
         
         table.add_row(["Dead Features", f"{dead_features}/{total_features} ({dead_features/total_features*100:.1f}%)"])
+        os.makedirs(self.cfg.out_dir, exist_ok=True)
+        with open(os.path.join(self.cfg.out_dir, f"sae_eval_results_{self.cfg.percentile}.txt"), "w") as f:
+            f.write(table.get_string())
         
-        print(table)
         
     def save_feature_statistics(self, output_dir=None):
         """Save feature firing rates and activation density to files"""
@@ -207,7 +212,7 @@ class SAEEval:
         bin_edges = activation_density["bin_edges"].cpu().numpy()
         
         np.savez(
-            os.path.join(output_dir, "activation_density.npz"),
+            os.path.join(output_dir, f"activation_density_{self.cfg.percentile}.npz"),
             hist_values=hist_values,
             bin_edges=bin_edges
         )
@@ -218,7 +223,7 @@ class SAEEval:
         plt.xlabel('Firing Rate')
         plt.ylabel('Number of Features')
         plt.title('Distribution of Feature Firing Rates')
-        plt.savefig(os.path.join(output_dir, "firing_rate_distribution.png"))
+        plt.savefig(os.path.join(output_dir, f"firing_rate_distribution_{self.cfg.percentile}.png"))
         plt.close()
         
         # Create and save activation density plot
@@ -232,7 +237,7 @@ class SAEEval:
         plt.xlabel('Activation Value')
         plt.ylabel('Frequency')
         plt.title('Distribution of Non-zero Activation Values')
-        plt.savefig(os.path.join(output_dir, "activation_density.png"))
+        plt.savefig(os.path.join(output_dir, f"activation_density_{self.cfg.percentile}.png"))
         plt.close()
         
         print(f"Feature statistics saved to {output_dir}")
@@ -242,46 +247,29 @@ class SAEEval:
 if __name__ == "__main__":
 
     parser = ArgumentParser()
+    parser.add_argument("--config_path", type=str)
     parser.add_argument("--percentile", type=int, default=50)
-    parser.add_argument("--layer", type=int, default=25)
     args = parser.parse_args()
     percentile = args.percentile
-    layer = args.layer
-    
-    #model_iteration = 1
-    #data_iteration = 1
-    #model_path = f"/users/nferruz/gboxo/Alpha Amylase/output_iteration{model_iteration}" 
-    #sae_path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
-    #df_path = f"/users/nferruz/gboxo/Alpha Amylase/dataframe_iteration{data_iteration}.csv"
-    #df = pd.read_csv(df_path)
-    #sequences = df["sequence"].tolist()
-    #txt = "\n".join(sequences)
-    #test_set_path = f"/users/nferruz/gboxo/Alpha Amylase/test_set_iteration{data_iteration-1}.txt"
-    #with open(test_set_path, "w") as f:
-    #    f.write(txt)
-
-    model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-    sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_{layer}/sae_training_iter_0/final/"
-    test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_eval/"
-    #sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
-    #test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/"
+    config_path = args.config_path
 
 
-
-
-
-
-    if "woody" in test_set_path:
-        config_path = "configs/base_config_alex.yaml"
-    else:
-        config_path = "configs/base_config_workstation.yaml"
-    
+    cfg = load_config(config_path)
+    model_path = cfg["paths"]["model_path"]
+    sae_path = cfg["paths"]["sae_path"]
+    test_set_path = cfg["paths"]["test_set_path"]
+    is_tokenized = cfg["paths"]["is_tokenized"]
+    out_dir = cfg["paths"]["out_dir"]
+    samples = cfg["samples"]
 
     cfg = EvalConfig()
+
     cfg.model_path = model_path
     cfg.sae_path = sae_path
     cfg.test_set_path = test_set_path
-    cfg.is_tokenized = False
+    cfg.is_tokenized = is_tokenized
+    cfg.out_dir = out_dir
+    cfg.samples = samples
     eval = SAEEval(cfg, percentile=percentile)
     eval.evaluation_loop()
     eval.pretty_table()

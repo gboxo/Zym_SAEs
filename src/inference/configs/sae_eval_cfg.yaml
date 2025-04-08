@@ -1,0 +1,8 @@
+paths:
+  model_path: /home/woody/b114cb/b114cb23/sap/
+  sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_25/sae_training_iter_0/final/
+  test_set_path: /home/woody/b114cb/b114cb23/boxo/new_dataset_eval/
+  is_tokenized: true
+  out_dir: /home/woody/b114cb/b114cb23/boxo/
+
+samples: 1000

@@ -25,7 +25,7 @@ cp configs/base_config_alex_new.yaml $output_dir/
 
 
 # Define the array of iteration identifiers or indices
-iterations=($(seq 0 30))
+iterations=($(seq 5 30))
 echo "Starting the script..."
 
 # Iterate over each identifier to create a configuration file
@@ -33,7 +33,7 @@ for i in "${iterations[@]}"; do
   echo "Processing iteration $i..."
   output_file="$output_dir/config_${i}_bm.yaml"
 
-  if [ "$i" = "1" ]; then
+  if [ "$i" = "0" ]; then
     resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_25/sae_training_iter_0/final"
   else
     prev_iter=$((${i}-1))
