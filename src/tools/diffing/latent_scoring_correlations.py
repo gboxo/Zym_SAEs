@@ -144,30 +144,33 @@ def get_important_features(X, pred1, pred2, plddt, tm_score, thresholds, directi
         """
         assert len(np.unique(y_train)) > 1, "y_train must have more than one class"
         assert len(np.unique(y_test)) > 1, "y_test must have more than one class"
-
-    def process_lr_probe(X, pred, thresholds, directions):
-        """
-        Process the LR probe
-        """
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, get_mask(pred, thresholds, directions))
-        get_assert(y_train, y_test)
-        results, probes = fit_lr_probe(X_train, y_train, X_test, y_test)
-        return results, probes
-
-
     # Prediction 1
-    results_pred1, probes_pred1 = process_lr_probe(X, pred1, thresholds['pred1'], directions['pred1'])
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, get_mask(pred1, thresholds['pred1'], directions['pred1']))
+    get_assert(y_train, y_test)
+
+    results_pred1, probes_pred1 = fit_lr_probe(X_train, y_train, X_test, y_test)
 
     # Prediction 2
-    results_pred2, probes_pred2 = process_lr_probe(X, pred2, thresholds['pred2'], directions['pred2'])
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, get_mask(pred2, thresholds['pred2'], directions['pred2']))
+    get_assert(y_train, y_test)
+
+    results_pred2, probes_pred2 = fit_lr_probe(X_train, y_train, X_test, y_test)
 
     # PLDDT 
-    results_plddt, probes_plddt = process_lr_probe(X, plddt, thresholds['plddt'], directions['plddt'])
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, get_mask(plddt, thresholds['plddt'], directions['plddt']))
+    get_assert(y_train, y_test)
+
+    results_plddt, probes_plddt = fit_lr_probe(X_train, y_train, X_test, y_test)
 
     # TM-score
-    results_tm_score, probes_tm_score = process_lr_probe(X, tm_score, thresholds['tm_score'], directions['tm_score'])
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, get_mask(tm_score, thresholds['tm_score'], directions['tm_score']))
+    get_assert(y_train, y_test)
 
+    results_tm_score, probes_tm_score = fit_lr_probe(X_train, y_train, X_test, y_test)
 
     coefs_pred1 = torch.tensor(probes_pred1[-1].coef_)[0]
     coefs_pred2 = torch.tensor(probes_pred2[-1].coef_)[0]
@@ -189,20 +192,96 @@ def get_important_features(X, pred1, pred2, plddt, tm_score, thresholds, directi
 
 
 
-def analyze_important_features(mean_features, activity, activity2, plddt, tm_score, thresholds, direction):
-    """Main function to analyze important features and create visualizations."""
+
+def get_correlations(mean_features, plddt, activity, tm_score, f_rates, cs, output_dir):
+    """Calculate correlations between features and metrics."""
+    # Calculate correlations between features and metrics
+    correlations = []
+    p_values = []
+    
+    for i in range(mean_features.shape[1]):
+        feature = mean_features[:, i]
+        if np.std(feature) > 0:
+        
+        # Calculate correlations with each metric
+            corr_plddt, p_plddt = pearsonr(feature, plddt)
+            corr_activity, p_activity = pearsonr(feature, activity)
+            corr_tm, p_tm = pearsonr(feature, tm_score)
+            
+            # Store the correlations and p-values
+            correlations.append([corr_plddt, corr_activity, corr_tm])
+            p_values.append([p_plddt, p_activity, p_tm])
+        else:
+            correlations.append([0,0,0])
+            p_values.append([0,0,0])
+    
+    correlations = np.array(correlations)
+    p_values = np.array(p_values)
+    
+    # Calculate mean absolute correlation for each feature
+    mean_abs_corr = np.mean(np.abs(correlations), axis=1)
+    
+    # Get the top features by mean absolute correlation
+    top_k = 25
+    top_indices = np.argsort(mean_abs_corr)[-top_k:][::-1]
+    top_correlations = correlations[top_indices]
+    top_p_values = p_values[top_indices]
+    
+    # Apply Benjamini-Hochberg correction for multiple testing
+    mask = multipletests(p_values.flatten(), method='fdr_bh')[0].reshape(p_values.shape)
+    
+    # Create a correlation data dictionary
+    correlation_data = {
+        'feature_indices': top_indices,
+        'correlations': correlations,
+        'p_values': p_values,
+        'significant': ~mask,
+        'mean_abs_corr': mean_abs_corr,
+        'f_rates': f_rates,
+        'cs': cs
+    }
+    
+    # Save the correlation data
+    os.makedirs(f"{output_dir}/correlations", exist_ok=True)
+    pkl.dump(correlation_data, open(f"{output_dir}/correlations/top_correlations_M{model_iteration}_D{data_iteration}.pkl", "wb"))
+    
+    print(f"Created correlation data with shape: {top_correlations.shape}")
+    print(f"Number of significant correlations after correction: {np.sum(~mask)}")
+    
+    return correlation_data
+
+
+
+
+
+def analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs):
+    """Main function to analyze correlations and create visualizations."""
     # Calculate correlations and get data
-
-
-    unique_coefs, coefs = get_important_features(mean_features, activity, activity2, plddt, tm_score, thresholds, direction)
+    correlation_data = get_correlations(mean_features, plddt, activity, tm_score, f_rates, cs)
     
     # Create various plots
+    plot_correlation_heatmap(correlation_data, output_dir)
+    plot_firing_rate_vs_correlation(correlation_data, output_dir)
+    plot_2d_density(correlation_data['f_rates'], correlation_data['cs'], correlation_data['correlations'][:,1], output_dir)
+    plot_3d_density(correlation_data, output_dir)
+    
+    return correlation_data
+
+def analyze_important_features(mean_features, activity, activity2, plddt, tm_score):
+    """Main function to analyze important features and create visualizations."""
+    # Calculate correlations and get data
+    unique_coefs, coefs = get_important_features(mean_features, activity, activity2, plddt, tm_score)
+    
+    # Create various plots
+    
     importance_features = {
         'unique_coefs': unique_coefs,
         'coefs': coefs,
     }
+    
     # Save the correlation data
-    return importance_features
+    os.makedirs(f"{output_dir}/important_features", exist_ok=True)
+    pkl.dump(importance_features, open(f"{output_dir}/important_features/important_features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
     
 
 if __name__ == "__main__":
@@ -221,10 +300,6 @@ if __name__ == "__main__":
     output_dir = config["paths"]["output_dir"]
     model_path = config["paths"]["model_path"].format(iteration_num)
     sae_path = config["paths"]["sae_path"].format(model_iteration, data_iteration)
-    disc_thresholds = config["thresholds"]
-
-
-
 
     cs = torch.load(cs_path)
     cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
@@ -283,24 +358,7 @@ if __name__ == "__main__":
     tm_score = df["alntmscore"].tolist()
     tm_score = np.array(tm_score)
 
-    def get_thresholds_and_directions(thresholds):
-        thresholds_pos = {}
-        thresholds_neg = {}
-        for key, value in thresholds.items():
-            thresholds_pos[key] = value["upper"]
-            thresholds_neg[key] = value["lower"]
-        return thresholds_pos, thresholds_neg
+    analyze_correlations(mean_features, plddt, activity, tm_score, f_rates, cs, output_dir)
+    analyze_important_features(mean_features, activity, activity2, plddt, tm_score, output_dir)
 
 
-
-    thresholds_pos, thresholds_neg = get_thresholds_and_directions(disc_thresholds)
-
-
-
-    importance_features_pos = analyze_important_features(mean_features, activity, activity2, plddt, tm_score, thresholds_pos, "upper")
-    importance_features_neg = analyze_important_features(mean_features, activity, activity2, plddt, tm_score, thresholds_neg, "lower")
-
-
-    os.makedirs(f"{output_dir}/important_features", exist_ok=True)
-    pkl.dump(importance_features_pos, open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}.pkl", "wb"))
-    pkl.dump(importance_features_neg, open(f"{output_dir}/important_features/important_features_neg_M{model_iteration}_D{data_iteration}.pkl", "wb"))
