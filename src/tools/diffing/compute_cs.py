@@ -106,6 +106,8 @@ def load_thresholds(base_sae_path, diffing_path, device, start_index=0, end_inde
     for key,val in thresholds.items():
         val = torch.where(val > 0, val, torch.zeros_like(val))
         final_thresholds[key] = val.cpu().numpy()
+    
+    print(len(final_thresholds.keys()))
     return final_thresholds
 
 
@@ -136,7 +138,71 @@ def get_cs(sae_dict, start_index, end_index):
 
     return all_cs
 
-def plot_cs(all_cs,output_dir, end_index):
+def plot_thresholds(output_dir,thresholds, end_index):
+    """
+    We plot all the scatterplots of the type:
+    cs(M0_DX,M0_D0) vs cs(MX_DX,M0_D0)
+    """
+    print(f"Plotting CS for {end_index}")
+    os.makedirs(f"{output_dir}/scatter_thresholds", exist_ok=True)
+    for i in tqdm(range(1,end_index)):
+        t_m0d0 = thresholds[f"M0_D{i}"]
+        t_mxd0 = thresholds[f"M{i}_D{i}"]
+        filter_features = (t_m0d0 > 0) | (t_mxd0 > 0)
+
+
+
+        t_m0d0 = t_m0d0[filter_features]
+        t_mxd0 = t_mxd0[filter_features]
+        print(len(t_m0d0), len(t_mxd0))
+
+
+        sns.scatterplot(x=t_m0d0, y=t_mxd0, alpha=0.5 )
+        plt.title(f"Threshold(M0_D{i}) vs Threshold(M{i}_D{i})")
+        plt.xlabel(f"Threshold(M0_D{i})")
+        plt.ylabel(f"Threshold(M{i}_D{i})")
+        plt.savefig(f"{output_dir}/scatter_thresholds/M0_D{i}_vs_M{i}_D{i}.png")
+        plt.close()
+
+def plot_decoder_norms(sae_dict,output_dir,thresholds, end_index):
+    """
+    We plot all the scatterplots of the type:
+    cs(M0_DX,M0_D0) vs cs(MX_DX,M0_D0)
+    """
+    print(f"Plotting CS for {end_index}")
+    os.makedirs(f"{output_dir}/scatter_decoder_norms", exist_ok=True)
+    for i in tqdm(range(1,end_index)):
+        t_m0d0 = thresholds[f"M0_D{i}"]
+        t_mxd0 = thresholds[f"M{i}_D{i}"]
+        filter_features = (t_m0d0 > 0) | (t_mxd0 > 0)
+
+        m0d0_decoder = sae_dict[f"M0_D{i}"]
+        mxd0_decoder = sae_dict[f"M{i}_D{i}"]
+
+
+
+
+        # Compute the norms of the decoders
+        norm_m0d0 = torch.norm(m0d0_decoder, dim=1)
+        norm_mxd0 = torch.norm(mxd0_decoder, dim=1)
+        norm_m0d0 = norm_m0d0[filter_features]
+        norm_mxd0 = norm_mxd0[filter_features]
+        norm_m0d0 = norm_m0d0.cpu().numpy().flatten()
+        norm_mxd0 = norm_mxd0.cpu().numpy().flatten()
+
+
+
+
+
+
+        sns.scatterplot(x=norm_m0d0, y=norm_mxd0, alpha=0.5 )
+        plt.title(f"Decoder Norm(M0_D{i}) vs Decoder Norm(M{i}_D{i})")
+        plt.xlabel(f"Decoder Norm(M0_D{i})")
+        plt.ylabel(f"Decoder Norm(M{i}_D{i})")
+        plt.savefig(f"{output_dir}/scatter_decoder_norms/M0_D{i}_vs_M{i}_D{i}.png")
+        plt.close()
+
+def plot_cs(all_cs,output_dir,thresholds, end_index):
     """
     We plot all the scatterplots of the type:
     cs(M0_DX,M0_D0) vs cs(MX_DX,M0_D0)
@@ -144,8 +210,20 @@ def plot_cs(all_cs,output_dir, end_index):
     print(f"Plotting CS for {end_index}")
     os.makedirs(f"{output_dir}/scatter_cs", exist_ok=True)
     for i in tqdm(range(1,end_index)):
+        t_m0d0 = thresholds[f"M0_D{i}"]
+        t_mxd0 = thresholds[f"M{i}_D{i}"]
+        filter_features = (t_m0d0 > 0) | (t_mxd0 > 0)
+        print(filter_features.sum())
+
+
+
         cs_m0d0 = all_cs[f"M0_D{i}_vs_M0_D0"]
         cs_mxd0 = all_cs[f"M{i}_D{i}_vs_M0_D0"]
+        cs_m0d0 = cs_m0d0[filter_features]
+        cs_mxd0 = cs_mxd0[filter_features]
+        print(len(cs_m0d0), len(cs_mxd0))
+
+
         sns.scatterplot(x=cs_m0d0, y=cs_mxd0, alpha=0.5 )
         plt.title(f"CS(M0_D{i},M0_D0) vs CS(M{i}_D{i},M0_D0)")
         plt.xlabel(f"CS(M0_D{i},M0_D0)")
@@ -153,7 +231,7 @@ def plot_cs(all_cs,output_dir, end_index):
         plt.savefig(f"{output_dir}/scatter_cs/M0_D{i}_vs_M{i}_D{i}.png")
         plt.close()
 
-def plot_cs_iteration_wise(all_cs, output_dir, end_index):
+def plot_cs_iteration_wise(all_cs, output_dir, thresholds, end_index):
     """
     We plot violin plots for each iteration showing the distribution of cosine similarities
     Split into two subplots: one for M0_D comparisons and one for M_D comparisons
@@ -168,8 +246,14 @@ def plot_cs_iteration_wise(all_cs, output_dir, end_index):
 
     for i in tqdm(range(1, end_index)):
         # Convert tensors to numpy arrays
+        t_m0d0 = thresholds[f"M0_D{i}"]
+        t_mxd0 = thresholds[f"M{i}_D{i}"]
+        filter_features = (t_m0d0 > 0) & (t_mxd0 > 0)
+        
         cs_m0d0 = all_cs[f"M0_D{i}_vs_M0_D{i-1}"].cpu().numpy().flatten()
         cs_mxd0 = all_cs[f"M{i}_D{i}_vs_M{i-1}_D{i-1}"].cpu().numpy().flatten()
+        cs_m0d0 = cs_m0d0[filter_features]
+        cs_mxd0 = cs_mxd0[filter_features]
         
         # Store data separately
         m0d_data.extend(cs_m0d0)
@@ -205,21 +289,7 @@ def plot_cs_iteration_wise(all_cs, output_dir, end_index):
 
 
 def main(config, start_index, end_index, max_workers=4):
-    base_path = config["paths"]["base_sae"]
-    diffing_path = config["paths"]["diffing"]
-    output_dir = config["paths"]["output_dir"]
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if False:
-        sae_dict = load_decoders(base_path, diffing_path, device, 
-                                start_index=start_index, 
-                                end_index=end_index,
-                                max_workers=max_workers)
-        all_cs = get_cs(sae_dict, start_index=start_index, end_index=end_index)
-        os.makedirs(output_dir, exist_ok=True)
-        torch.save(all_cs, f"{output_dir}/all_cs.pt")
-    else:
-        all_cs = torch.load(f"{output_dir}/all_cs.pt")
 
     return all_cs
 
@@ -238,11 +308,29 @@ if __name__ == "__main__":
     config_path = args.config_path
 
     config = load_config(config_path)
-    #all_cs = main(config, start_index=start_index, end_index=end_index, max_workers=50)
-    #plot_cs(all_cs,config["paths"]["output_dir"], end_index=end_index)
-    #plot_cs_iteration_wise(all_cs,config["paths"]["output_dir"], end_index=end_index)
+    base_path = config["paths"]["base_sae"]
+    diffing_path = config["paths"]["diffing"]
+    output_dir = config["paths"]["output_dir"]
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if True:
+        sae_dict = load_decoders(base_path, diffing_path, device, 
+                                start_index=start_index, 
+                                end_index=end_index,
+                                max_workers=50)
+        all_cs = get_cs(sae_dict, start_index=start_index, end_index=end_index)
+        os.makedirs(output_dir, exist_ok=True)
+        torch.save(all_cs, f"{output_dir}/all_cs.pt")
+    else:
+        all_cs = torch.load(f"{output_dir}/all_cs.pt")
+
+
+
     thresholds = load_thresholds(config["paths"]["base_sae"], config["paths"]["diffing"], "cpu", start_index=start_index, end_index=end_index, max_workers=50)
-    print(thresholds)
+    #plot_cs(all_cs,config["paths"]["output_dir"],thresholds, end_index=end_index)
+    #plot_thresholds(config["paths"]["output_dir"],thresholds, end_index=end_index)
+    #plot_cs_iteration_wise(all_cs,config["paths"]["output_dir"],thresholds, end_index=end_index)
+    plot_decoder_norms(all_cs,config["paths"]["output_dir"],thresholds, end_index=end_index)
     
 
 
