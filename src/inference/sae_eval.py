@@ -47,6 +47,7 @@ class SAEEval:
                  percentile: int = 50):
         self.cfg = cfg
         torch.cuda.empty_cache()
+        self.percentile = percentile
 
         self.tokenizer, model = load_model(cfg.model_path)
         self.load_test_set()
@@ -189,7 +190,7 @@ class SAEEval:
         
         table.add_row(["Dead Features", f"{dead_features}/{total_features} ({dead_features/total_features*100:.1f}%)"])
         os.makedirs(self.cfg.out_dir, exist_ok=True)
-        with open(os.path.join(self.cfg.out_dir, f"sae_eval_results_{self.cfg.percentile}.txt"), "w") as f:
+        with open(os.path.join(self.cfg.out_dir, f"sae_eval_results_{self.percentile}.txt"), "w") as f:
             f.write(table.get_string())
         
         
@@ -204,7 +205,7 @@ class SAEEval:
         
         # Save firing rates
         firing_rates = metrics["firing_rates"].cpu().numpy()
-        np.save(os.path.join(output_dir, "feature_firing_rates.npy"), firing_rates)
+        np.save(os.path.join(output_dir, f"feature_firing_rates_{self.percentile}.npy"), firing_rates)
         
         # Save activation density histogram
         activation_density = metrics["activation_density"]
@@ -212,7 +213,7 @@ class SAEEval:
         bin_edges = activation_density["bin_edges"].cpu().numpy()
         
         np.savez(
-            os.path.join(output_dir, f"activation_density_{self.cfg.percentile}.npz"),
+            os.path.join(output_dir, f"activation_density_{self.percentile}.npz"),
             hist_values=hist_values,
             bin_edges=bin_edges
         )
@@ -223,7 +224,7 @@ class SAEEval:
         plt.xlabel('Firing Rate')
         plt.ylabel('Number of Features')
         plt.title('Distribution of Feature Firing Rates')
-        plt.savefig(os.path.join(output_dir, f"firing_rate_distribution_{self.cfg.percentile}.png"))
+        plt.savefig(os.path.join(output_dir, f"firing_rate_distribution_{self.percentile}.png"))
         plt.close()
         
         # Create and save activation density plot
@@ -237,7 +238,7 @@ class SAEEval:
         plt.xlabel('Activation Value')
         plt.ylabel('Frequency')
         plt.title('Distribution of Non-zero Activation Values')
-        plt.savefig(os.path.join(output_dir, f"activation_density_{self.cfg.percentile}.png"))
+        plt.savefig(os.path.join(output_dir, f"activation_density_{self.percentile}.png"))
         plt.close()
         
         print(f"Feature statistics saved to {output_dir}")

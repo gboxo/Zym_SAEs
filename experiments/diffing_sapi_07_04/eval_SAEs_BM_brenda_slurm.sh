@@ -6,7 +6,7 @@
 #SBATCH --constraint=a100_80
 #SBATCH --time=24:00:00                   # Time limit
 #SBATCH --output=eval_SAEs_diffing_sapi_bm_%j.out             # Output file
-#SBATCH --error=diffing_sapi_bm_%j.err              # Error file
+#SBATCH --error=eval_SAEs_diffing_sapi_bm_%j.err              # Error file
 
 export http_proxy=http://proxy:80
 export https_proxy=http://proxy:80
@@ -38,7 +38,7 @@ for i in "${iterations[@]}"; do
     sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_07_04/M0_D${i}/diffing/
     test_set_path: /home/woody/b114cb/b114cb23/boxo/new_dataset_eval/
     is_tokenized: true
-    out_dir: /home/woody/b114cb/b114cb23/diffing_sapi_07_04/eval_SAEs_BM_${i}_brenda/
+    out_dir: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/eval_SAEs_BM_${i}_brenda/
 
   samples: 1000
 
