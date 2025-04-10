@@ -61,9 +61,10 @@ def main(out_path, tm_score_path, sequences_path, activity_path, plddt_path, ite
     
     # Load the activity predictions
     df_activity = pd.read_csv(activity_path, sep="\t|,", header=None)
-    df_activity.columns = ["label", "prediction1", "prediction2"]
+    df_activity.columns = ["label", "perplexity", "prediction"]
     # Remove the > in the label column
     df_activity["label"] = df_activity["label"].str.replace(">", "")
+    df_activity.drop(columns=["perplexity"], inplace=True)
 
     # Load the pLDDT
     files = os.listdir(plddt_path)

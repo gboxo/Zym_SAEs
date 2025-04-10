@@ -1,9 +1,8 @@
 #!/bin/bash -l
 #SBATCH --job-name=Latent_Scoring_Diffing_SAPI_BM          # Job name
 #SBATCH --ntasks=1                        # Run 1 task (process)
-#SBATCH --gres=gpu:a100:1
-#SBATCH --partition=a100
-#SBATCH --constraint=a100_80
+#SBATCH --gres=gpu:a40:1
+#SBATCH --partition=a40
 #SBATCH --time=24:00:00                   # Time limit
 #SBATCH --output=latent_scoring_bm_%j.out             # Output file
 #SBATCH --error=latent_scoring_bm_%j.err              # Error file
@@ -49,10 +48,10 @@ for i in "${iterations[@]}"; do
 
   iteration_num: $i 
   label: 3.2.1.1
-  model_iteration: $i
+  model_iteration: 0
   data_iteration: $i 
   thresholds:
-    prediction: 
+    pred: 
       upper: 2 
       lower: 1
     plddt: 

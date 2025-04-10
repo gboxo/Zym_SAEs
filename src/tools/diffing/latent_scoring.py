@@ -120,19 +120,19 @@ def fit_lr_probe(X_train, y_train, X_test, y_test):
     return results, probes
 
 
-def get_important_features(X, pred1, pred2, plddt, tm_score, thresholds, directions='upper'):
+def get_important_features(X, pred, plddt, tm_score, thresholds, directions='upper'):
     """
     Fit a sparse logistic regression probe to the data, to select the most important features
     
     Args:
         X: Input features
-        pred1, pred2, plddt, tm_score: Metrics to analyze
-        thresholds: dict with keys 'pred1', 'pred2', 'plddt', 'tm_score' containing threshold values
+        pred, plddt, tm_score: Metrics to analyze
+        thresholds: dict with keys 'pred', 'plddt', 'tm_score' containing threshold values
         directions: str or dict, either 'upper' or 'lower' for all metrics, or dict with keys for each metric
     """
     # Standardize directions if string
     if isinstance(directions, str):
-        directions = {k: directions for k in ['pred1', 'pred2', 'plddt', 'tm_score']}
+        directions = {k: directions for k in ['pred', 'plddt', 'tm_score']}
 
     def get_mask(values, threshold, direction):
         return values > threshold if direction == 'upper' else values < threshold
@@ -156,10 +156,8 @@ def get_important_features(X, pred1, pred2, plddt, tm_score, thresholds, directi
 
 
     # Prediction 1
-    results_pred1, probes_pred1 = process_lr_probe(X, pred1, thresholds['pred1'], directions['pred1'])
+    results_pred, probes_pred = process_lr_probe(X, pred, thresholds['pred'], directions['pred'])
 
-    # Prediction 2
-    results_pred2, probes_pred2 = process_lr_probe(X, pred2, thresholds['pred2'], directions['pred2'])
 
     # PLDDT 
     results_plddt, probes_plddt = process_lr_probe(X, plddt, thresholds['plddt'], directions['plddt'])
@@ -168,16 +166,14 @@ def get_important_features(X, pred1, pred2, plddt, tm_score, thresholds, directi
     results_tm_score, probes_tm_score = process_lr_probe(X, tm_score, thresholds['tm_score'], directions['tm_score'])
 
 
-    coefs_pred1 = torch.tensor(probes_pred1[-1].coef_)[0]
-    coefs_pred2 = torch.tensor(probes_pred2[-1].coef_)[0]
+    coefs_pred = torch.tensor(probes_pred[-1].coef_)[0]
     coefs_plddt = torch.tensor(probes_plddt[-1].coef_)[0]
     coefs_tm_score = torch.tensor(probes_tm_score[-1].coef_)[0]
 
-    unique_coefs = torch.unique(torch.cat([torch.where(coefs_pred1>0)[0],
-                                        torch.where(coefs_pred2>0)[0],
+    unique_coefs = torch.unique(torch.cat([torch.where(coefs_pred>0)[0],
                                         torch.where(coefs_plddt>0)[0],
                                         torch.where(coefs_tm_score>0)[0]]))
-    coefs = torch.stack([coefs_pred1, coefs_pred2, coefs_plddt, coefs_tm_score])
+    coefs = torch.stack([coefs_pred, coefs_plddt, coefs_tm_score])
     coefs = coefs[:,unique_coefs]
 
     return unique_coefs, coefs
@@ -188,12 +184,12 @@ def get_important_features(X, pred1, pred2, plddt, tm_score, thresholds, directi
 
 
 
-def analyze_important_features(mean_features, activity, activity2, plddt, tm_score, thresholds, direction):
+def analyze_important_features(mean_features, activity, plddt, tm_score, thresholds, direction):
     """Main function to analyze important features and create visualizations."""
     # Calculate correlations and get data
 
 
-    unique_coefs, coefs = get_important_features(mean_features, activity, activity2, plddt, tm_score, thresholds, direction)
+    unique_coefs, coefs = get_important_features(mean_features, activity, plddt, tm_score, thresholds, direction)
     
     # Create various plots
     importance_features = {
@@ -216,10 +212,10 @@ if __name__ == "__main__":
     data_iteration = config["data_iteration"]
     ec_label = config["label"]
     cs_path = config["paths"]["cs_path"]
-    df_path = config["paths"]["df_path"]
-    output_dir = config["paths"]["output_dir"]
-    model_path = config["paths"]["model_path"].format(iteration_num)
-    sae_path = config["paths"]["sae_path"].format(model_iteration, data_iteration)
+    df_path = config["paths"]["df_path"].format(iteration_num=iteration_num)
+    output_dir = config["paths"]["out_dir"]
+    model_path = config["paths"]["model_path"]
+    sae_path = config["paths"]["sae_path"]
     disc_thresholds = config["thresholds"]
 
 
@@ -244,7 +240,8 @@ if __name__ == "__main__":
 
     assert os.path.exists(df_path), "Dataframe does not exist"
     df = pd.read_csv(df_path)
-    if True:
+
+    if False:
         cfg, sae = load_sae(sae_path)
         thresholds = torch.load(sae_path+"/percentiles/feature_percentile_50.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
@@ -273,11 +270,9 @@ if __name__ == "__main__":
     plddt = df["pLDDT"].tolist()
     plddt = np.array(plddt)
 
-    activity = df["prediction1"].tolist()
+    activity = df["prediction"].tolist()
     activity = np.array(activity)
 
-    activity2 = df["prediction2"].tolist()
-    activity2 = np.array(activity2)
 
     tm_score = df["alntmscore"].tolist()
     tm_score = np.array(tm_score)
@@ -296,10 +291,12 @@ if __name__ == "__main__":
 
 
 
-    importance_features_pos = analyze_important_features(mean_features, activity, activity2, plddt, tm_score, thresholds_pos, "upper")
-    importance_features_neg = analyze_important_features(mean_features, activity, activity2, plddt, tm_score, thresholds_neg, "lower")
+    importance_features_pos = analyze_important_features(mean_features, activity, plddt,tm_score, thresholds_pos, "upper")
+    importance_features_neg = analyze_important_features(mean_features, activity, plddt,tm_score, thresholds_neg, "lower")
 
 
     os.makedirs(f"{output_dir}/important_features", exist_ok=True)
-    pkl.dump(importance_features_pos, open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}.pkl", "wb"))
-    pkl.dump(importance_features_neg, open(f"{output_dir}/important_features/important_features_neg_M{model_iteration}_D{data_iteration}.pkl", "wb"))
+    with open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}.pkl", "wb") as f:
+        pkl.dump(importance_features_pos, f)
+    with open(f"{output_dir}/important_features/important_features_neg_M{model_iteration}_D{data_iteration}.pkl", "wb") as f:
+        pkl.dump(importance_features_neg, f)

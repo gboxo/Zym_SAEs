@@ -7,10 +7,10 @@
 
   iteration_num: 13 
   label: 3.2.1.1
-  model_iteration: 13
+  model_iteration: 0
   data_iteration: 13 
   thresholds:
-    prediction: 
+    pred: 
       upper: 2 
       lower: 1
     plddt: 
