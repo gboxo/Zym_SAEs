@@ -1,0 +1,25 @@
+  paths:
+    model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
+    sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_07_04/M0_D23/diffing/
+    out_dir: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/latent_scoring_23_bm/
+    cs_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/cs_data/all_cs.pt"
+    df_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/dataframes/dataframe_iteration{iteration_num}.csv"
+
+  iteration_num: 23 
+  label: 3.2.1.1
+  model_iteration: 0
+  data_iteration: 23 
+  thresholds:
+    pred1: 
+      upper: 2 
+      lower: 1.5
+    pred2: 
+      upper: 2 
+      lower: 1
+    plddt: 
+      upper: 0.7
+      lower: 0.5
+    tm_score: 
+      upper: 0.6
+      lower: 0.5
+
