@@ -1,10 +1,12 @@
+import os
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import pickle as pkl
 import torch
 import seaborn as sns
-
+import argparse
+from src.tools.diffing.diffing_utils import load_config
 
 def compute_neuron_metrics(data, num_neurons=15360):
     """
@@ -133,7 +135,7 @@ def load_data(path):
     return [torch.tensor(dat.todense(), dtype=torch.float32) for dat in data]
 
 
-def plot_percentage_firings(metrics):
+def plot_percentage_firings(metrics, save_path):
     """Plot distribution of firing percentage across neurons."""
     percentage_firings = metrics["percentage_firings"]
     percentage_firings = percentage_firings[percentage_firings > 0]
@@ -143,10 +145,11 @@ def plot_percentage_firings(metrics):
     plt.xlabel("Percentage of sequences fired")
     plt.ylabel("Number of neurons")
     plt.title("Distribution of firing percentage across neurons")
-    plt.show()
+    plt.savefig(os.path.join(save_path, "percentage_firings.png"))
+    plt.close()
 
 
-def plot_max_position(metrics):
+def plot_max_position(metrics, save_path):
     """Plot distribution of maximum firing positions."""
     max_position = metrics["max_position"]
     max_position = max_position[max_position > 0]
@@ -156,10 +159,11 @@ def plot_max_position(metrics):
     plt.xlabel("Max position of firing")
     plt.ylabel("Number of neurons")
     plt.title("Distribution of max firing position across neurons")
-    plt.show()
+    plt.savefig(os.path.join(save_path, "max_position.png"))
+    plt.close()
 
 
-def plot_min_position(metrics):
+def plot_min_position(metrics, save_path):
     """Plot distribution of minimum firing positions."""
     min_position = metrics["min_position"]
     min_position = min_position[min_position > 0]
@@ -169,10 +173,11 @@ def plot_min_position(metrics):
     plt.xlabel("Min position of firing")
     plt.ylabel("Number of neurons")
     plt.title("Distribution of min firing position across neurons")
-    plt.show()
+    plt.savefig(os.path.join(save_path, "min_position.png"))
+    plt.close()
 
 
-def plot_avg_strike_length(metrics, min_length=2):
+def plot_avg_strike_length(metrics, min_length=2, save_path):
     """Plot distribution of average strike lengths."""
     avg_strike_length = metrics["avg_strike_length"]
     avg_strike_length = avg_strike_length[avg_strike_length > min_length]
@@ -182,7 +187,8 @@ def plot_avg_strike_length(metrics, min_length=2):
     plt.xlabel("Average strike length")
     plt.ylabel("Number of neurons")
     plt.title("Distribution of average strike length")
-    plt.show()
+    plt.savefig(os.path.join(save_path, "avg_strike_length.png"))
+    plt.close()
 
 
 def plot_avg_strikes_per_seq(metrics, min_strikes=1):
@@ -195,7 +201,8 @@ def plot_avg_strikes_per_seq(metrics, min_strikes=1):
     plt.xlabel("Average strikes per sequence")
     plt.ylabel("Number of neurons")
     plt.title("Distribution of number of strikes")
-    plt.show()
+    plt.savefig(os.path.join(save_path, "avg_strikes_per_seq.png"))
+    plt.close()
 
 
 def get_neurons_in_first_n_positions(metrics, n=10):
@@ -205,6 +212,12 @@ def get_neurons_in_first_n_positions(metrics, n=10):
     l_n = max_position < n
     filter_mask = g_zero & l_n
     return torch.where(filter_mask)[0], max_position[filter_mask]
+
+
+def save_metrics(metrics, save_path):
+    """Save computed metrics to a pickle file."""
+    with open(os.path.join(save_path, "metrics.pkl"), "wb") as f:
+        pkl.dump(metrics, f)
 
 
 def analyze_neuron_firing_patterns(data_path, num_neurons=15360, save_path=None):
@@ -238,8 +251,24 @@ def visualize_all_metrics(metrics):
 
 
 if __name__ == "__main__":
-    data_path = "features_M0_D17.pkl"
-    output_path = "neuron_metrics.pkl"  # Path to save metrics
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="configs/firing_rates_cfg.yaml")
+    parser.add_argument("--model_iteration", type=int, default=0)
+    parser.add_argument("--data_iteration", type=int, default=17)
+
+    args = parser.parse_args()
+    
+    config = load_config(args.config)
+    data_iteration = args.data_iteration
+    model_iteration = args.model_iteration
+    model_type = "bm" if model_iteration == 0 else "rl"
+
+
+
+    data_path = config["paths"]["features_path"].format(data_iteration=data_iteration, model_type=model_type, model_iteration=model_iteration)
+    output_path = config["paths"]["output_dir"].format(data_iteration=data_iteration, model_iteration=model_iteration)
+
+
     
     metrics = analyze_neuron_firing_patterns(data_path, save_path=output_path)
     visualize_all_metrics(metrics)

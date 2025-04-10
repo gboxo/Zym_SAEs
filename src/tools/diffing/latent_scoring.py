@@ -1,4 +1,4 @@
-from diffing_utils import load_config
+from src.tools.diffing.diffing_utils import load_config
 import pandas as pd
 import argparse
 import os
@@ -16,7 +16,6 @@ from scipy.stats import pearsonr
 from sklearn.metrics import accuracy_score, auc, roc_auc_score
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import train_test_split
-from plots_diffing import plot_correlation_heatmap, plot_firing_rate_vs_correlation, plot_2d_density, plot_3d_density
 
 def get_activations( model, tokenizer, sequence):
     sequence = "3.2.1.1<sep><start>" + sequence
