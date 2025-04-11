@@ -177,7 +177,7 @@ def plot_min_position(metrics, save_path):
     plt.close()
 
 
-def plot_avg_strike_length(metrics, min_length=2, save_path):
+def plot_avg_strike_length(metrics, min_length=2, save_path=None):
     """Plot distribution of average strike lengths."""
     avg_strike_length = metrics["avg_strike_length"]
     avg_strike_length = avg_strike_length[avg_strike_length > min_length]
@@ -191,7 +191,7 @@ def plot_avg_strike_length(metrics, min_length=2, save_path):
     plt.close()
 
 
-def plot_avg_strikes_per_seq(metrics, min_strikes=1):
+def plot_avg_strikes_per_seq(metrics, min_strikes=1, save_path=None):
     """Plot distribution of average strikes per sequence."""
     avg_strikes_per_seq = metrics["avg_strikes_per_seq"]
     avg_strikes_per_seq = avg_strikes_per_seq[avg_strikes_per_seq > min_strikes]
@@ -220,7 +220,7 @@ def save_metrics(metrics, save_path):
         pkl.dump(metrics, f)
 
 
-def analyze_neuron_firing_patterns(data_path, num_neurons=15360, save_path=None):
+def analyze_neuron_firing_patterns(data_path , save_path=None):
     """
     Main function to analyze neuron firing patterns.
     
@@ -232,6 +232,7 @@ def analyze_neuron_firing_patterns(data_path, num_neurons=15360, save_path=None)
     Returns:
         Dictionary of computed metrics
     """
+    num_neurons=15360
     data = load_data(data_path)
     metrics = compute_neuron_metrics(data, num_neurons)
     
@@ -241,13 +242,13 @@ def analyze_neuron_firing_patterns(data_path, num_neurons=15360, save_path=None)
     return metrics
 
 
-def visualize_all_metrics(metrics):
+def visualize_all_metrics(metrics, save_path):
     """Generate all visualization plots for the metrics."""
-    plot_percentage_firings(metrics)
-    plot_max_position(metrics)
-    plot_min_position(metrics)
-    plot_avg_strike_length(metrics)
-    plot_avg_strikes_per_seq(metrics)
+    plot_percentage_firings(metrics, save_path)
+    plot_max_position(metrics, save_path)
+    plot_min_position(metrics, save_path)
+    plot_avg_strike_length(metrics, min_length=2, save_path=save_path)
+    plot_avg_strikes_per_seq(metrics, min_strikes=1, save_path=save_path)
 
 
 if __name__ == "__main__":
@@ -267,11 +268,12 @@ if __name__ == "__main__":
 
     data_path = config["paths"]["features_path"].format(data_iteration=data_iteration, model_type=model_type, model_iteration=model_iteration)
     output_path = config["paths"]["output_dir"].format(data_iteration=data_iteration, model_iteration=model_iteration)
+    os.makedirs(output_path, exist_ok=True)
 
 
     
     metrics = analyze_neuron_firing_patterns(data_path, save_path=output_path)
-    visualize_all_metrics(metrics)
+    visualize_all_metrics(metrics, save_path=output_path)
     
     # Example of getting neurons that fire only in first 10 positions
     early_neurons, early_positions = get_neurons_in_first_n_positions(metrics, 10)

@@ -285,9 +285,30 @@ if __name__ == "__main__":
             thresholds_neg[key] = value["lower"]
         return thresholds_pos, thresholds_neg
 
+    def get_empirical_thresholds(activity, plddt, tm_score):
+        """
+        For each value compute the 0.25 and 0.75 percentile and use it as the lower and upper threshold
+        """
+        activity_quantiles = np.percentile(activity, [25, 75])
+        plddt_quantiles = np.percentile(plddt, [25, 75])
+        tm_score_quantiles = np.percentile(tm_score, [25, 75])
+        thresholds_pos = {
+            "pred": activity_quantiles[0],
+            "plddt": plddt_quantiles[0],
+            "tm_score": tm_score_quantiles[0],
+        }
+        thresholds_neg = {
+            "pred": activity_quantiles[1],
+            "plddt": plddt_quantiles[1],
+            "tm_score": tm_score_quantiles[1],
+        }
+        return thresholds_pos, thresholds_neg
 
 
-    thresholds_pos, thresholds_neg = get_thresholds_and_directions(disc_thresholds)
+
+    
+    # Get the empirical thresholds
+    thresholds_pos, thresholds_neg = get_empirical_thresholds(activity, plddt, tm_score)
 
 
 
