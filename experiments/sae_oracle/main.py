@@ -1,7 +1,5 @@
 import pandas as pd
-
 import pickle as pkl
-import json
 import os
 from src.inference.inference_batch_topk import convert_to_jumprelu
 from src.utils import load_sae, load_model, get_ht_model
@@ -10,16 +8,10 @@ import torch
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
-from collections import Counter
-import scipy.cluster.hierarchy as hierarchy
-from sklearn.linear_model import LogisticRegressionCV, LassoCV
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
-from scipy.sparse import coo_matrix, csr_matrix, csc_matrix, vstack
-from prettytable import PrettyTable
-from sklearn.metrics import roc_auc_score, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+from sklearn.linear_model import LassoCV
+from scipy.sparse import coo_matrix, vstack
 from tqdm import tqdm
-from src.utils import get_paths
+from prettytable import PrettyTable
 # %%
 
 
@@ -28,7 +20,10 @@ from src.utils import get_paths
 
 
 def get_data():
-    data = pd.read_csv("")
+    # The first line is the header
+    data = pd.read_csv("/home/woody/b114cb/b114cb23/boxo/sae_oracle/alpha-amylase-training-data.csv",header=0)
+
+    # The first column is the sequence
     return data
 
 def get_activations( model, tokenizer, sequence):
@@ -58,11 +53,11 @@ def get_all_features(model, sae, tokenizer, sequences):
         torch.cuda.empty_cache()
     return all_features
 
-def get_mean_features(features):
-    return np.sum(features, axis=0)
+def get_max_features(features):
+    return np.max(features, axis=0)
 
 def obtain_features(df, features):
-    features = get_mean_features(features)
+    features = get_max_features(features)
 
     random_indices = np.random.permutation(len(features))
     train_indices = random_indices[:int(len(random_indices)*0.8)]
@@ -71,21 +66,21 @@ def obtain_features(df, features):
     train_features = [features[i] for i in train_indices]
     test_features = [features[i] for i in test_indices]
 
-    train_labels = [df["activity"][i] for i in train_indices]
-    test_labels = [df["activity"][i] for i in test_indices]
+    train_labels = [df["activity_dp7"][i] for i in train_indices]
+    test_labels = [df["activity_dp7"][i] for i in test_indices]
 
     train_features = vstack(train_features)
     test_features = vstack(test_features)
-    os.makedirs(f"Data/Alpha_Beta_Data/features", exist_ok=True)
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features", exist_ok=True)
     
     # Save everything using pickle instead of mixed formats
-    with open(f"Data/Alpha_Beta_Data/features/features_train.pkl", "wb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_train.pkl", "wb") as f:
         pkl.dump(train_features, f)
-    with open(f"Data/Alpha_Beta_Data/features/features_test.pkl", "wb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_test.pkl", "wb") as f:
         pkl.dump(test_features, f)
-    with open(f"Data/Alpha_Beta_Data/features/labels_train.pkl", "wb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_train.pkl", "wb") as f:
         pkl.dump(train_labels, f)
-    with open(f"Data/Alpha_Beta_Data/features/labels_test.pkl", "wb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_test.pkl", "wb") as f:
         pkl.dump(test_labels, f)
         
     del features, train_features, test_features, random_indices, train_indices, test_indices
@@ -94,13 +89,13 @@ def obtain_features(df, features):
 
 def load_features():
     # Update loading to use pickle for all files
-    with open(f"Data/Alpha_Beta_Data/features/features_train.pkl", "rb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_train.pkl", "rb") as f:
         train_features = pkl.load(f)
-    with open(f"Data/Alpha_Beta_Data/features/features_test.pkl", "rb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_test.pkl", "rb") as f:
         test_features = pkl.load(f)
-    with open(f"Data/Alpha_Beta_Data/features/labels_train.pkl", "rb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_train.pkl", "rb") as f:
         train_labels = pkl.load(f)
-    with open(f"Data/Alpha_Beta_Data/features/labels_test.pkl", "rb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_test.pkl", "rb") as f:
         test_labels = pkl.load(f)
 
     # No need for additional processing since we're loading directly from pickle
@@ -187,27 +182,84 @@ def compute_metrics(predictions, true_labels):
     r2 = 1 - (np.sum((true_labels - predictions)**2) / np.sum((true_labels - np.mean(true_labels))**2))
     return mse, mae, r2
 
-def main():
+    
+    
+# Create training results table
+def display_training_results(results):
+    table = PrettyTable()
+    table.title = "Training Results"
+
+    table.add_column("Model", [i for i in range(len(results))])
+    table.add_column("Active Features", [result.get("active_features", 0) for result in results])
+    table.add_column("Sparsity", [result.get("sparsity", 0) for result in results])
+    table.add_column("R2 Score", [result.get("r2_score", 0) for result in results])
+    table.add_column("MSE", [result.get("mse", 0) for result in results])
+    return table
+    
+
+# Create testing results table
+def display_testing_results(results):
+    table = PrettyTable()
+    table.title = "Testing Results"
+    # Add rows with your testing metrics one column for each result
+
+    table.add_column("Model", [i for i in range(len(results))])
+    table.add_column("R2 Score", [result.get("r2_score", 0) for result in results])
+    table.add_column("MSE", [result.get("mse", 0) for result in results])
+    table.add_column("MAE", [result.get("mae", 0) for result in results])
+
+
+
+    
+    return table
+    
+    
+    
+    
+
+def save_results_to_file(train_table, test_table, filename="results.txt"):
+    """
+    Save the training and testing results tables to a text file
+    
+    Args:
+        train_table: PrettyTable object containing training results
+        test_table: PrettyTable object containing testing results
+        filename: Name of the file to save results to
+    """
+    output_path = f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/{filename}"
+    
+    with open(output_path, "w") as f:
+        f.write(str(train_table) + "\n\n")
+        f.write(str(test_table) + "\n")
+    
+    print(f"Results saved to {output_path}")
+
+def main(model, jump_relu, tokenizer):
     df = get_data()
-    sequences = df["seq"].values
-    #features = get_all_features(model, jump_relu, tokenizer, sequences)
-    #obtain_features(df, features)
+    sequences = df["mutated_sequence"].values
+    features = get_all_features(model, jump_relu, tokenizer, sequences)
+    obtain_features(df, features)
     train_features, test_features, train_labels, test_labels = load_features()
     probes, results = train_linear_probe(train_features, test_features, train_labels, test_labels)
-    print(results)
-    test_linear_probe(probes, test_features, test_labels)
+    train_table = display_training_results(results)
+    print(train_table)
+    test_results = test_linear_probe(probes, test_features, test_labels)
+    test_table = display_testing_results(test_results)
+    print(test_table)
+    
+    # Save results to file
+    save_results_to_file(train_table, test_table)
 
 if __name__ == "__main__":
 
-    if False:
-        paths = get_paths()
-        model_path = paths.model_path
-        sae_path = paths.sae_path
+    if True:
+        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
+        sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_25/sae_training_iter_0/final"
 
         tokenizer, model = load_model(model_path)
         model = get_ht_model(model, model.config).to("cuda")
         cfg, sae = load_sae(sae_path)
-        thresholds = torch.load(sae_path+"/percentiles/feature_percentile_99.pt")
+        thresholds = torch.load(sae_path+"/percentiles/feature_percentile_50.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
         sae.to("cuda")
         jump_relu = convert_to_jumprelu(sae, thresholds)
@@ -215,4 +267,4 @@ if __name__ == "__main__":
         del sae
         torch.cuda.empty_cache()
 
-    main()
+    main(model, jump_relu, tokenizer)
