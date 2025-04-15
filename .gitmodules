@@ -1,0 +1,3 @@
+[submodule "crosscoder-model-diff-replication"]
+	path = crosscoder-model-diff-replication
+	url = https://github.com/ckkissane/crosscoder-model-diff-replication
