@@ -1,10 +1,6 @@
 # %%
-import yaml
 from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Config
 from sae_lens import HookedSAETransformer
-from .training.config import get_default_cfg, update_cfg
-from .training.sae import BatchTopKSAE
-from .training.config import post_init_cfg
 import einops
 import torch
 import json
@@ -15,41 +11,6 @@ from types import SimpleNamespace
 import os
 
 
-def get_paths():
-    """Get paths for model, SAE, and mini_brenda based on host environment.
-    
-    Returns:
-        SimpleNamespace: Object with attributes:
-            - model_path: Path to model directory
-            - sae_path: Path to SAE checkpoints
-            - mini_brenda: Path to mini_brenda.txt file
-    """
-
-    if not "Workstation" in socket.gethostname():
-
-        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
-        sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-        mini_brenda = "/home/woody/b114cb/b114cb23/boxo/mini_brenda.txt"
-        d = {
-                "model_path": model_path,
-                "sae_path": sae_path,
-                "mini_brenda": mini_brenda
-                }
-        d_namespace = SimpleNamespace(**d)
-        return d_namespace
-
-    else:
-        model_path = "AI4PD/ZymCTRL"
-        sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-        mini_brenda = "/users/nferruz/gboxo/Downloads/mini_brenda.txt"
-
-        d = {
-                "model_path": model_path,
-                "sae_path": sae_path,
-                "mini_brenda": mini_brenda
-                }
-        d_namespace = SimpleNamespace(**d)
-        return d_namespace
 
 def load_model(model_name):
     """Load a pretrained model and tokenizer.
@@ -62,7 +23,6 @@ def load_model(model_name):
             - tokenizer: Pretrained tokenizer
             - model: Pretrained model
     """
-    from transformers import AutoTokenizer, AutoModelForCausalLM
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = "<pad>"
@@ -71,77 +31,6 @@ def load_model(model_name):
                                                     torch_dtype=torch.float32)
 
     return tokenizer, model_ht
-
-
-
-
-def load_sae(sae_path, load_thresholds=False, checkpoint_name="checkpoint_latest.pt"):
-    """Load a sparse autoencoder from checkpoint.
-    
-    Args:
-        sae_path (str): Path to SAE checkpoint directory
-        load_thresholds (bool): Whether to load feature thresholds
-        
-    Returns:
-        tuple: Configuration and SAE model. If load_thresholds is True,
-              returns (cfg, sae, thresholds) instead.
-    """
-    cfg = get_default_cfg()
-    if os.path.exists(sae_path+"/checkpoint_latest.pt"):
-        checkpoint = torch.load(sae_path+checkpoint_name)
-        cfg = checkpoint["cfg"]
-        cfg["dtype"] = torch.float32
-        state_dict = checkpoint["model_state_dict"]
-        sae = BatchTopKSAE(cfg)
-        sae.load_state_dict(state_dict)
-        if load_thresholds:
-            thresholds = checkpoint["thresholds"]
-            sae.thresholds = thresholds
-            return cfg,sae,thresholds
-        else:
-            return cfg,sae
-
-
-    with open(sae_path+"config.json", "r") as f:
-        config = json.load(f)
-    
-    cfg = update_cfg(cfg, **config)
-    cfg = post_init_cfg(cfg)
-    
-    state_dict = torch.load(sae_path+"sae.pt")
-    cfg["dtype"] = torch.float32
-
-    sae = BatchTopKSAE(cfg)
-    sae.load_state_dict(state_dict)
-    if load_thresholds:
-        thresholds = torch.load(sae_path+"thresholds.pt")
-        sae.thresholds = thresholds
-        return cfg,sae,thresholds
-    else: 
-        return cfg,sae
-
-def load_config(config_path):
-    """Load and process configuration from YAML file.
-    
-    Args:
-        config_path (str): Path to YAML config file
-        
-    Returns:
-        dict: Configuration dictionary with defaults merged
-    """
-    cfg = get_default_cfg()
-    cfg["model_name"] = None
-    cfg["hook_point"] = None
-
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-    
-    cfg = update_cfg(cfg, **config)
-    cfg = post_init_cfg(cfg)
-
-    return cfg
-
-
 
 
 

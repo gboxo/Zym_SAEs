@@ -11,8 +11,8 @@ base_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
 dpo_path = "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration29/"
 
 
-tokenizer,base_model = load_model(base_path, device=device)
-dpo_tokenizer,dpo_model = load_model(dpo_path, device=device)
+tokenizer,base_model = load_model(base_path)
+dpo_tokenizer,dpo_model = load_model(dpo_path)
 
 base_model_config = base_model.config
 base_model_config.attn_implementation = "eager"
@@ -29,7 +29,9 @@ all_tokens = load_brenda_tokens()
 
 # %%
 default_cfg = {
+    "n_batches_to_dead": 5,
     "seed": 49,
+    "top_k":32,
     "batch_size": 4096,
     "buffer_mult": 128,
     "lr": 5e-5,
