@@ -35,7 +35,7 @@ class Trainer:
     def step(self):
         acts = self.buffer.next()
         losses = self.crosscoder.get_losses(acts)
-        loss = losses.l2_loss + self.cfg["aux_penalty"] * losses.aux_loss
+        loss = losses.l2_loss + losses.aux_loss
         loss.backward()
         clip_grad_norm_(self.crosscoder.parameters(), max_norm=1.0)
         self.optimizer.step()
@@ -53,6 +53,7 @@ class Trainer:
             "explained_variance_A": losses.explained_variance_A.mean().item(),
             "explained_variance_B": losses.explained_variance_B.mean().item(),
             "aux_loss": losses.aux_loss.item(),
+            "n_dead_in_batch": losses.n_dead_in_batch.item(),
         }
         self.step_counter += 1
         return loss_dict

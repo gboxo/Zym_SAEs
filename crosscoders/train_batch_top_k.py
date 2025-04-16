@@ -7,8 +7,8 @@ from utils_gb import get_ht_model, load_model
 device = 'cuda:0'
 
 
-base_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-dpo_path = "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration29/"
+base_path = "AI4PD/ZymCTRL"
+dpo_path = "/users/nferruz/gboxo/output_iteration29/"
 
 
 tokenizer,base_model = load_model(base_path)

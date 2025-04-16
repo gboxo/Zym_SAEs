@@ -10,7 +10,7 @@ from huggingface_hub import hf_hub_download
 from typing import NamedTuple
 
 DTYPES = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
-SAVE_DIR = Path("/home/woody/b114cb/b114cb23/ZymCTRLCrossCoders/")
+SAVE_DIR = Path("/users/nferruz/gboxo/ZymCTRLCrossCoders/")
 
 class LossOutput(NamedTuple):
     # loss: torch.Tensor
@@ -21,6 +21,7 @@ class LossOutput(NamedTuple):
     explained_variance_A: torch.Tensor
     explained_variance_B: torch.Tensor
     aux_loss: torch.Tensor
+    n_dead_in_batch: torch.Tensor
 
 class CrossCoder(nn.Module):
     def __init__(self, cfg):
@@ -102,6 +103,7 @@ class CrossCoder(nn.Module):
     def forward(self, x):
         # x: [batch, n_models, d_model]
         acts = self.encode(x)
+        self.update_inactive_features(acts)
         return self.decode(acts)
 
     def get_losses(self, x):
@@ -112,8 +114,10 @@ class CrossCoder(nn.Module):
         x_reconstruct = self.decode(acts)
         diff = x_reconstruct.float() - x.float()
 
+        num_dead_features = (
+            self.num_batches_not_active > self.cfg["n_batches_to_dead"]
+        ).sum()
         aux_loss = self.get_auxiliary_loss(x, x_reconstruct, acts)
-
         squared_diff = diff.pow(2)
         l2_per_batch = einops.reduce(squared_diff, 'batch n_models d_model -> batch', 'sum')
         l2_loss = l2_per_batch.mean()
@@ -142,7 +146,8 @@ class CrossCoder(nn.Module):
                            explained_variance=explained_variance,
                            explained_variance_A=explained_variance_A,
                            explained_variance_B=explained_variance_B,
-                           aux_loss=aux_loss)
+                           aux_loss=aux_loss,
+                           n_dead_in_batch=num_dead_features)
 
     def get_auxiliary_loss(self, x, x_reconstruct, acts):
         dead_features = self.num_batches_not_active >= self.cfg["n_batches_to_dead"]
@@ -166,7 +171,7 @@ class CrossCoder(nn.Module):
             return torch.tensor(0, dtype=x.dtype, device=x.device)
 
     def create_save_dir(self):
-        base_dir = Path("/home/woody/b114cb/b114cb23/ZymCTRLCrossCoders/checkpoints")
+        base_dir = Path("/users/nferruz/gboxo/ZymCTRLCrossCoders/checkpoints")
         version_list = [
             int(file.name.split("_")[1])
             for file in list(SAVE_DIR.iterdir())

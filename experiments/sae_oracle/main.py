@@ -21,7 +21,7 @@ from prettytable import PrettyTable
 
 def get_data():
     # The first line is the header
-    data = pd.read_csv("/home/woody/b114cb/b114cb23/boxo/sae_oracle/alpha-amylase-training-data.csv",header=0)
+    data = pd.read_csv("/users/nferruz/gboxo/sae_oracle/alpha-amylase-training-data.csv",header=0)
 
     # The first column is the sequence
     return data
@@ -71,16 +71,16 @@ def obtain_features(df, features):
 
     train_features = vstack(train_features)
     test_features = vstack(test_features)
-    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features", exist_ok=True)
+    os.makedirs(f"/users/nferruz/gboxo/sae_oracle/features", exist_ok=True)
     
     # Save everything using pickle instead of mixed formats
-    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_train.pkl", "wb") as f:
+    with open(f"/users/nferruz/gboxo/sae_oracle/features/features_train.pkl", "wb") as f:
         pkl.dump(train_features, f)
-    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_test.pkl", "wb") as f:
+    with open(f"/users/nferruz/gboxo/sae_oracle/features/features_test.pkl", "wb") as f:
         pkl.dump(test_features, f)
-    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_train.pkl", "wb") as f:
+    with open(f"/users/nferruz/gboxo/sae_oracle/features/labels_train.pkl", "wb") as f:
         pkl.dump(train_labels, f)
-    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_test.pkl", "wb") as f:
+    with open(f"/users/nferruz/gboxo/sae_oracle/features/labels_test.pkl", "wb") as f:
         pkl.dump(test_labels, f)
         
     del features, train_features, test_features, random_indices, train_indices, test_indices
@@ -89,13 +89,13 @@ def obtain_features(df, features):
 
 def load_features():
     # Update loading to use pickle for all files
-    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_train.pkl", "rb") as f:
+    with open(f"/users/nferruz/gboxo/sae_oracle/features/features_train.pkl", "rb") as f:
         train_features = pkl.load(f)
-    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_test.pkl", "rb") as f:
+    with open(f"/users/nferruz/gboxo/sae_oracle/features/features_test.pkl", "rb") as f:
         test_features = pkl.load(f)
-    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_train.pkl", "rb") as f:
+    with open(f"/users/nferruz/gboxo/sae_oracle/features/labels_train.pkl", "rb") as f:
         train_labels = pkl.load(f)
-    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_test.pkl", "rb") as f:
+    with open(f"/users/nferruz/gboxo/sae_oracle/features/labels_test.pkl", "rb") as f:
         test_labels = pkl.load(f)
 
     # No need for additional processing since we're loading directly from pickle
@@ -226,7 +226,7 @@ def save_results_to_file(train_table, test_table, filename="results.txt"):
         test_table: PrettyTable object containing testing results
         filename: Name of the file to save results to
     """
-    output_path = f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/{filename}"
+    output_path = f"/users/nferruz/gboxo/sae_oracle/{filename}"
     
     with open(output_path, "w") as f:
         f.write(str(train_table) + "\n\n")
@@ -253,8 +253,9 @@ def main(model, jump_relu, tokenizer):
 if __name__ == "__main__":
 
     if True:
-        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-        sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_25/sae_training_iter_0/final"
+        model_path = "AI4PD/ZymCTRL"
+        sae_path="/users/nferruz/gboxo/SAE_2025_04_02_32_15360_25/sae_training_iter_0/final/"
+
 
         tokenizer, model = load_model(model_path)
         model = get_ht_model(model, model.config).to("cuda")

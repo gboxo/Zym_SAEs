@@ -14,10 +14,6 @@ babe==0.0.7
 beartype==0.14.1
 beautifulsoup4==4.13.3
 better-abc==0.0.3
-bio==1.7.1
-biopython==1.85
-bioservices==1.12.1
-biothings_client==0.4.1
 bitsandbytes==0.45.3
 blobfile==2.1.1
 boostedblob==0.15.6
