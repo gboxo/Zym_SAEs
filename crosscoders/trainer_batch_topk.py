@@ -47,7 +47,7 @@ class Trainer:
             "l2_loss": losses.l2_loss.item(),
             "l1_loss": losses.l1_loss.item(),
             "l0_loss": losses.l0_loss.item(),
-            "l1_coeff": self.get_l1_coeff(),
+            "l1_coeff": 0,
             "lr": self.scheduler.get_last_lr()[0],
             "explained_variance": losses.explained_variance.mean().item(),
             "explained_variance_A": losses.explained_variance_A.mean().item(),
@@ -60,7 +60,6 @@ class Trainer:
 
     def log(self, loss_dict):
         wandb.log(loss_dict, step=self.step_counter)
-        print(loss_dict)
 
     def save(self):
         self.crosscoder.save()

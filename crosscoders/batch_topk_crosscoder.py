@@ -71,6 +71,10 @@ class CrossCoder(nn.Module):
         self.num_batches_not_active = torch.zeros((self.cfg["dict_size"],)).to(
             cfg["device"]
         )
+    
+    def update_inactive_features(self, acts):
+        self.num_batches_not_active += (acts.sum(0) == 0).float()
+        self.num_batches_not_active[acts.sum(0) > 0] = 0
 
     def encode(self, x, apply_relu=True):
         # x: [batch, n_models, d_model]
@@ -87,9 +91,8 @@ class CrossCoder(nn.Module):
                 .scatter(-1, acts_topk.indices, acts_topk.values)
                 .reshape(acts.shape)
             )
-        else:
-            acts = x_enc + self.b_enc
-        return acts
+            self.update_inactive_features(acts_topk)
+        return acts_topk
 
     def decode(self, acts):
         # acts: [batch, d_hidden]
@@ -103,7 +106,6 @@ class CrossCoder(nn.Module):
     def forward(self, x):
         # x: [batch, n_models, d_model]
         acts = self.encode(x)
-        self.update_inactive_features(acts)
         return self.decode(acts)
 
     def get_losses(self, x):
@@ -150,6 +152,11 @@ class CrossCoder(nn.Module):
                            n_dead_in_batch=num_dead_features)
 
     def get_auxiliary_loss(self, x, x_reconstruct, acts):
+        """
+        x: [batch, n_models, d_model]
+        x_reconstruct: [batch, n_models, d_model]
+        acts: [batch, d_hidden] 
+        """
         dead_features = self.num_batches_not_active >= self.cfg["n_batches_to_dead"]
         if dead_features.sum() > 0:
             residual = x.float() - x_reconstruct.float()
@@ -158,10 +165,26 @@ class CrossCoder(nn.Module):
                 min(self.cfg["top_k_aux"], dead_features.sum()),
                 dim=-1,
             )
-            acts_aux = torch.zeros_like(acts[:, dead_features]).scatter(
+            print("acts", acts.shape)
+            print("dead_features", dead_features.shape)
+            print("acts_topk_aux_values", acts_topk_aux.values.shape)
+            print("acts_topk_aux_indices", acts_topk_aux.indices.shape)
+
+
+
+            acts_aux = torch.zeros_like(acts[:,dead_features]).scatter(
                 -1, acts_topk_aux.indices, acts_topk_aux.values
             )
-            x_reconstruct_aux = acts_aux @ self.W_dec[dead_features]
+            print("acts_aux", acts_aux.shape)
+            print("self.W_dec[dead_features]", self.W_dec[dead_features].shape)
+            print("self.W_dec", self.W_dec.shape)
+
+            x_reconstruct_aux = einops.einsum(
+                acts_aux,
+                self.W_dec[dead_features],
+                "batch d_hidden, d_hidden n_models d_model -> batch n_models d_model",
+            )
+            print("x_reconstruct_aux", x_reconstruct_aux.shape)
             l2_loss_aux = (
                 self.cfg["aux_penalty"]
                 * (x_reconstruct_aux.float() - residual.float()).pow(2).mean()
@@ -171,7 +194,7 @@ class CrossCoder(nn.Module):
             return torch.tensor(0, dtype=x.dtype, device=x.device)
 
     def create_save_dir(self):
-        base_dir = Path("/users/nferruz/gboxo/ZymCTRLCrossCoders/checkpoints")
+        base_dir = Path("/users/nferruz/gboxo/ZymCTRLCrossCoders/checkpoints3")
         version_list = [
             int(file.name.split("_")[1])
             for file in list(SAVE_DIR.iterdir())
@@ -246,7 +269,7 @@ class CrossCoder(nn.Module):
 
     @classmethod
     def load(cls, version_dir, checkpoint_version):
-        save_dir = Path("/home/woody/b114cb/b114cb23/ZymCTRLCrossCoders/checkpoints") / str(version_dir)
+        save_dir = Path("/users/nferruz/gboxo/ZymCTRLCrossCoders/checkpoints") / str(version_dir)
         cfg_path = save_dir / f"{str(checkpoint_version)}_cfg.json"
         weight_path = save_dir / f"{str(checkpoint_version)}.pt"
 

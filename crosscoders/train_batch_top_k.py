@@ -7,7 +7,9 @@ from utils_gb import get_ht_model, load_model
 device = 'cuda:0'
 
 
-base_path = "AI4PD/ZymCTRL"
+#base_path = "AI4PD/ZymCTRL"
+
+base_path = "/users/nferruz/gboxo/models/ZymCTRL/"
 dpo_path = "/users/nferruz/gboxo/output_iteration29/"
 
 
@@ -29,11 +31,12 @@ all_tokens = load_brenda_tokens()
 
 # %%
 default_cfg = {
+    "top_k_aux":512,
     "n_batches_to_dead": 5,
     "seed": 49,
     "top_k":32,
-    "batch_size": 4096,
-    "buffer_mult": 128,
+    "batch_size": 512,
+    "buffer_mult": 4*128,
     "lr": 5e-5,
     "num_tokens": 400_000_000,
     "l1_coeff": 2,
@@ -47,13 +50,13 @@ default_cfg = {
     "model_name": "ZymCTRL",
     "site": "resid_pre",
     "device": "cuda:0",
-    "model_batch_size": 4,
+    "model_batch_size": 128,
     "log_every": 100,
-    "save_every": 30000,
+    "save_every": 5000,
     "dec_init_norm": 0.08,
-    "hook_point": "blocks.25.hook_resid_pre",
+    "hook_point": "blocks.15.hook_resid_pre",
     "wandb_project": "crosscoder-model-diff",
-    "wandb_entity": "ZymCTRLDiffing",
+    "wandb_entity": "mi_gbc",
 }
 cfg = arg_parse_update_cfg(default_cfg)
 
