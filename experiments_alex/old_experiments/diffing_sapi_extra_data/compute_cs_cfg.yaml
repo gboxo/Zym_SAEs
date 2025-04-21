@@ -1,9 +1,0 @@
-paths:
-  output_dir: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/cs_data/"
-  base_sae: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/SAE_2025_04_02_32_15360_25/sae_training_iter_0/final/checkpoint_latest.pt
-  diffing_folder: "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_07_04/"
-iterations:
-  start: 0
-  end: 30
-
-

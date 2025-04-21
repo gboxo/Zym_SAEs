@@ -1,9 +1,0 @@
-paths:
-  df_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/joined_dataframes/dataframe_all_iteration1.csv
-  model_path: /home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration5
-  sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M1_D1/diffing/
-  top_features_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/latent_scoring/latent_scoring_1_rl/important_features/important_features_pos_M1_D1.pkl
-  out_dir: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/ablation_with_all/importance/M1_D1_pos
-label: 3.2.1.1
-model_iteration: 1
-data_iteration: 1

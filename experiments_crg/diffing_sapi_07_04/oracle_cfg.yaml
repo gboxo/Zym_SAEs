@@ -1,5 +1,0 @@
-paths:
-  fasta_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/seq_gens/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
-  output_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/outputs_fold/output_iterations{iteration_num}/PDB"
-
-label: 3.2.1.1

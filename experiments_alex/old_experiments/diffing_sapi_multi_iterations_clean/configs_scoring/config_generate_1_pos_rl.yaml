@@ -1,8 +1,0 @@
-      paths:
-        model_path: /home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration5
-        sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M1_D1/diffing/
-        top_features_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/latent_scoring/latent_scoring_1/important_features/important_features_pos_M1_D1.pkl
-        out_dir: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/clipping_with_all/importance/M1_D1_pos
-      label: 3.2.1.1
-      model_iteration: 0
-      data_iteration: 0

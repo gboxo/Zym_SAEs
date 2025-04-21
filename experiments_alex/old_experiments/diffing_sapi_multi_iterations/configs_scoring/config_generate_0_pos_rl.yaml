@@ -1,8 +1,0 @@
-    paths:
-      model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
-      sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/
-      top_features_path: /home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/latent_scoring/latent_scoring_0_new/important_features/important_features_pos_M0_D0.pkl
-      out_dir: /home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/ablation_with_all/importance/M0_D0_pos_new
-    label: 3.2.1.1
-    model_iteration: 0
-    data_iteration: 0

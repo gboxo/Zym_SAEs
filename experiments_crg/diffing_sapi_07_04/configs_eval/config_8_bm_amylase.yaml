@@ -1,9 +1,0 @@
-  paths:
-    model_path: /home/woody/b114cb/b114cb23/models/ZymCTRL/
-    sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_07_04/M0_D8/diffing/
-    test_set_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/diffing_datasets/dataset_iteration8/eval/
-    is_tokenized: true
-    out_dir: /home/woody/b114cb/b114cb23/diffing_sapi_07_04/eval_SAEs_BM_8_amylase/
-
-  samples: 1000
-
