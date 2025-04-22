@@ -1,0 +1,8 @@
+paths:
+  tm_score_path: "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/3.2.1.1_TM_iteration{iteration_num}"
+  sequences_path: "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
+  activity_path: "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/activity_prediction_iteration{iteration_num}.txt"
+  plddt_path: "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration{iteration_num}/PDB/"
+  out_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/dataframes/dataframe_iteration{iteration_num}.csv"
+
+label: 3.2.1.1

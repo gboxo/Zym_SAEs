@@ -1,0 +1,9 @@
+  paths:
+    model_path: /home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration10/
+    sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_07_04/M10_D10/diffing/
+    test_set_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/diffing_sapi_07_04_dataset/diffing_datasets/dataset_iteration10/eval/
+    is_tokenized: true
+    out_dir: /home/woody/b114cb/b114cb23/diffing_sapi_07_04/eval_SAEs_RL_10_amylase/
+
+  samples: 1000
+

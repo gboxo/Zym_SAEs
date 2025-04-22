@@ -1,0 +1,5 @@
+paths:
+  fasta_path: "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/seq_gen_{ec_label}_iteration{iteration_num}.fasta"
+  out_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/diffing_datasets/dataset_iteration{iteration_num}"
+
+label: 3.2.1.1
