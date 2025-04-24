@@ -13,36 +13,40 @@ from torch.utils.data import DataLoader
 
 def read_sequence_from_file(path):
     """
-    Reads a .txt file in which each FASTA header looks like:
-      >3.2.1.1_0 <sep> <start> A B C D … <end>
-    This function will:
-      – find the substring between '<start>' and '<end>'
-      – strip out all spaces
-      – return a single concatenated sequence string
+    Reads **all** sequences in a .txt (multiple FASTA‐style entries).
+    Each header line is of the form:
+      >ID,… <sep> <start> A B C … <end>
+
+    Returns:
+      A **list** of sequence strings (with spaces removed), one per <start>…<end> block.
     """
-    seq_parts = []
-    with open(path, 'r') as f:
+    seqs = []
+    curr = ""
+    with open(path, "r") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
 
-            if line.startswith('>'):
-                # header + seq on one line
-                if '<start>' in line and '<end>' in line:
-                    # grab what's between <start> and <end>
-                    seq_block = line.split('<start>', 1)[1].split('<end>', 1)[0]
-                    seq_block = seq_block.replace(' ', '')
-                    seq_parts.append(seq_block)
-                # else: no inline sequence, skip header
+            if line.startswith(">"):
+                # If we were collecting a sequence, save it before starting a new one
+                if curr:
+                    seqs.append(curr)
+                    curr = ""
+                # If this header has the entire seq on the same line:
+                if "<start>" in line and "<end>" in line:
+                    block = line.split("<start>", 1)[1].split("<end>", 1)[0]
+                    curr = block.replace(" ", "")
                 continue
 
-            # if the file ever has sequence on its own line(s),
-            # remove spaces (assuming tokens separated by spaces)
-            seq_parts.append(line.replace(' ', ''))
+            # Continue accumulating sequence tokens
+            curr += line.replace(" ", "")
 
-    # join all fragments (if multiple entries per file, they’ll concatenate)
-    return seq_parts
+    # At EOF, flush last sequence
+    if curr:
+        seqs.append(curr)
+
+    return seqs
 
 def main():
     parser = argparse.ArgumentParser(
@@ -61,19 +65,22 @@ def main():
     # Load config (to get oracle checkpoint paths)
     config = load_config(args.cfg_path)
 
-    # ========== 1) Read all sequences ==========
+    # ========== 1) Read all sequences (flatten multiple entries per file) ==========
     records = []
-    for fn in os.listdir(config["paths"]["seqs_path"]):
+    for fn in sorted(os.listdir(config["paths"]["seqs_path"])):
         if not fn.endswith(".txt"):
             continue
         full = os.path.join(config["paths"]["seqs_path"], fn)
-        seq = read_sequence_from_file(full)
-        records.append({
-            "name": os.path.splitext(fn)[0],
-            "sequence": seq[0]
-        })
+        seqs = read_sequence_from_file(full)
+        base = os.path.splitext(fn)[0]
 
-
+        # each <start>…<end> becomes its own record
+        for idx_seq, seq_str in enumerate(seqs):
+            records.append({
+                "name":      base,
+                "index":     idx_seq,   # per‐file sequence index
+                "sequence":  seq_str
+            })
 
     # ========== 2) Tokenize & build DataLoader ==========
     # We only need one tokenizer, so load first oracle
@@ -134,7 +141,8 @@ def main():
 
     # ========== 5) Build DataFrame & Save ==========
     df = pd.DataFrame({
-        "name": [r["name"] for r in records],
+        "name":        [r["name"]       for r in records],
+        "index":       [r["index"]      for r in records],
         "prediction1": preds1,
         "prediction2": preds2
     })

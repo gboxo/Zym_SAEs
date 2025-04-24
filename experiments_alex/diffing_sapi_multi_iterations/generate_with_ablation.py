@@ -119,7 +119,7 @@ if __name__ == "__main__":
     with open(top_features_path, "rb") as f:
         important_features = pkl.load(f)
     x = important_features["coefs"][0]
-    feature_indices = important_features["unique_coefs"][x != 0]
+    feature_indices = important_features["unique_coefs"][x < 0]
         
 
     prompt = "3.2.1.1<sep><start>"
