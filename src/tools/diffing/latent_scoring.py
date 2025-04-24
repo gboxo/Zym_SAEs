@@ -237,11 +237,11 @@ if __name__ == "__main__":
 
     
     
-
+    print(df_path)
     assert os.path.exists(df_path), "Dataframe does not exist"
     df = pd.read_csv(df_path)
 
-    if False:
+    if True:
         cfg, sae = load_sae(sae_path)
         thresholds = torch.load(sae_path+"/percentiles/feature_percentile_50.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)

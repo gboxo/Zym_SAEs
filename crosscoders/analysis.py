@@ -1,6 +1,6 @@
 # %%
-from utils import *
-from crosscoder import CrossCoder
+from crosscoders.utils import *
+from crosscoders.crosscoder import CrossCoder
 torch.set_grad_enabled(False);
 # %%
 cross_coder = CrossCoder.load_from_hf()

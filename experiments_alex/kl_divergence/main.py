@@ -64,7 +64,6 @@ subset_dataset = dataset.select(range(num_samples))
 
 # Create a DataLoader
 batch_size = 16 # Adjust based on your GPU memory
-dataloader = DataLoader(subset_dataset, batch_size=batch_size)
 
 # Lists to store data for DataFrame
 results_data = {
@@ -73,6 +72,10 @@ results_data = {
     "kl_divergence": [],
     "loss_base": [],
     "loss_dpo": [],
+    "true_token": [],
+    "pred_token_base": [],
+    "pred_token_dpo": [],
+    "context": [],
 }
 
 # Determine pad token id (adjust if necessary)
@@ -83,9 +86,16 @@ print(f"Using Pad Token ID: {pad_token_id}")
 print(f"Calculating KL divergence and Loss for {num_samples} samples...")
 with torch.no_grad():
     # Use enumerate to get batch index
-    for batch_idx, batch in enumerate(tqdm(dataloader)):
-        input_ids = torch.stack(batch['input_ids']).to(device)
-        print(input_ids.shape)
+    for batch_idx in tqdm(range(0, num_samples, batch_size)):
+        # Ensure we don't go beyond num_samples
+        end_idx = min(batch_idx + batch_size, num_samples)
+        if batch_idx >= end_idx: continue # Skip if batch is empty
+
+        tensors = [torch.tensor(elem) for elem in subset_dataset[batch_idx:end_idx]['input_ids']]
+        # Handle potential empty list if end_idx == batch_idx
+        if not tensors: continue
+        input_ids = torch.stack(tensors).to(device)
+        # print(input_ids.shape) # Debug print
         # Target tokens are shifted versions of input_ids
         target_ids = input_ids[:, 1:].contiguous() # Shape: (batch_size, seq_len-1)
 
@@ -97,15 +107,19 @@ with torch.no_grad():
 
         # Get logits from both models
         # Shape: (batch_size, seq_len, vocab_size)
-        logits_base = base_model(input_ids)
-        logits_dpo = dpo_model(input_ids)
-        print(logits_base.shape)
-        print(logits_dpo.shape)
+        logits_base = base_model(input_ids) # Ensure we get logits if output is not just tensor
+        logits_dpo = dpo_model(input_ids)  # Ensure we get logits if output is not just tensor
+        # print(f"Logits base shape: {logits_base.shape}") # Debug print
+        # print(f"Logits dpo shape: {logits_dpo.shape}") # Debug print
+
+        # Slice logits for KL/Loss calculation (exclude last token prediction)
+        logits_base_kl = logits_base[:, :-1, :] # (batch, seq_len-1, vocab)
+        logits_dpo_kl = logits_dpo[:, :-1, :] # (batch, seq_len-1, vocab)
 
         # --- Loss Calculation ---
-        vocab_size = logits_base.shape[-1]
-        logits_base_for_loss = logits_base[:, :-1, :].reshape(-1, vocab_size)
-        logits_dpo_for_loss = logits_dpo[:, :-1, :].reshape(-1, vocab_size)
+        vocab_size = logits_base_kl.shape[-1]
+        logits_base_for_loss = logits_base_kl.reshape(-1, vocab_size)
+        logits_dpo_for_loss = logits_dpo_kl.reshape(-1, vocab_size)
         target_ids_for_loss = target_ids.reshape(-1)
 
         loss_base_per_token_flat = F.cross_entropy(logits_base_for_loss, target_ids_for_loss, reduction='none')
@@ -115,26 +129,73 @@ with torch.no_grad():
         loss_dpo_per_token = loss_dpo_per_token_flat.view(input_ids.shape[0], -1) # (batch, seq_len-1)
 
         # --- KL Divergence Calculation ---
-        log_probs_base = F.log_softmax(logits_base[:, :-1, :], dim=-1) # (batch, seq_len-1, vocab)
-        log_probs_dpo = F.log_softmax(logits_dpo[:, :-1, :], dim=-1) # (batch, seq_len-1, vocab)
+        log_probs_base = F.log_softmax(logits_base_kl, dim=-1) # (batch, seq_len-1, vocab)
+        log_probs_dpo = F.log_softmax(logits_dpo_kl, dim=-1) # (batch, seq_len-1, vocab)
 
+        # Ensure kl_div calculation handles potential NaNs or Infs if necessary
         kl_div_per_token = F.kl_div(log_probs_dpo, log_probs_base, log_target=True, reduction='none').sum(dim=-1) # (batch, seq_len-1)
+        kl_div_per_token = torch.nan_to_num(kl_div_per_token) # Replace NaN/Inf
 
         # --- Collect data for DataFrame ---
         # Iterate through sequences in the batch
         for i in range(input_ids.shape[0]):
             # Iterate through token positions (0 to seq_len-2)
-            for j in range(kl_div_per_token.shape[1]):
-                if mask[i, j].item(): # Check if it's NOT a padding token position
-                    results_data["batch_index"].append(batch_idx)
+            # Ensure j does not exceed sequence length dimensions
+            seq_len_minus_1 = logits_base_kl.shape[1] # Use the actual dimension size
+            for j in range(seq_len_minus_1):
+                # Ensure mask indices are within bounds
+                if j < mask.shape[1] and mask[i, j].item(): # Check if it's NOT a padding token position
+                    # Get true token ID
+                    true_token_id = target_ids[i, j].item()
+                    true_token = tokenizer.convert_ids_to_tokens([true_token_id])[0] # Use convert_ids_to_tokens
+
+                    # Get predicted token IDs
+                    pred_token_id_base = torch.argmax(logits_base_kl[i, j, :]).item()
+                    pred_token_base = tokenizer.convert_ids_to_tokens([pred_token_id_base])[0]
+
+                    pred_token_id_dpo = torch.argmax(logits_dpo_kl[i, j, :]).item()
+                    pred_token_dpo = tokenizer.convert_ids_to_tokens([pred_token_id_dpo])[0]
+
+                    # Get context
+                    # Position in the original input_ids corresponds to j+1
+                    current_pos = j + 1
+                    context_window = 5
+                    start_ctx = max(0, current_pos - context_window)
+                    end_ctx = min(input_ids.shape[1], current_pos + context_window + 1) # +1 to include current token in decode? Check context logic
+
+                    # Extract context IDs, excluding padding
+                    context_ids_raw = input_ids[i, start_ctx:end_ctx].tolist()
+                    # Filter out pad tokens if needed, but decoding handles them usually
+                    # context_ids = [tok_id for tok_id in context_ids_raw if tok_id != pad_token_id]
+
+                    context_text = tokenizer.decode(context_ids_raw, skip_special_tokens=True) # Decode the raw context ids
+
+
+                    results_data["batch_index"].append(batch_idx + i) # Use global index
                     results_data["token_position"].append(j)
                     results_data["kl_divergence"].append(kl_div_per_token[i, j].item())
                     results_data["loss_base"].append(loss_base_per_token[i, j].item())
                     results_data["loss_dpo"].append(loss_dpo_per_token[i, j].item())
+                    results_data["true_token"].append(true_token)
+                    results_data["pred_token_base"].append(pred_token_base)
+                    results_data["pred_token_dpo"].append(pred_token_dpo)
+                    results_data["context"].append(context_text)
 
 
 # --- Create DataFrame ---
 results_df = pd.DataFrame(results_data)
+
+
+print(results_df[results_df["kl_divergence"] > 0.1])
+
+# --- Sort by KL Divergence ---
+results_df = results_df.sort_values(by='kl_divergence', ascending=False)
+
+
+
+
+
+
 
 print("\n--- Results DataFrame ---")
 print(results_df.head()) # Print the first few rows
@@ -160,8 +221,17 @@ else:
 
 
 
-
-
+# %%
+# --- Distribution of KL Divergence ---
+import seaborn as sns
+import matplotlib.pyplot as plt
+sns.histplot(results_df, x="kl_divergence", bins=100, kde=False)
+plt.title("Distribution of KL Divergence")
+plt.xlim(0, 1)
+plt.xlabel("KL Divergence")
+plt.ylabel("Frequency")
+plt.savefig("experiments_alex/kl_divergence/kl_divergence_distribution.png")
+plt.close()
 
 
 

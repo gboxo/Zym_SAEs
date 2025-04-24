@@ -1,16 +1,15 @@
 # %%
-from utils import *
-from trainer_batch_topk import Trainer
-from utils_gb import get_ht_model, load_model
+from crosscoders.utils import *
+from crosscoders.trainer_batch_topk import Trainer
+from crosscoders.utils_gb import get_ht_model, load_model
 
 # %%
 device = 'cuda:0'
 
 
-#base_path = "AI4PD/ZymCTRL"
 
-base_path = "/users/nferruz/gboxo/models/ZymCTRL/"
-dpo_path = "/users/nferruz/gboxo/output_iteration29/"
+base_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
+dpo_path = "/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration30/"
 
 
 tokenizer,base_model = load_model(base_path)
@@ -32,10 +31,10 @@ all_tokens = load_brenda_tokens()
 # %%
 default_cfg = {
     "top_k_aux":512,
-    "n_batches_to_dead": 5,
+    "n_batches_to_dead": 5000,
     "seed": 49,
     "top_k":32,
-    "batch_size": 512,
+    "batch_size": 4096,
     "buffer_mult": 4*128,
     "lr": 5e-5,
     "num_tokens": 400_000_000,
@@ -45,14 +44,14 @@ default_cfg = {
     "beta2": 0.999,
     "d_in": 1280,
     "dict_size": 12*1280,
-    "seq_len": 512,
+    "seq_len": 1024,
     "enc_dtype": "fp32",
     "model_name": "ZymCTRL",
     "site": "resid_pre",
     "device": "cuda:0",
-    "model_batch_size": 128,
+    "model_batch_size": 512,
     "log_every": 100,
-    "save_every": 5000,
+    "save_every": 10000,
     "dec_init_norm": 0.08,
     "hook_point": "blocks.15.hook_resid_pre",
     "wandb_project": "crosscoder-model-diff",

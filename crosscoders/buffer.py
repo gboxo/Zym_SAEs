@@ -1,4 +1,4 @@
-from utils import *
+from crosscoders.utils import *
 from transformer_lens import ActivationCache
 import tqdm
 
@@ -26,8 +26,8 @@ class Buffer:
         self.normalize = True
         self.all_tokens = all_tokens
         
-        estimated_norm_scaling_factor_A = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_A, n_batches_for_norm_estimate=100)
-        estimated_norm_scaling_factor_B = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_B, n_batches_for_norm_estimate=100)
+        estimated_norm_scaling_factor_A = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_A, n_batches_for_norm_estimate=10)
+        estimated_norm_scaling_factor_B = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_B, n_batches_for_norm_estimate=10)
         
         self.normalisation_factor = torch.tensor(
         [

@@ -284,7 +284,7 @@ def plot_cs_iteration_wise(all_cs, output_dir, thresholds, end_index):
     
     # Save figure
     os.makedirs(output_dir, exist_ok=True)
-    plt.savefig(f"{output_dir}/iteration_wise_cs_split.png")
+    plt.savefig(f"{output_dir}/iteration_wise_cs_split.pdf", format='pdf', dpi=300, bbox_inches='tight')
     plt.close()
 
 
@@ -301,7 +301,7 @@ def main(config, start_index, end_index, max_workers=4):
 
 if __name__ == "__main__":
     start_index = 0
-    end_index = 30
+    end_index = 5
     argparser = ArgumentParser()
     argparser.add_argument("--config_path", type=str, default="")
     args = argparser.parse_args()
@@ -330,7 +330,7 @@ if __name__ == "__main__":
     #plot_cs(all_cs,config["paths"]["output_dir"],thresholds, end_index=end_index)
     #plot_thresholds(config["paths"]["output_dir"],thresholds, end_index=end_index)
     #plot_cs_iteration_wise(all_cs,config["paths"]["output_dir"],thresholds, end_index=end_index)
-    plot_decoder_norms(all_cs,config["paths"]["output_dir"],thresholds, end_index=end_index)
+    #plot_decoder_norms(all_cs,config["paths"]["output_dir"],thresholds, end_index=end_index)
     
 
 

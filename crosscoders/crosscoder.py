@@ -1,5 +1,5 @@
 
-from utils import *
+from crosscoders.utils import *
 
 from torch import nn
 import pprint
@@ -10,10 +10,10 @@ from huggingface_hub import hf_hub_download
 from typing import NamedTuple
 
 DTYPES = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
-SAVE_DIR = Path("/workspace/crosscoder-model-diff-replication/checkpoints")
+SAVE_DIR = Path("/home/woody/b114cb/b114cb23/ZymCTRLCrosscoders/checkpoints")
 
 class LossOutput(NamedTuple):
-    # loss: torch.Tensor
+    #loss: torch.Tensor
     l2_loss: torch.Tensor
     l1_loss: torch.Tensor
     l0_loss: torch.Tensor
@@ -155,7 +155,7 @@ class CrossCoder(nn.Module):
     def load_from_hf(
         cls,
         repo_id: str = "ckkissane/crosscoder-gemma-2-2b-model-diff",
-        path: str = "blocks.14.hook_resid_pre",
+        path: str = "blocks.15.hook_resid_pre",
         device: Optional[Union[str, torch.device]] = None
     ) -> "CrossCoder":
         """

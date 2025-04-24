@@ -180,7 +180,7 @@ def arg_parse_update_cfg(default_cfg):
 def load_brenda_tokens():
     try:
         print("Loading data from disk")
-        all_tokens = torch.load("/users/nferruz/gboxo/new_dataset_concat_train.pt")
+        all_tokens = torch.load("/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train.pt")
     except:
         print("Data is not cached. Loading data from HF")
         data = load_from_disk(

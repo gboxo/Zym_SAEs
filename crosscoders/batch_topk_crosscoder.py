@@ -1,5 +1,4 @@
-
-from utils import *
+from crosscoders.utils import *
 
 from torch import nn
 import pprint
@@ -10,10 +9,11 @@ from huggingface_hub import hf_hub_download
 from typing import NamedTuple
 
 DTYPES = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
-SAVE_DIR = Path("/users/nferruz/gboxo/ZymCTRLCrossCoders/")
+os.makedirs("/home/woody/b114cb/b114cb23/ZymCTRLCrosscoders/checkpoints", exist_ok=True)
+SAVE_DIR = Path("/home/woody/b114cb/b114cb23/ZymCTRLCrosscoders/")
 
 class LossOutput(NamedTuple):
-    # loss: torch.Tensor
+    #loss: torch.Tensor
     l2_loss: torch.Tensor
     l1_loss: torch.Tensor
     l0_loss: torch.Tensor
@@ -122,7 +122,7 @@ class CrossCoder(nn.Module):
         aux_loss = self.get_auxiliary_loss(x, x_reconstruct, acts)
         squared_diff = diff.pow(2)
         l2_per_batch = einops.reduce(squared_diff, 'batch n_models d_model -> batch', 'sum')
-        l2_loss = l2_per_batch.mean()
+        l2_loss = squared_diff.mean()
 
         total_variance = einops.reduce((x - x.mean(0)).pow(2), 'batch n_models d_model -> batch', 'sum')
         explained_variance = 1 - l2_per_batch / total_variance
@@ -194,18 +194,31 @@ class CrossCoder(nn.Module):
             return torch.tensor(0, dtype=x.dtype, device=x.device)
 
     def create_save_dir(self):
-        base_dir = Path("/users/nferruz/gboxo/ZymCTRLCrossCoders/checkpoints3")
-        version_list = [
-            int(file.name.split("_")[1])
-            for file in list(SAVE_DIR.iterdir())
-            if "version" in str(file)
-        ]
+        base_dir = Path("/home/woody/b114cb/b114cb23/ZymCTRLCrosscoders/checkpoints")
+        # Ensure the base checkpoints directory exists first
+        base_dir.mkdir(parents=True, exist_ok=True)
+
+        version_list = []
+        # Look for existing version directories *inside* base_dir
+        for file in base_dir.iterdir():
+            if file.is_dir() and file.name.startswith("version_"):
+                try:
+                    # Extract version number safely
+                    version_num = int(file.name.split("_")[1])
+                    version_list.append(version_num)
+                except (IndexError, ValueError):
+                    # Ignore directories that don't match the pattern correctly
+                    continue
+
         if len(version_list):
             version = 1 + max(version_list)
         else:
             version = 0
+
         self.save_dir = base_dir / f"version_{version}"
-        self.save_dir.mkdir(parents=True)
+        # Use exist_ok=True to avoid error if directory somehow exists (e.g., race condition)
+        # The main fix is calculating the version correctly above.
+        self.save_dir.mkdir(parents=True, exist_ok=True)
 
     def save(self):
         if self.save_dir is None:
@@ -269,7 +282,7 @@ class CrossCoder(nn.Module):
 
     @classmethod
     def load(cls, version_dir, checkpoint_version):
-        save_dir = Path("/users/nferruz/gboxo/ZymCTRLCrossCoders/checkpoints") / str(version_dir)
+        save_dir = Path("/home/woody/b114cb/b114cb23/ZymCTRLCrosscoders/checkpoints") / str(version_dir)
         cfg_path = save_dir / f"{str(checkpoint_version)}_cfg.json"
         weight_path = save_dir / f"{str(checkpoint_version)}.pt"
 

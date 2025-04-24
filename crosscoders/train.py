@@ -1,6 +1,6 @@
 # %%
-from utils import *
-from trainer import Trainer
+from crosscoders.utils import *
+from crosscoders.trainer import Trainer
 # %%
 device = 'cuda:0'
 

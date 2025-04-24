@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from generate_utils import load_config
+from src.tools.generate.generate_utils import load_config
 from sae_lens import HookedSAETransformer, SAE, SAEConfig
 from src.utils import load_model, get_sl_model, load_sae
 from functools import partial
@@ -36,7 +36,7 @@ def generate_with_ablation(model: HookedSAETransformer, sae: SAE, prompt: str, a
     #for i in range(n_samples):
 
     # standard transformerlens syntax for a hook context for generation
-    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_post', ablation_hook)]):
+    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_pre', ablation_hook)]):
         output = model.generate(
             input_ids_batch, 
             top_k=9, #tbd

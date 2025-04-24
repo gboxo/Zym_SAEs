@@ -1,0 +1,22 @@
+  paths:
+    model_path: /home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration25
+    sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M5_D5_rl/diffing/
+    out_dir: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/latent_scoring/latent_scoring_5_rl/
+    cs_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/cs_data/all_cs.pt"
+    df_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/dataframes/dataframe_iteration{iteration_num}.csv"
+
+  iteration_num: 5 
+  label: 3.2.1.1
+  model_iteration: 5
+  data_iteration: 5 
+  thresholds:
+    pred: 
+      upper: 2 
+      lower: 1
+    plddt: 
+      upper: 0.7
+      lower: 0.5
+    tm_score: 
+      upper: 0.65
+      lower: 0.55
+

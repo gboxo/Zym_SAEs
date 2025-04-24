@@ -1,6 +1,6 @@
-from utils import *
-from crosscoder import CrossCoder
-from buffer import Buffer
+from crosscoders.utils import *
+from crosscoders.crosscoder import CrossCoder
+from crosscoders.buffer import Buffer
 import tqdm
 
 from torch.nn.utils import clip_grad_norm_

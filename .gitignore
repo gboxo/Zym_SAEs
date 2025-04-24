@@ -11,6 +11,7 @@ pSAE/
 *.pth
 *.pkl
 *.pickle
+*.pkl
 *.json
 *.csv
 *.err

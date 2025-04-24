@@ -7,7 +7,7 @@ import argparse
 import pickle as pkl
 from peft import LoraConfig, inject_adapter_in_model
 from datasets import Dataset
-from oracles_utils import load_config
+from src.tools.oracles.oracles_utils import load_config
 
 class SequenceDataset(Dataset):
     def __init__(self, tokenized_sequences):
