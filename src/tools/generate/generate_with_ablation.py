@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+
 from src.tools.generate.generate_utils import load_config
 from sae_lens import HookedSAETransformer, SAE, SAEConfig
 from src.utils import load_model, get_sl_model, load_sae

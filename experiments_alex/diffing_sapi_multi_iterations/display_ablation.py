@@ -64,7 +64,7 @@ def load_original_distributions(joined_df_dir: str) -> pd.DataFrame:
 
 if __name__ == "__main__":
     # 1) read ablation predictions
-    BASE_AB = "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/ablation/importance"
+    BASE_AB = "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/ablation_with_all/importance"
     ab_df = join_ablation_csvs(BASE_AB)
     print(ab_df)
     ab_df.to_csv("all_ablation_preds.csv", index=False)

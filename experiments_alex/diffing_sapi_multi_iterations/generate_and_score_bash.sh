@@ -21,7 +21,7 @@ for i in "${iterations[@]}"; do
 
     sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M${i}_D${i}/diffing/"
     top_features_path="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/latent_scoring/latent_scoring_${i}_rl/important_features/important_features_${dir}_M${i}_D${i}.pkl"
-    out_dir="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/ablation/importance/M${i}_D${i}_${dir}"
+    out_dir="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/ablation_with_all/importance/M${i}_D${i}_${dir}"
 
     # 4b) Generate config for the ablation‐sequence generator
     gen_cfg="$output_dir/config_generate_${i}_${dir}_rl.yaml"
@@ -39,8 +39,25 @@ EOL
     echo "→ Generated generation‐config: $gen_cfg"
 
     # 4c) Call the generator
-    #python3 -m experiments_alex.diffing_sapi_multi_iterations.generate_with_ablation \
-    #  --cfg_path "$gen_cfg"
+    python3 -m experiments_alex.diffing_sapi_multi_iterations.generate_with_ablation \
+      --cfg_path "$gen_cfg"
+    done
+  done
+
+for i in "${iterations[@]}"; do
+  for dir in pos neg; do
+
+    # 4a) Build all of the dynamic paths
+    if [ "$i" -eq 0 ]; then
+      model_path="/home/woody/b114cb/b114cb23/models/ZymCTRL/"
+    else
+      model_path="/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration$((i * 5))"
+    fi
+
+    sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M${i}_D${i}/diffing/"
+    top_features_path="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/latent_scoring/latent_scoring_${i}_rl/important_features/important_features_${dir}_M${i}_D${i}.pkl"
+    out_dir="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/ablation_with_all/importance/M${i}_D${i}_${dir}"
+
 
     # 5) Now score those ablated sequences
     score_cfg="$output_dir/config_score_${i}_${dir}_rl.yaml"
