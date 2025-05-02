@@ -221,10 +221,7 @@ if __name__ == "__main__":
 
 
 
-    cs = torch.load(cs_path)
-    cs = cs[f"M{model_iteration}_D{data_iteration}_vs_M0_D0"].cpu().numpy()
-
-    
+ 
     
     # Create the directories
     os.makedirs(f"{output_dir}/figures", exist_ok=True)

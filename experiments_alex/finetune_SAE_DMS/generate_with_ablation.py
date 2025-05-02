@@ -1,4 +1,3 @@
-
 from argparse import ArgumentParser
 from src.tools.generate.generate_utils import load_config
 from sae_lens import HookedSAETransformer, SAE, SAEConfig
@@ -7,37 +6,64 @@ from functools import partial
 import torch
 import os
 import pickle as pkl
+import numpy as np
 from tqdm import tqdm
 
-def ablation(activations:torch.Tensor, hook, ablation_feature:list[int]):
+# Dictionary to store ablation activation counts for each generation
+ablation_activations = {}
+
+def ablation(activations:torch.Tensor, hook, ablation_feature:list[int], generation_idx=None):
     # Check prompt processing
     if activations.shape[1] > 1:
+        # Not a generation step, just processing the entire prompt
         pass
-        
     else:
+        # Track which features would have been activated before ablation
+        if generation_idx is not None:
+            # Check which features would have been activated (value > 0)
+            pre_ablation_mask = activations[:,:,ablation_feature] > 0
+            # Convert mask to CPU and detach from computation graph
+            mask_cpu = pre_ablation_mask.cpu().detach().numpy()
+            
+            # For each sample in the batch
+            for i in range(mask_cpu.shape[0]):
+                sample_key = f"sample_{i}"
+                if sample_key not in ablation_activations[generation_idx]:
+                    ablation_activations[generation_idx][sample_key] = []
+                
+                # If ablation_feature is a list of multiple features
+                if isinstance(ablation_feature, list) and len(ablation_feature) > 1:
+                    # Store activation status for each feature
+                    ablation_activations[generation_idx][sample_key].append(mask_cpu[i, 0, :].tolist())
+                else:
+                    # For single feature (or single-element list), just store 0/1
+                    ablation_activations[generation_idx][sample_key].append(mask_cpu[i, 0].tolist())
+        
+        # Now perform the ablation (set to zero)
         activations[:,:,ablation_feature] = 0
     
     return activations
 
 
-
-
-def generate_with_ablation(model: HookedSAETransformer, sae: SAE, prompt: str, ablation_feature: int, max_new_tokens=256, n_samples=10):
+def generate_with_ablation(model: HookedSAETransformer, sae: SAE, prompt: str, ablation_feature: int, 
+                          max_new_tokens=256, n_samples=10, generation_idx=None):
+    global ablation_activations
+    
+    # Initialize dictionary to store ablation activations for this generation
+    if generation_idx is not None:
+        ablation_activations[generation_idx] = {}
+    
     input_ids = model.to_tokens(prompt, prepend_bos=sae.cfg.prepend_bos)
     input_ids_batch = input_ids.repeat(n_samples, 1)
     
-
-    all_outputs = []
-
     ablation_hook = partial(
         ablation,
         ablation_feature=ablation_feature,
+        generation_idx=generation_idx
     )
     
-    #for i in range(n_samples):
-
     # standard transformerlens syntax for a hook context for generation
-    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_pre', ablation_hook)]):
+    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_post', ablation_hook)]):
         output = model.generate(
             input_ids_batch, 
             top_k=9, #tbd
@@ -45,14 +71,26 @@ def generate_with_ablation(model: HookedSAETransformer, sae: SAE, prompt: str, a
             eos_token_id=1,
             do_sample=True,
             verbose=False,
-            ) # Depending non your GPU, you'll be able to generate fewer or more sequences. This runs in an A40.
+        )
     
     all_outputs = model.tokenizer.batch_decode(output)
     all_outputs = [o.replace("<|endoftext|>", "") for o in all_outputs]
 
+    # Process the activation records to match output sequence lengths
+    if generation_idx is not None:
+        prompt_length = input_ids.shape[1]
+        for i in range(n_samples):
+            sample_key = f"sample_{i}"
+            if sample_key in ablation_activations[generation_idx]:
+                # Get actual sequence length (excluding padding)
+                seq_length = (output[i] != model.tokenizer.pad_token_id).sum().item()
+                # Only keep activations for actual generated tokens (excluding prompt)
+                generated_length = seq_length - prompt_length
+                if generated_length > 0:  # Ensure we generated at least one token
+                    # Keep only the first 'generated_length' elements
+                    ablation_activations[generation_idx][sample_key] = ablation_activations[generation_idx][sample_key][:generated_length]
 
     return all_outputs
-
 
 
 cfg = SAEConfig(
@@ -93,8 +131,10 @@ if __name__ == "__main__":
     sae_path = config["paths"]["sae_path"]
     top_features_path = config["paths"]["top_features_path"]
     out_dir = config["paths"]["out_dir"]
-
-
+    
+    # Directory for ablation activations data
+    ablation_dir = os.path.join(out_dir, "ablation_activations")
+    os.makedirs(ablation_dir, exist_ok=True)
 
     cfg_sae, sae = load_sae(sae_path)
     thresholds = torch.load(sae_path+"/percentiles/feature_percentile_50.pt")
@@ -102,7 +142,6 @@ if __name__ == "__main__":
     state_dict = sae.state_dict()
     state_dict["threshold"] = thresholds
     del sae
-
 
     sae = SAE(cfg)
     sae.load_state_dict(state_dict)
@@ -117,20 +156,52 @@ if __name__ == "__main__":
     x = important_features["coefs"][0]
     feature_indices = important_features["unique_coefs"]
         
-
     prompt = "3.2.1.1<sep><start>"
-
-
     os.makedirs(out_dir, exist_ok=True)
 
-    for ablation_feature in tqdm(feature_indices):
-        out = generate_with_ablation(model, sae, prompt, ablation_feature, max_new_tokens=1014, n_samples=20)
+    # Dictionary to store all ablation data
+    all_ablation_data = {}
+
+    for i, ablation_feature in enumerate(tqdm(feature_indices)):
+        # Use index as generation_idx to track ablation activations for this feature
+        generation_idx = f"feature_{ablation_feature}"
+        out = generate_with_ablation(model, sae, prompt, ablation_feature, 
+                                   max_new_tokens=1014, n_samples=20, 
+                                   generation_idx=generation_idx)
+        
+        # Save generated sequences
         with open(f"{out_dir}/ablation_feature_{ablation_feature}.txt", "w") as f:
-            for i, o in enumerate(out):
-                f.write(f">3.2.1.1_{i},"+o+"\n")
-    out = generate_with_ablation(model, sae, prompt, feature_indices, max_new_tokens=1014, n_samples=20)
+            for j, o in enumerate(out):
+                f.write(f">3.2.1.1_{j},"+o+"\n")
+        
+        # Save ablation activation data for this feature and add to all_ablation_data
+        all_ablation_data[generation_idx] = ablation_activations[generation_idx]
+        with open(f"{ablation_dir}/ablation_activations_feature_{ablation_feature}.pkl", "wb") as f:
+            pkl.dump(ablation_activations[generation_idx], f)
+        
+        # Clear ablation_activations entry to save memory
+        del ablation_activations[generation_idx]
+
+    # Generate with all features
+    generation_idx = "feature_all"
+    out = generate_with_ablation(model, sae, prompt, feature_indices, 
+                               max_new_tokens=1014, n_samples=20, 
+                               generation_idx=generation_idx)
+    
+    # Save generated sequences
     with open(f"{out_dir}/ablation_feature_all.txt", "w") as f:
         for i, o in enumerate(out):
             f.write(f">3.2.1.1_{i},"+o+"\n")
+    
+    # Save ablation activation data for all features
+    all_ablation_data[generation_idx] = ablation_activations[generation_idx]
+    with open(f"{ablation_dir}/ablation_activations_feature_all.pkl", "wb") as f:
+        pkl.dump(ablation_activations[generation_idx], f)
+    
+    # Save the complete ablation activations dictionary with data from all features
+    with open(f"{ablation_dir}/all_ablation_activations.pkl", "wb") as f:
+        pkl.dump(all_ablation_data, f)
+
+# Clean up
 del model, sae 
 torch.cuda.empty_cache()

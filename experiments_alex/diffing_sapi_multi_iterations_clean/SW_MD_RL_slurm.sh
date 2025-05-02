@@ -26,27 +26,23 @@ cd /home/hpc/b114cb/b114cb23/SAETraining/crg_boxo/
 
 
 # Define the base directory for output files
-output_dir="experiments_alex/diffing_sapi_multi_iterations/configs"
+output_dir="experiments_alex/diffing_sapi_multi_iterations_clean/configs"
 mkdir -p $output_dir
-cp experiments_alex/diffing_sapi_multi_iterations/configs/base_config_alex_new.yaml $output_dir/
+cp experiments_alex/diffing_sapi_multi_iterations_clean/configs/base_config_alex_new.yaml $output_dir/
 # Define the array of iteration identifiers or indices
 # Iterations 0 to 30
 iterations=($(seq 0 5))
-iteration_idxs=(1 6 11 16 21)
+iteration_idxs=(1 6 11 16 21 26)
 
 
 
 # Iterate over each identifier to create a configuration file
 for i in "${iterations[@]}"; do
   output_file="$output_dir/config_${i}_rl.yaml"
-  resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/iteration${iteration_idxs[i]}/diffing/"
+  resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/iteration${iteration_idxs[$i]}/diffing/"
 
-  if [ "$i" = "0" ]; then
-    model_path="/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-  else
-    prev_iter=$((${i}-1))
-    model_path="/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration$((${i}*5))"
-  fi
+  prev_iter=$((${i}-1))
+  model_path="/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration$((${i}*5))"
 
   cat <<EOL > $output_file
 base_config: base_config_alex_new.yaml
@@ -68,7 +64,7 @@ training:
   num_batches_in_buffer: 10
 resuming:
   resume_from: ${resume_from}
-  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M${i}_D${i}_rl/
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M${i}_D${i}/
   resuming: true
   model_diffing: true
 EOL

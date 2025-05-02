@@ -17,6 +17,6 @@ training:
   num_batches_in_buffer: 10
 resuming:
   resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/iteration6/diffing/
-  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M1_D1_rl/
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M1_D1_rl/
   resuming: true
   model_diffing: true

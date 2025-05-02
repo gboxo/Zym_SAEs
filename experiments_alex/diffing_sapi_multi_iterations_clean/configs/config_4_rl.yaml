@@ -6,7 +6,7 @@ sae:
   layer: 25
 
 training:
-  dataset_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_07_04/diffing_datasets/dataset_iteration4/
+  dataset_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/dataset_iteration4/
   name: "Diffing_SAPI_M4_D4"
   perf_log_freq: 1
   threshold_compute_freq: 1
@@ -17,6 +17,6 @@ training:
   num_batches_in_buffer: 10
 resuming:
   resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/iteration21/diffing/
-  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M4_D4_rl/
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M4_D4/
   resuming: true
   model_diffing: true

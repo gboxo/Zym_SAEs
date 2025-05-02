@@ -2,7 +2,7 @@
 
 
 # 3) Prepare the folder for YAMLs
-output_dir="experiments_alex/diffing_sapi_multi_iterations/configs_scoring"
+output_dir="experiments_alex/diffing_sapi_multi_iterations_clean/configs_scoring"
 mkdir -p "$output_dir"
 
 # 4) Loop over iterations and pos/neg
@@ -19,15 +19,15 @@ for i in "${iterations[@]}"; do
       model_path="/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration$((i * 5))"
     fi
 
-    sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS_clean/M${i}_D${i}/diffing/"
-    top_features_path="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS_clean/latent_scoring/latent_scoring_${i}_rl/important_features/important_features_${dir}_M${i}_D${i}.pkl"
-    out_dir="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS_clean/ablation_with_all/importance/M${i}_D${i}_${dir}"
+    sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M${i}_D${i}/diffing/"
+    top_features_path="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/latent_scoring/latent_scoring_${i}/important_features/important_features_${dir}_M${i}_D${i}.pkl"
+    out_dir="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/ablation_with_all/importance/M${i}_D${i}_${dir}"
 
     # 4b) Generate config for the ablation‐sequence generator
     gen_cfg="$output_dir/config_generate_${i}_${dir}_rl.yaml"
     cat <<EOL > "$gen_cfg"
 paths:
-  df_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS_clean/joined_dataframes/dataframe_all_iteration${i}.csv
+  df_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/joined_dataframes/dataframe_all_iteration${i}.csv
   model_path: $model_path
   sae_path: $sae_path
   top_features_path: $top_features_path
@@ -54,9 +54,9 @@ for i in "${iterations[@]}"; do
       model_path="/home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration$((i * 5))"
     fi
 
-    sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS_clean/M${i}_D${i}/diffing/"
-    top_features_path="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS_clean/latent_scoring/latent_scoring_${i}_rl/important_features/important_features_${dir}_M${i}_D${i}.pkl"
-    out_dir="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS_clean/ablation_with_all/importance/M${i}_D${i}_${dir}"
+    sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M${i}_D${i}/diffing/"
+    top_features_path="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/latent_scoring/latent_scoring_${i}/important_features/important_features_${dir}_M${i}_D${i}.pkl"
+    out_dir="/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/ablation_with_all/importance/M${i}_D${i}_${dir}"
 
 
     # 5) Now score those ablated sequences

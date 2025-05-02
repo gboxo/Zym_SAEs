@@ -7,6 +7,7 @@ from src.training.sae import JumpReLUSAE
 import torch
 import seaborn as sns
 import matplotlib.pyplot as plt
+from scipy.stats import spearmanr
 import numpy as np
 from sklearn.linear_model import LassoCV
 from scipy.sparse import coo_matrix, vstack
@@ -21,7 +22,7 @@ from prettytable import PrettyTable
 
 def get_data():
     # The first line is the header
-    data = pd.read_csv("/users/nferruz/gboxo/sae_oracle/alpha-amylase-training-data.csv",header=0)
+    data = pd.read_csv("/home/woody/b114cb/b114cb23/boxo/alpha-amylase-training-data.csv",header=0)
 
     # The first column is the sequence
     return data
@@ -71,16 +72,16 @@ def obtain_features(df, features):
 
     train_features = vstack(train_features)
     test_features = vstack(test_features)
-    os.makedirs(f"/users/nferruz/gboxo/sae_oracle/features", exist_ok=True)
+    os.makedirs(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features", exist_ok=True)
     
     # Save everything using pickle instead of mixed formats
-    with open(f"/users/nferruz/gboxo/sae_oracle/features/features_train.pkl", "wb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_train.pkl", "wb") as f:
         pkl.dump(train_features, f)
-    with open(f"/users/nferruz/gboxo/sae_oracle/features/features_test.pkl", "wb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_test.pkl", "wb") as f:
         pkl.dump(test_features, f)
-    with open(f"/users/nferruz/gboxo/sae_oracle/features/labels_train.pkl", "wb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_train.pkl", "wb") as f:
         pkl.dump(train_labels, f)
-    with open(f"/users/nferruz/gboxo/sae_oracle/features/labels_test.pkl", "wb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_test.pkl", "wb") as f:
         pkl.dump(test_labels, f)
         
     del features, train_features, test_features, random_indices, train_indices, test_indices
@@ -89,15 +90,30 @@ def obtain_features(df, features):
 
 def load_features():
     # Update loading to use pickle for all files
-    with open(f"/users/nferruz/gboxo/sae_oracle/features/features_train.pkl", "rb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_train.pkl", "rb") as f:
         train_features = pkl.load(f)
-    with open(f"/users/nferruz/gboxo/sae_oracle/features/features_test.pkl", "rb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/features_test.pkl", "rb") as f:
         test_features = pkl.load(f)
-    with open(f"/users/nferruz/gboxo/sae_oracle/features/labels_train.pkl", "rb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_train.pkl", "rb") as f:
         train_labels = pkl.load(f)
-    with open(f"/users/nferruz/gboxo/sae_oracle/features/labels_test.pkl", "rb") as f:
+    with open(f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/features/labels_test.pkl", "rb") as f:
         test_labels = pkl.load(f)
+    
+    train_labels = np.array(train_labels)
+    test_labels = np.array(test_labels)
 
+    is_nan_train = np.isnan(train_labels)
+    is_nan_test = np.isnan(test_labels)
+    
+    train_labels = train_labels[~is_nan_train]
+    test_labels = test_labels[~is_nan_test]
+
+    train_features = train_features[~is_nan_train]
+    test_features = test_features[~is_nan_test]
+
+    train_features = train_features[:,0]
+    test_features = test_features[:,0]
+    
     # No need for additional processing since we're loading directly from pickle
     return train_features, test_features, train_labels, test_labels
 
@@ -108,18 +124,20 @@ def train_linear_probe(train_features, test_features, train_labels, test_labels)
     X_train = train_features
     X_test = test_features
 
-    y_train = np.concatenate(train_labels)
-    y_test = np.concatenate(test_labels)
+    y_train = train_labels
+    y_test = test_labels
 
     results = []
     probes = []
     
     # Using LassoCV instead of LogisticRegressionCV for linear regression with L1 penalty
-    for sparsity in tqdm(np.logspace(-4.5, -3, 20)):
+    # Try a range of alpha values from 0.0001 to 10 on a log scale
+    for sparsity in tqdm(np.logspace(-3, -2, 5)):
         # Convert sparsity to alpha parameter for Lasso
-        alpha = sparsity
-        lasso_model = LassoCV(cv=5, alphas=[alpha], max_iter=10000, n_jobs=-1)
+        lasso_model = LassoCV(cv=3, max_iter=2000, n_jobs=-1, alphas=[sparsity])
+
         lasso_model.fit(X_train, y_train)
+        print(lasso_model.coef_.sum())
         
         coefs = lasso_model.coef_.reshape(1, -1)  # Reshape to match logistic regression format
         active_features = np.where(coefs != 0)[1]
@@ -129,13 +147,17 @@ def train_linear_probe(train_features, test_features, train_labels, test_labels)
         
         # For regression metrics, we'll use R² instead of accuracy/ROC-AUC
         r2_score = lasso_model.score(X_test, y_test)
+        spearman_corr, _ = spearmanr(y_test, y_pred)
+
         mse = np.mean((y_test - y_pred)**2)
+        print(f"Sparsity: {sparsity}, R2 Score: {r2_score}, Spearman Correlation: {spearman_corr}, MSE: {mse}")
         
         results.append({
             "active_features": active_features,
             "sparsity": sparsity,
             "r2_score": r2_score,
             "mse": mse,
+            "spearman_corr": spearman_corr,
         })
     
     # Select best model based on R² score
@@ -164,11 +186,12 @@ def test_linear_probe(probes, test_features, test_labels, threshold=None):
         r2_score = probe.score(test_features, test_labels)
         mse = np.mean((test_labels - predictions)**2)
         mae = np.mean(np.abs(test_labels - predictions))
-        
+        spearman_corr, _ = spearmanr(test_labels, predictions)
         results.append({
             "r2_score": r2_score,
             "mse": mse,
-            "mae": mae
+            "mae": mae,
+            "spearman_corr": spearman_corr,
         })
         
     return results
@@ -194,6 +217,7 @@ def display_training_results(results):
     table.add_column("Sparsity", [result.get("sparsity", 0) for result in results])
     table.add_column("R2 Score", [result.get("r2_score", 0) for result in results])
     table.add_column("MSE", [result.get("mse", 0) for result in results])
+    table.add_column("Spearman Correlation", [result.get("spearman_corr", 0) for result in results])
     return table
     
 
@@ -207,7 +231,7 @@ def display_testing_results(results):
     table.add_column("R2 Score", [result.get("r2_score", 0) for result in results])
     table.add_column("MSE", [result.get("mse", 0) for result in results])
     table.add_column("MAE", [result.get("mae", 0) for result in results])
-
+    table.add_column("Spearman Correlation", [result.get("spearman_corr", 0) for result in results])
 
 
     
@@ -226,7 +250,7 @@ def save_results_to_file(train_table, test_table, filename="results.txt"):
         test_table: PrettyTable object containing testing results
         filename: Name of the file to save results to
     """
-    output_path = f"/users/nferruz/gboxo/sae_oracle/{filename}"
+    output_path = f"/home/woody/b114cb/b114cb23/boxo/sae_oracle/{filename}"
     
     with open(output_path, "w") as f:
         f.write(str(train_table) + "\n\n")
@@ -234,11 +258,11 @@ def save_results_to_file(train_table, test_table, filename="results.txt"):
     
     print(f"Results saved to {output_path}")
 
-def main(model, jump_relu, tokenizer):
+def main():
     df = get_data()
     sequences = df["mutated_sequence"].values
-    features = get_all_features(model, jump_relu, tokenizer, sequences)
-    obtain_features(df, features)
+    #features = get_all_features(model, jump_relu, tokenizer, sequences)
+    #obtain_features(df, features)
     train_features, test_features, train_labels, test_labels = load_features()
     probes, results = train_linear_probe(train_features, test_features, train_labels, test_labels)
     train_table = display_training_results(results)
@@ -252,7 +276,7 @@ def main(model, jump_relu, tokenizer):
 
 if __name__ == "__main__":
 
-    if True:
+    if False:
         model_path = "AI4PD/ZymCTRL"
         sae_path="/users/nferruz/gboxo/SAE_2025_04_02_32_15360_25/sae_training_iter_0/final/"
 
@@ -268,4 +292,4 @@ if __name__ == "__main__":
         del sae
         torch.cuda.empty_cache()
 
-    main(model, jump_relu, tokenizer)
+    main()

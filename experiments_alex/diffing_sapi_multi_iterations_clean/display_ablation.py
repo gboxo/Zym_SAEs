@@ -64,13 +64,13 @@ def load_original_distributions(joined_df_dir: str) -> pd.DataFrame:
 
 if __name__ == "__main__":
     # 1) read ablation predictions
-    BASE_AB = "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS_clean/ablation_with_all/importance"
+    BASE_AB = "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/clipping_with_all/importance"
     ab_df = join_ablation_csvs(BASE_AB)
     print(ab_df)
     ab_df.to_csv("all_ablation_preds.csv", index=False)
 
     # 2) read original distributions
-    BASE_ORIG = "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS_clean/joined_dataframes"
+    BASE_ORIG = "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/joined_dataframes"
     orig_df = load_original_distributions(BASE_ORIG)
 
     # 3) precompute MC sample‐means for each model
@@ -81,6 +81,8 @@ if __name__ == "__main__":
             draw = np.random.choice(vals, size=SAMPLE_SIZE, replace=False)
             mc_frames.append({"model_it": model, "mean_value": draw.mean()})
     mc_df = pd.DataFrame(mc_frames)
+
+    os.makedirs("/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/figures_ablation", exist_ok=True)
 
     # 4) Compute the per‐file mean of prediction1 & prediction2
     df_mean = (
@@ -134,7 +136,7 @@ if __name__ == "__main__":
         ax.set_xticks([0, 1, 2])
         ax.set_xticklabels(["pos", "neg", "original"])
     plt.tight_layout()
-    plt.savefig("ablation_split_with_mc_original_all.png")
+    plt.savefig("/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/figures_ablation/clipping_split_with_mc_original_all.png")
 
     # 7) Add a 'pred_avg' column and plot that
     df_mean["pred_avg"] = df_mean[["prediction1","prediction2"]].mean(axis=1)
@@ -167,7 +169,7 @@ if __name__ == "__main__":
         ax.set_xticks([0, 1, 2])
         ax.set_xticklabels(["pos", "neg", "original"])
     plt.tight_layout()
-    plt.savefig("ablation_avg_with_mc_original_all.png")
+    plt.savefig("/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/figures_ablation/clipping_avg_with_mc_original_all.png")
 
     print("Wrote plots → ablation_split_with_mc_original.png, ablation_avg_with_mc_original.png")
 
@@ -243,7 +245,7 @@ if __name__ == "__main__":
         ax.set_xticklabels(labels, rotation=90)
 
     plt.tight_layout()
-    plt.savefig("ablation_split_violins_with_base_all.png")
+    plt.savefig("/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/figures_ablation/clipping_split_violins_with_base_all.png")
 
     # 1) compute per‐index average
     ab_df["pred_avg"] = (ab_df["prediction1"] + ab_df["prediction2"]) / 2
@@ -310,5 +312,5 @@ if __name__ == "__main__":
 
     g.set_titles(row_template="{row_name}", col_template="Model {col_name}")
     plt.tight_layout()
-    plt.savefig("ablation_avg_with_mc_base_fixed_all.png", dpi=150)
+    plt.savefig("/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/figures_ablation/clipping_avg_with_mc_base_fixed_all.png", dpi=150)
     plt.show()

@@ -1,9 +1,8 @@
 import torch
 import pandas as pd
-from datasets import load_from_disk
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
+import os
 # KL Divergence
 from torch.nn import functional as F
 from src.utils import load_model, get_ht_model
@@ -29,17 +28,23 @@ dpo_model_config.attn_implementation = "eager"
 dpo_model_config.d_model = 5120
 dpo_model = get_ht_model(dpo_model, dpo_model_config)
 
+#with open("/home/woody/b114cb/b114cb23/boxo/database_3.2.1.1.fasta", "r") as f:
+#    dataset = f.read()
+#    dataset = dataset.split("\n")
+#    new_dataset = []
+#    for line in dataset:
+#        if line.startswith(">"):
+#            continue
+#        else:
+#            new_dataset.append(line)
+#new_dataset = new_dataset[:100]
 
-dataset_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_concat_train/new_dataset_concat_train"
+with open("/home/woody/b114cb/b114cb23/boxo/kl_divergence/dataset.txt", "r") as f:
+    new_dataset = f.read().split("\n")
 
-
-dataset = load_from_disk(dataset_path)
-
-
-
-
-
-
+dataset = [tokenizer.encode("3.2.1.1<sep><start>"+line+"<end>", return_tensors="pt", max_length=1024, truncation=True, padding="max_length") for line in new_dataset]
+# Torch tensor of shape (num_samples, seq_len)
+dataset = torch.stack(dataset)  
 
 
 
@@ -54,13 +59,6 @@ dpo_model.to(device)
 base_model.eval()
 dpo_model.eval()
 
-# Select the first 100 samples
-num_samples = 100
-if len(dataset) < num_samples:
-    print(f"Warning: Dataset has only {len(dataset)} samples. Using all of them.")
-    num_samples = len(dataset)
-
-subset_dataset = dataset.select(range(num_samples))
 
 # Create a DataLoader
 batch_size = 16 # Adjust based on your GPU memory
@@ -83,18 +81,18 @@ pad_token_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else
 print(f"Using Pad Token ID: {pad_token_id}")
 
 
-print(f"Calculating KL divergence and Loss for {num_samples} samples...")
+print(f"Calculating KL divergence and Loss for {len(dataset)} samples...")
 with torch.no_grad():
     # Use enumerate to get batch index
-    for batch_idx in tqdm(range(0, num_samples, batch_size)):
+    for batch_idx in tqdm(range(0, len(dataset), batch_size)):
         # Ensure we don't go beyond num_samples
-        end_idx = min(batch_idx + batch_size, num_samples)
+        end_idx = min(batch_idx + batch_size, len(dataset))
         if batch_idx >= end_idx: continue # Skip if batch is empty
 
-        tensors = [torch.tensor(elem) for elem in subset_dataset[batch_idx:end_idx]['input_ids']]
+        tensors = [torch.tensor(elem) for elem in dataset[batch_idx:end_idx]]
         # Handle potential empty list if end_idx == batch_idx
         if not tensors: continue
-        input_ids = torch.stack(tensors).to(device)
+        input_ids = torch.stack(tensors).to(device)[:,0]
         # print(input_ids.shape) # Debug print
         # Target tokens are shifted versions of input_ids
         target_ids = input_ids[:, 1:].contiguous() # Shape: (batch_size, seq_len-1)
@@ -202,8 +200,9 @@ print(results_df.head()) # Print the first few rows
 print(f"\nDataFrame shape: {results_df.shape}")
 
 # Optional: Save the DataFrame to a CSV file
-# results_df.to_csv("kl_loss_per_token.csv", index=False)
-# print("\nDataFrame saved to kl_loss_per_token.csv")
+os.makedirs("/home/woody/b114cb/b114cb23/boxo/kl_divergence", exist_ok=True)
+results_df.to_csv("/home/woody/b114cb/b114cb23/boxo/kl_divergence/kl_loss_per_token.csv", index=False)
+print("\nDataFrame saved to kl_loss_per_token.csv")
 
 
 # --- Optional: Calculate and print overall averages (as before) ---
@@ -230,7 +229,7 @@ plt.title("Distribution of KL Divergence")
 plt.xlim(0, 1)
 plt.xlabel("KL Divergence")
 plt.ylabel("Frequency")
-plt.savefig("experiments_alex/kl_divergence/kl_divergence_distribution.png")
+plt.savefig("/home/woody/b114cb/b114cb23/boxo/kl_divergence/kl_divergence_distribution.png")
 plt.close()
 
 

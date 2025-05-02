@@ -1,6 +1,6 @@
   paths:
     model_path: /home/woody/b114cb/b114cb23/DPO_clean_amylase_run_SAPI_only_gerard/output_iteration15
-    sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS_clean/M3_D3/diffing/
+    sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M3_D3/diffing/
     out_dir: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/latent_scoring/latent_scoring_3/
     cs_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/cs_data/all_cs.pt"
     df_path: "/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/joined_dataframes/dataframe_all_iteration{iteration_num}.csv"

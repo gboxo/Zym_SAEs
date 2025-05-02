@@ -25,18 +25,17 @@ def get_non_zero_indices(scoring):
 scoring_dict = {}
 
 for i in [1,2,3,4]:
-    latent_scoring_path = f"/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/latent_scoring/"
-    with open(f"{latent_scoring_path}/latent_scoring_{i}_bm/important_features_topk/important_features_topk_pos_M0_D{i}.pkl", "rb") as f:
+    latent_scoring_path = f"/home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/latent_scoring/"
+    with open(f"{latent_scoring_path}/latent_scoring_{i}_bm/important_features/important_features_pos_M0_D{i}.pkl", "rb") as f:
         scoring_bm = pickle.load(f)
-    #non_zero_coefs_bm = get_non_zero_indices(scoring_bm)
-    non_zero_coefs_bm = scoring_bm[0]
+    non_zero_coefs_bm = scoring_bm["unique_coefs"]
     
 
 
-    with open(f"{latent_scoring_path}/latent_scoring_{i}_rl/important_features_topk/important_features_topk_pos_M{i}_D{i}.pkl", "rb") as f:
+    with open(f"{latent_scoring_path}/latent_scoring_{i}/important_features/important_features_pos_M{i}_D{i}.pkl", "rb") as f:
         scoring_rl = pickle.load(f)
     #non_zero_coefs_rl = get_non_zero_indices(scoring_rl)
-    non_zero_coefs_rl = scoring_rl[0]
+    non_zero_coefs_rl = scoring_rl["unique_coefs"]
 
     scoring_dict[i] = (non_zero_coefs_bm, non_zero_coefs_rl)
 
@@ -55,17 +54,17 @@ base_sae_dec = base_sae["model_state_dict"]["W_dec"]
 
 cs_dict = [] 
 
-for i in range(0, 5):
-    bm_sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M0_D{i+1}/diffing/checkpoint_latest.pt"
+for i in range(1, 5):
+    bm_sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M0_D{i+1}/diffing/checkpoint_latest.pt"
     bm_sae = torch.load(bm_sae_path)
-    bm_threshold = torch.load(f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M0_D{i+1}/diffing/thresholds.pt")
+    bm_threshold = torch.load(f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M0_D{i+1}/diffing/thresholds.pt")
     bm_threshold = bm_threshold.cpu().numpy()
     # Inpute nan values with 0
     bm_threshold = np.nan_to_num(bm_threshold, nan=0)
 
-    rl_sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M{i}_D{i}/diffing/checkpoint_latest.pt"
+    rl_sae_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M{i}_D{i}/diffing/checkpoint_latest.pt"
     rl_sae = torch.load(rl_sae_path)
-    rl_threshold = torch.load(f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_from_DMS/M{i}_D{i}/diffing/thresholds.pt")
+    rl_threshold = torch.load(f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/diffing_sapi_multi_iterations_clean/M{i}_D{i}/diffing/thresholds.pt")
     rl_threshold = rl_threshold.cpu().numpy()
     # Inpute nan values with 0
     rl_threshold = np.nan_to_num(rl_threshold, nan=0)

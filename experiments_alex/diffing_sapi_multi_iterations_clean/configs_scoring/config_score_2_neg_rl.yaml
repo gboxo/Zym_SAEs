@@ -1,6 +1,6 @@
 paths:
-  seqs_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/ablation_with_all/importance/M2_D2_neg
-  output_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_from_DMS/ablation_with_all/importance/M2_D2_neg/activity_predictions_neg.csv
+  seqs_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/ablation_with_all/importance/M2_D2_neg
+  output_path: /home/woody/b114cb/b114cb23/boxo/diffing_sapi_multi_iterations_clean/ablation_with_all/importance/M2_D2_neg/activity_predictions_neg.csv
   oracle_path1: "/home/woody/b114cb/b114cb23/models/esm2_t33_650M_UR50D"
   checkpoint_path1: "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRa_esm2_3B/esm_GB1_finetuned.pth"
   oracle_path2: "/home/woody/b114cb/b114cb23/models/esm1v_t33_650M_UR90S_1"

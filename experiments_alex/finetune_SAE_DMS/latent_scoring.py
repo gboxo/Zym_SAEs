@@ -56,14 +56,14 @@ def get_all_features(model, sae, tokenizer, sequences):
         torch.cuda.empty_cache()
     return all_features
 
-def obtain_features(df, output_dir):
+def obtain_features(sequences, mutant, output_dir):
     """
     Obtain features from natural sequences
     """
-    sequences = df["mutated_sequence"].tolist()
     features = get_all_features(model,jump_relu, tokenizer, sequences)
+    features_dict = dict(zip(mutant, features))
     os.makedirs(f"{output_dir}/features", exist_ok=True)
-    pkl.dump(features, open(f"{output_dir}/features/features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
+    pkl.dump(features_dict, open(f"{output_dir}/features/features_M{model_iteration}_D{data_iteration}.pkl", "wb"))
     del features
     torch.cuda.empty_cache()
 
@@ -73,6 +73,7 @@ def load_features(path):
     """
     assert path.endswith(".pkl"), "File must end with .pkl"
     features = pkl.load(open(path, "rb"))
+
     return features
 
 def get_mean_features(features):
@@ -112,7 +113,7 @@ def fit_lr_probe(X_train, y_train, X_test, y_test):
     results = []
     probes =[]
     for sparsity in tqdm(np.logspace(-4.5, -3, 10)):
-        lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1)
+        lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1, max_iter=10000)
         lr_model.fit(X_train, y_train)
         coefs = lr_model.coef_
         active_features = np.where(coefs != 0)[1]
@@ -220,7 +221,6 @@ if __name__ == "__main__":
 
 
 
-
     
     
     # Create the directories
@@ -236,6 +236,18 @@ if __name__ == "__main__":
     
     assert os.path.exists(df_path), "Dataframe does not exist"
     df = pd.read_csv(df_path)
+    sequences = df["mutated_sequence"].tolist()
+    activity = df["activity_dp7"].tolist()
+    mutant = df["mutant"].tolist()
+    
+    activity = np.array(activity)
+    activity_is_nan = np.isnan(activity)
+    activity = activity[~activity_is_nan]
+    mutant = np.array(mutant)
+    mutant = [mutant[i] for i in range(len(mutant)) if not activity_is_nan[i]]
+    sequences = [sequences[i] for i in range(len(sequences)) if not activity_is_nan[i]]
+
+
 
     if False:
         cfg, sae = load_sae(sae_path)
@@ -250,9 +262,16 @@ if __name__ == "__main__":
         model = get_ht_model(model, model.config).to("cuda")
         torch.cuda.empty_cache()
 
-        obtain_features(df, output_dir)
+        obtain_features(sequences, mutant, output_dir)
 
-    features = load_features(f"{output_dir}/features/features_M{model_iteration}_D{data_iteration}.pkl")
+    dict_features = load_features(f"{output_dir}/features/features_M{model_iteration}_D{data_iteration}.pkl")
+    activity = [df[df["mutant"] == key]["activity_dp7"].values[0] for key in dict_features.keys()]
+    activity = np.array(activity)
+    print(activity.shape)
+    features = list(dict_features.values())
+    print(len(features))
+
+
     f_rates = firing_rates(features, output_dir)
 
     # Plot the histogram of the firing rates
@@ -263,53 +282,33 @@ if __name__ == "__main__":
 
 
     mean_features = get_mean_features(features)[:,0]
-    
-    activity = df["activity_dp7"].tolist()
-    
-    activity = np.array(activity)
-    activity_is_nan = np.isnan(activity)
-    activity = activity[~activity_is_nan]
-    sequences = df["mutated_sequence"].tolist()
-    print(mean_features.shape)
-    mean_features = mean_features[~activity_is_nan]
-    print(mean_features.shape)
 
+    
 
-    def get_thresholds_and_directions(thresholds):
-        thresholds_pos = {}
-        thresholds_neg = {}
-        for key, value in thresholds.items():
-            thresholds_pos[key] = value["upper"]
-            thresholds_neg[key] = value["lower"]
-        return thresholds_pos, thresholds_neg
 
     def get_empirical_thresholds(activity):
         """
         For each value compute the 0.25 and 0.75 percentile and use it as the lower and upper threshold
         """
-        activity_quantiles = np.percentile(activity, [25, 75])
+        activity_quantiles = np.percentile(activity, 95)
         thresholds_pos = {
-            "pred": activity_quantiles[0],
+            "pred": activity_quantiles,
         }
-        thresholds_neg = {
-            "pred": activity_quantiles[1],
-        }
-        return thresholds_pos, thresholds_neg
+        return thresholds_pos
 
 
 
     
     # Get the empirical thresholds
-    thresholds_pos, thresholds_neg = get_empirical_thresholds(activity)
+    thresholds_pos = get_empirical_thresholds(activity)
+    print(thresholds_pos)
 
 
 
     importance_features_pos = analyze_important_features(mean_features, activity, thresholds_pos, "upper")
-    importance_features_neg = analyze_important_features(mean_features, activity, thresholds_neg, "lower")
+
 
 
     os.makedirs(f"{output_dir}/important_features", exist_ok=True)
     with open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}.pkl", "wb") as f:
         pkl.dump(importance_features_pos, f)
-    with open(f"{output_dir}/important_features/important_features_neg_M{model_iteration}_D{data_iteration}.pkl", "wb") as f:
-        pkl.dump(importance_features_neg, f)

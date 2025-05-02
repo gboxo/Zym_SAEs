@@ -9,15 +9,15 @@ mkdir -p "$output_dir"
 echo "Starting latent scoring..."
 
 
-for dir in pos neg; do
+for dir in pos ; do
 
 
   model_path="/home/woody/b114cb/b114cb23/models/ZymCTRL/"
 
 
   sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/"
-  top_features_path="/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/latent_scoring/latent_scoring_0/important_features/important_features_${dir}_M0_D0.pkl"
-  out_dir="/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/ablation_with_all/importance/M0_D0_${dir}"
+  top_features_path="/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/latent_scoring/latent_scoring_0_new/important_features/important_features_${dir}_M0_D0.pkl"
+  out_dir="/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/ablation_with_all/importance/M0_D0_${dir}_new"
 
   # 4b) Generate config for the ablation‐sequence generator
   gen_cfg="$output_dir/config_generate_0_${dir}_rl.yaml"
@@ -38,15 +38,15 @@ EOL
     --cfg_path "$gen_cfg"
   done
 
-for dir in pos neg; do
+for dir in pos ; do
 
   # 4a) Build all of the dynamic paths
   model_path="/home/woody/b114cb/b114cb23/models/ZymCTRL/"
 
 
   sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/M0_D0/diffing/"
-  top_features_path="/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/latent_scoring/latent_scoring_0/important_features/important_features_${dir}_M0_D0.pkl"
-  out_dir="/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/ablation_with_all/importance/M0_D0_${dir}"
+  top_features_path="/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/latent_scoring/latent_scoring_0_new/important_features/important_features_${dir}_M0_D0.pkl"
+  out_dir="/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/ablation_with_all/importance/M0_D0_${dir}_new"
 
 
   # 5) Now score those ablated sequences

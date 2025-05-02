@@ -1,4 +1,3 @@
-
 from argparse import ArgumentParser
 from src.tools.generate.generate_utils import load_config
 from sae_lens import HookedSAETransformer, SAE, SAEConfig
@@ -7,54 +6,92 @@ from functools import partial
 import torch
 import os
 import pickle as pkl
+import numpy as np
 from tqdm import tqdm
 
-def clipping(activations:torch.Tensor, hook, clipping_feature:list[int],clipping_value:float = 5.0):
+# Dictionary to store mask activation counts for each generation
+mask_activations = {}
+
+def clipping(activations:torch.Tensor, hook, clipping_feature:list[int], clipping_value:float = 5.0, generation_idx=None):
+
     # Check prompt processing
     if activations.shape[1] > 1:
+        # Not a generation step, just processing the entire prompt
+        # We don't need to record this
         pass
     else:
-        # Where feature value is > 0, set it to 5
+        # Where feature value is > 0, set it to clipping_value
         mask = activations[:,:,clipping_feature] > 0
+        
+        # Store mask information if we're in generation mode
+        if generation_idx is not None:
+            # Convert mask to CPU and detach from computation graph
+            mask_cpu = mask.cpu().detach().numpy()
+            
+            # For each sample in the batch
+            for i in range(mask_cpu.shape[0]):
+                sample_key = f"sample_{i}"
+                if sample_key not in mask_activations[generation_idx]:
+                    mask_activations[generation_idx][sample_key] = []
+                
+                # Store whether mask was activated (1) or not (0) for this position
+                # mask_cpu has shape [batch_size, 1, num_features]
+                mask_activations[generation_idx][sample_key].append(mask_cpu[i, 0].tolist())
+        
+        # Apply the clipping
         activations[:,:,clipping_feature] = torch.where(mask, clipping_value, activations[:,:,clipping_feature])
     
     return activations
 
 
-
-
-def generate_with_clipping(model: HookedSAETransformer, sae: SAE, prompt: str, clipping_feature: int, clipping_value: float = 5.0, max_new_tokens=256, n_samples=10):
+def generate_with_clipping(model: HookedSAETransformer, sae: SAE, prompt: str, clipping_feature: int, 
+                          clipping_value: float = 5.0, max_new_tokens=256, n_samples=10, generation_idx=None):
+    global mask_activations
+    
+    # Initialize dictionary to store mask activations for this generation
+    if generation_idx is not None:
+        mask_activations[generation_idx] = {}
+    
     input_ids = model.to_tokens(prompt, prepend_bos=sae.cfg.prepend_bos)
     input_ids_batch = input_ids.repeat(n_samples, 1)
     
-
-    all_outputs = []
-
     clipping_hook = partial(
         clipping,
         clipping_feature=clipping_feature,
         clipping_value=clipping_value,
+        generation_idx=generation_idx
     )
     
-    #for i in range(n_samples):
-
-    # standard transformerlens syntax for a hook context for generation
-    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_pre', clipping_hook)]):
+    # Use hooks for generation
+    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_post', clipping_hook)]):
         output = model.generate(
             input_ids_batch, 
-            top_k=9, #tbd
+            top_k=9,
             max_new_tokens=max_new_tokens,
             eos_token_id=1,
             do_sample=True,
             verbose=False,
-            ) # Depending non your GPU, you'll be able to generate fewer or more sequences. This runs in an A40.
+        )
     
+    # Decode outputs
     all_outputs = model.tokenizer.batch_decode(output)
     all_outputs = [o.replace("<|endoftext|>", "") for o in all_outputs]
-
+    
+    # Process the mask activation records to match output sequence lengths
+    if generation_idx is not None:
+        prompt_length = input_ids.shape[1]
+        for i in range(n_samples):
+            sample_key = f"sample_{i}"
+            if sample_key in mask_activations[generation_idx]:
+                # Get actual sequence length (excluding padding)
+                seq_length = (output[i] != model.tokenizer.pad_token_id).sum().item()
+                # Only keep mask activations for actual generated tokens (excluding prompt)
+                generated_length = seq_length - prompt_length
+                if generated_length > 0:  # Ensure we generated at least one token
+                    # Keep only the first 'generated_length' elements
+                    mask_activations[generation_idx][sample_key] = mask_activations[generation_idx][sample_key][:generated_length]
 
     return all_outputs
-
 
 
 cfg = SAEConfig(
@@ -95,8 +132,10 @@ if __name__ == "__main__":
     sae_path = config["paths"]["sae_path"]
     top_features_path = config["paths"]["top_features_path"]
     out_dir = config["paths"]["out_dir"]
-
-
+    
+    # Directory for mask activations data
+    mask_dir = os.path.join(out_dir, "mask_activations")
+    os.makedirs(mask_dir, exist_ok=True)
 
     cfg_sae, sae = load_sae(sae_path)
     thresholds = torch.load(sae_path+"/percentiles/feature_percentile_50.pt")
@@ -104,7 +143,6 @@ if __name__ == "__main__":
     state_dict = sae.state_dict()
     state_dict["threshold"] = thresholds
     del sae
-
 
     sae = SAE(cfg)
     sae.load_state_dict(state_dict)
@@ -119,20 +157,43 @@ if __name__ == "__main__":
     x = important_features["coefs"][0]
     feature_indices = important_features["unique_coefs"]
         
-
     prompt = "3.2.1.1<sep><start>"
-
-
     os.makedirs(out_dir, exist_ok=True)
 
-    for clipping_feature in tqdm(feature_indices):
-        out = generate_with_clipping(model, sae, prompt, clipping_feature, max_new_tokens=1014, n_samples=20)
+    for i, clipping_feature in enumerate(tqdm(feature_indices)):
+        # Use index as generation_idx to track mask activations for this feature
+        generation_idx = f"feature_{clipping_feature}"
+        out = generate_with_clipping(model, sae, prompt, clipping_feature, 
+                                    max_new_tokens=1014, n_samples=20, 
+                                    generation_idx=generation_idx)
+        
+        # Save generated sequences
         with open(f"{out_dir}/clipping_feature_{clipping_feature}.txt", "w") as f:
-            for i, o in enumerate(out):
-                f.write(f">3.2.1.1_{i},"+o+"\n")
-    out = generate_with_clipping(model, sae, prompt, feature_indices, max_new_tokens=1014, n_samples=20)
+            for j, o in enumerate(out):
+                f.write(f">3.2.1.1_{j},"+o+"\n")
+        
+        # Save mask activation data for this feature
+        with open(f"{mask_dir}/mask_activations_feature_{clipping_feature}.pkl", "wb") as f:
+            pkl.dump(mask_activations[generation_idx], f)
+        
+        # Clear mask_activations entry to save memory
+        del mask_activations[generation_idx]
+
+    # Generate with all features
+    generation_idx = "feature_all"
+    out = generate_with_clipping(model, sae, prompt, feature_indices, 
+                                max_new_tokens=1014, n_samples=20, 
+                                generation_idx=generation_idx)
+    
+    # Save generated sequences
     with open(f"{out_dir}/clipping_feature_all.txt", "w") as f:
         for i, o in enumerate(out):
             f.write(f">3.2.1.1_{i},"+o+"\n")
+    
+    # Save mask activation data for all features
+    with open(f"{mask_dir}/mask_activations_feature_all.pkl", "wb") as f:
+        pkl.dump(mask_activations[generation_idx], f)
+
+# Clean up
 del model, sae 
 torch.cuda.empty_cache()

@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Monte Carlo parameters
-SAMPLE_N = 1500      # how many replicate draws
-SAMPLE_SIZE = 2    # how many activities per draw
+# SAMPLE_N = 1500      # how many replicate draws
+# SAMPLE_SIZE = 2    # how many activities per draw
 
 def join_results_csvs(base_path: str) -> pd.DataFrame:
     """
@@ -38,6 +38,19 @@ def join_results_csvs(base_path: str) -> pd.DataFrame:
             df["dir_it"]   = dir_it
             # Add 'name' column based on filename/folder if needed for grouping later
             # Example: df['name'] = folder # Or extract from CSV if available
+
+            # Attempt to add 'name' from filename if not present
+            if 'name' not in df.columns:
+                 # Try to extract feature name like 'F4_D4' from 'M4_F4_D4_pos'
+                 parts = folder.split('_')
+                 if len(parts) >= 3: # Assuming structure like M*_F*_D*_dir
+                     feature_name = "_".join(parts[1:-1]) # Join middle parts like F4_D4
+                     df['name'] = feature_name
+                 else:
+                     # Fallback if name extraction fails
+                     print(f"Warning: Could not extract feature 'name' from folder {folder}. Using index placeholder.")
+                     df['name'] = f'feature_{df.index.astype(str)}'
+
             frames.append(df)
         else:
             print(f"Warning: Expected CSV not found: {csv_path}")
@@ -52,88 +65,85 @@ def join_results_csvs(base_path: str) -> pd.DataFrame:
 
 def load_original_distributions(dms_data_dir: str) -> pd.DataFrame:
     """
-    Load the 'original' CSVs from joined_dataframes/, extract iteration & prediction,
+    Load the 'original' CSVs, extract iteration & prediction,
     and return a DataFrame with columns ['model_it','prediction'].
     """
     df = pd.read_csv(dms_data_dir)
+    # Assuming 'activity_dp7' is the column for the original distribution
+    # And 'model_it' needs to be defined or inferred. Here, assigning 'M1' as placeholder.
+    # Adjust if your original data CSV has a model identifier.
+    if 'activity_dp7' not in df.columns:
+        print(f"Error: 'activity_dp7' column not found in {dms_data_dir}")
+        return pd.DataFrame()
+
     activity_dp7 = df["activity_dp7"]
     activity_dp7_no_nan = activity_dp7.dropna()
     df_new = pd.DataFrame()
     df_new["prediction"] = activity_dp7_no_nan
-    df_new["model_it"] = "M0"
+    # Assign a default model identifier if not present in the source CSV
+    # If your CSV has a column indicating the model, use that instead.
+    df_new["model_it"] = "M1" # Or extract/map from another column if available
     return df_new
 
 
 
 if __name__ == "__main__":
     # Define base paths
-    BASE_CLIP = "/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/clipping_with_all/importance/"
+    BASE_CLIP = "/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/steering/steering/"
     BASE_ORIG = "/home/woody/b114cb/b114cb23/boxo/alpha-amylase-training-data.csv"
-    FIG_DIR   = "/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/figures_clipping"
-    ALL_PREDS_CSV = os.path.join(FIG_DIR, "all_clipping_preds.csv")
-
+    FIG_DIR   = "/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/steering_figures/"
+    ALL_PREDS_CSV = os.path.join(FIG_DIR, "all_steering_preds_pos_only.csv")
     os.makedirs(FIG_DIR, exist_ok=True)
+
 
     # 1) read clipping predictions
     clip_df = join_results_csvs(BASE_CLIP)
-    print("Clipping DataFrame:")
-    print(clip_df)
-    clip_df.to_csv(ALL_PREDS_CSV, index=False)
-    print(f"Saved all clipping predictions to {ALL_PREDS_CSV}")
+
+    print("Clipping DataFrame (raw):")
+    print(clip_df.head())
+    # clip_df.to_csv(ALL_PREDS_CSV, index=False) # Maybe save before filtering?
+    # print(f"Saved all clipping predictions to {ALL_PREDS_CSV}")
 
     # 2) read original distributions
     orig_df = load_original_distributions(BASE_ORIG)
+    if orig_df.empty:
+        print("\nOriginal DataFrame is empty or could not be loaded. Exiting.")
+        exit()
     print("\nOriginal DataFrame:")
-    print(orig_df)
+    print(orig_df.head())
 
     # Check if clip_df is empty before proceeding
     if clip_df.empty:
-        print("\nClipping DataFrame is empty. Cannot proceed with plotting.")
+        print("\nClipping DataFrame is empty. Cannot proceed.")
         exit()
 
-    # Check for required columns after loading
-    required_cols = ["model_it", "dir_it", "prediction1", "prediction2"]
+    # Filter to keep only 'pos' direction
+    clip_df = clip_df[clip_df['dir_it'] == 'pos'].copy()
+    print("\nClipping DataFrame (filtered for 'pos' direction):")
+    if 'name' not in clip_df.columns:
+        print("\nError: 'name' column missing after loading/filtering clipping data.")
+        exit()
+    print(clip_df.head())
+
+    # Save the filtered 'pos' predictions
+    clip_df.to_csv(ALL_PREDS_CSV, index=False)
+    print(f"Saved 'pos' clipping predictions to {ALL_PREDS_CSV}")
+
+    # Check if clip_df is empty after filtering
+    if clip_df.empty:
+        print("\nClipping DataFrame is empty after filtering for 'pos'. Cannot proceed.")
+        exit()
+
+    # Check for required columns
+    required_cols = ["model_it", "dir_it", "name", "prediction1", "prediction2"]
     if not all(col in clip_df.columns for col in required_cols):
         print(f"\nError: Clipping DataFrame missing required columns. Found: {clip_df.columns}. Required: {required_cols}")
         exit()
-    # Add 'name' column if it's missing and needed for grouping.
-    # This depends on how join_results_csvs populates it or if it's needed.
-    # If 'name' is derived from the CSV filename (e.g., feature ID), it needs adding in join_results_csvs.
-    # For now, assuming 'name' might come from the CSV or isn't strictly needed for the first plots.
-    # If groupby fails later, this is the place to check.
-    if "name" not in clip_df.columns:
-         print("\nWarning: 'name' column not found in clipping DataFrame. Grouping might be affected.")
-         # Add a placeholder if necessary, e.g., clip_df['name'] = 'default_name'
-         # Or ensure it's correctly added during CSV loading/joining.
-         # For the first plots (6, 7), 'name' is used in groupby. Let's add a placeholder for now.
-         # A better approach is to extract it properly in join_results_csvs if possible.
-         clip_df['name'] = 'feature_' + clip_df.index.astype(str) # Example placeholder
-
-
-    # 3) precompute MC sample‐means for each model (using original data)
-    mc_frames = []
-    for model in orig_df["model_it"].unique():
-        vals = orig_df.loc[orig_df["model_it"] == model, "prediction"].values
-        if len(vals) < SAMPLE_SIZE:
-             print(f"Warning: Not enough original data points for model {model} to sample {SAMPLE_SIZE}. Skipping MC.")
-             continue
-        for _ in range(SAMPLE_N):
-            draw = np.random.choice(vals, size=SAMPLE_SIZE, replace=False)
-            mc_frames.append({"model_it": model, "mean_value": draw.mean()})
-    mc_df = pd.DataFrame(mc_frames)
-    print("\nMC Sample Means DataFrame:")
-    print(mc_df)
-
 
     # 4) Compute the per‐file mean of prediction1 & prediction2 from clipping data
-    # Ensure 'name' column exists for grouping
-    if "name" not in clip_df.columns:
-       print("\nError: 'name' column required for grouping is missing.")
-       exit()
-
     df_mean = (
         clip_df
-        .groupby(["model_it","dir_it","name"], as_index=False)
+        .groupby(["model_it","dir_it","name"], as_index=False) # dir_it will always be 'pos'
         [["prediction1","prediction2"]]
         .mean()
     )
@@ -142,7 +152,7 @@ if __name__ == "__main__":
 
     # 5) Melt into long form for seaborn
     df_long = df_mean.melt(
-        id_vars=["model_it","dir_it"],
+        id_vars=["model_it","dir_it","name"], # Added 'name' here
         value_vars=["prediction1","prediction2"],
         var_name="pred_type",
         value_name="pred_value"
@@ -150,116 +160,145 @@ if __name__ == "__main__":
     print("\nLong Form DataFrame for Plot 1:")
     print(df_long)
 
-    # 6) Plot: one violin per pred_type, side‐by‐side, faceted by model & direction
+
+    # 6) Plot: violins for 'pos' mean preds, plus original distribution
     sns.set_theme(style="whitegrid")
     g = sns.catplot(
         data=df_long,
-        x="dir_it",        # pos / neg
-        y="pred_value",    # the mean prediction
+        x="dir_it",        # Will only be 'pos' (at x=0)
+        y="pred_value",
         hue="pred_type",   # prediction1 vs prediction2
-        col="model_it",    # M0, M1, …
+        col="model_it",
         kind="violin",
-        split=False,       # side‐by‐side violins
+        split=False,
         inner="quartile",
-        height=4, aspect=0.8,
-        palette="Set2"
+        height=4, aspect=0.9, # Adjusted aspect
+        palette="Set2",
+        legend=False # Disable default legend
     )
 
-    g.set_axis_labels("Direction", "Mean Prediction")
-    g.set_titles("Model = {col_name}")
-    g.add_legend(title="Type")
-
-    # overlay MC sample‐means at x=2
+    # Overlay individual points for 'pos' direction means
     for ax in g.axes.flatten():
-        title_text = ax.get_title()
-        if "=" in title_text:
-            model = title_text.split("=")[-1].strip()
-            samp = mc_df.loc[mc_df["model_it"] == model, "mean_value"]
-            if not samp.empty:
+        try:
+            model_it = ax.get_title().split("=")[-1].strip()
+            subset_data = df_long[(df_long['model_it'] == model_it)]
+            sns.stripplot(
+                data=subset_data, x="dir_it", y="pred_value", hue="pred_type",
+                ax=ax, dodge=True, jitter=0.15, color='black', size=2.5, alpha=0.6 # Increased size slightly
+            )
+
+            # Plot original distribution violin at x=1
+            orig_vals = orig_df.loc[orig_df["model_it"] == model_it, "prediction"]
+            if not orig_vals.empty:
                 sns.violinplot(
-                    x=np.full(len(samp), 2),
-                    y=samp,
+                    x=np.full(len(orig_vals), 1), # Plot at x=1
+                    y=orig_vals,
                     ax=ax,
                     color="lightgray",
                     inner="quartile",
                     width=0.6
                 )
-            ax.set_xticks([0, 1, 2])
-            ax.set_xticklabels(["pos", "neg", "original"])
-        else:
-             print(f"Warning: Could not parse model from title: {title_text}")
+                # Overlay original raw points
+                sns.stripplot(
+                    x=np.full(len(orig_vals), 1), # Plot points at x=1
+                    y=orig_vals,
+                    ax=ax,
+                    jitter=0.15,
+                    color='dimgray', # Different color for original points
+                    size=2.5,
+                    alpha=0.6
+                )
 
+            # Manually add legend for pred_type (handles first N elements)
+            handles, labels = ax.get_legend_handles_labels()
+            n_types = len(subset_data['pred_type'].unique())
+            if handles:
+                ax.legend(handles[:n_types], labels[:n_types], title="Type", loc='upper right')
+
+        except Exception as e:
+            print(f"Warning: Could not overlay elements for plot 1 axis {ax.get_title()}: {e}")
+
+    # Adjust axes and titles
+    g.set_axis_labels("Direction", "Mean Prediction") # X label broader now
+    g.set_titles("Model = {col_name}")
+
+    # Adjust ticks and labels for 'pos' and 'original'
+    for ax in g.axes.flatten():
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(["pos", "original"])
 
     plt.tight_layout()
-    plot1_path = os.path.join(FIG_DIR, "clipping_split_with_mc_original_all.png")
+    plot1_path = os.path.join(FIG_DIR, "steering_split_points_orig_pos_only.png") # Updated filename
     plt.savefig(plot1_path)
     print(f"\nSaved plot 1 to {plot1_path}")
 
-    # 7) Add a 'pred_avg' column and plot that
+
+    # 7) Plot average prediction for 'pos' plus original distribution
     df_mean["pred_avg"] = df_mean[["prediction1","prediction2"]].mean(axis=1)
     print("\nMean Predictions DataFrame with Average:")
     print(df_mean)
 
     h = sns.catplot(
         data=df_mean,
-        x="dir_it",
+        x="dir_it", # Will only be 'pos' (at x=0)
         y="pred_avg",
         col="model_it",
         kind="violin",
         inner="quartile",
-        height=4, aspect=0.8,
+        height=4, aspect=0.9, # Adjusted aspect
         color="lightblue"
     )
-    h.set_axis_labels("Direction", "Avg. Prediction")
+
+    # Overlay individual points for 'pos' averages and original raw data
+    for ax in h.axes.flatten():
+        try:
+            model_it = ax.get_title().split("=")[-1].strip()
+            subset_data = df_mean[(df_mean['model_it'] == model_it)]
+            # Stripplot for 'pos' averages
+            sns.stripplot(
+                data=subset_data, x="dir_it", y="pred_avg",
+                ax=ax, jitter=0.15, color='black', size=2.5, alpha=0.6
+            )
+
+            # Plot original distribution violin at x=1
+            orig_vals = orig_df.loc[orig_df["model_it"] == model_it, "prediction"]
+            if not orig_vals.empty:
+                sns.violinplot(
+                    x=np.full(len(orig_vals), 1), y=orig_vals, ax=ax,
+                    color="lightgray", inner="quartile", width=0.6
+                )
+                # Overlay original raw points
+                sns.stripplot(
+                    x=np.full(len(orig_vals), 1), y=orig_vals, ax=ax,
+                    jitter=0.15, color='dimgray', size=2.5, alpha=0.6
+                )
+
+        except Exception as e:
+            print(f"Warning: Could not overlay elements for plot 2 axis {ax.get_title()}: {e}")
+
+    h.set_axis_labels("Direction", "Avg. Prediction") # X label broader
     h.set_titles("Model = {col_name}")
 
+    # Adjust ticks and labels for 'pos' and 'original'
     for ax in h.axes.flatten():
-        title_text = ax.get_title()
-        if "=" in title_text:
-            model = title_text.split("=")[-1].strip()
-            samp = mc_df.loc[mc_df["model_it"] == model, "mean_value"]
-            if not samp.empty:
-                sns.violinplot(
-                    x=np.full(len(samp), 2),
-                    y=samp,
-                    ax=ax,
-                    color="lightgray",
-                    inner="quartile",
-                    width=0.6
-                )
-            ax.set_xticks([0, 1, 2])
-            ax.set_xticklabels(["pos", "neg", "original"])
-        else:
-             print(f"Warning: Could not parse model from title: {title_text}")
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(["pos", "original"])
 
     plt.tight_layout()
-    plot2_path = os.path.join(FIG_DIR, "clipping_avg_with_mc_original_all.png")
+    plot2_path = os.path.join(FIG_DIR, "steering_avg_points_orig_pos_only.png") # Updated filename
     plt.savefig(plot2_path)
     print(f"Saved plot 2 to {plot2_path}")
 
+
     # --- Plotting individual features ---
 
-    # 1) Load the joined clipping‐predictions CSV
-    #    It must contain: model_it, dir_it, name, index, prediction1, prediction2
-    #    Using clip_df loaded earlier
-    df_indiv = clip_df
+    # 1) Use the already filtered clip_df
+    df_indiv = clip_df # Contains only 'pos' direction
     print("\nDataFrame for Individual Feature Plots:")
     print(df_indiv.head())
 
-    # Check required columns for individual plots
-    required_cols_indiv = ["model_it", "dir_it", "name", "prediction1", "prediction2"]
-    if not all(col in df_indiv.columns for col in required_cols_indiv):
-        print(f"\nError: DataFrame for individual plots missing required columns. Found: {df_indiv.columns}. Required: {required_cols_indiv}")
-        exit()
-
-
     # 2) Melt to long form so that prediction1/2 become a single column
-    #    Need 'index' if it exists and is relevant, otherwise use existing columns
     id_vars_melt = ["model_it", "dir_it", "name"]
-    # Check if 'index' column exists, add if needed
-    # if 'index' in df_indiv.columns:
-    #    id_vars_melt.append('index')
-
     df_long_indiv = df_indiv.melt(
         id_vars=id_vars_melt,
         value_vars=["prediction1","prediction2"],
@@ -269,136 +308,110 @@ if __name__ == "__main__":
     print("\nLong Form DataFrame for Plot 3:")
     print(df_long_indiv.head())
 
-    # 3) Plot 1: split violins of pred1 vs pred2 *for each clipping feature*:
-    #    – facet by model_it (cols) and dir_it (rows)
-    #    – x-axis is the feature name ('name' column)
-    #    – hue is pred_type, split=True
+
+    # 3) Plot: split violins of pred1 vs pred2 *for each clipping feature*, plus original
     sns.set_theme(style="whitegrid")
+    feature_order = sorted(df_indiv["name"].unique())
     g_split = sns.catplot(
         data=df_long_indiv,
-        x="name",
-        y="pred_value",
-        hue="pred_type",
-        col="model_it",
-        row="dir_it",
-        kind="violin",
-        split=True,
-        inner="quartile",
-        height=3, aspect=1.5,
-        sharey=False,
-        palette="Set2",
-        order=sorted(df_indiv["name"].unique())
+        x="name", y="pred_value", hue="pred_type", col="model_it",
+        kind="violin", split=True, inner="quartile",
+        height=4, aspect=1.5, # Adjusted aspect for more space
+        sharey=False, palette="Set2",
+        order=feature_order, # Order for features
+        legend=False
     )
 
-    # Tidy up axis labels & titles
-    g_split.set_axis_labels("Clipping Feature (name)", "Prediction value")
-    g_split.set_titles("{row_name} – Model {col_name}")
-
-    # Rotate x-axis labels if they overlap
-    g_split.set_xticklabels(rotation=90, ha='right', fontsize=8)
-
-    # 1) Move the legend outside
+    # Overlay individual points for features using map_dataframe
     try:
-        g_split.fig.subplots_adjust(right=0.85)
-        legend = g_split._legend
-        if legend:
-            legend.set_bbox_to_anchor((1.02, 0.5))
-            legend.set_loc("center left")
-        else:
-            g_split.add_legend(title="Pred Type", bbox_to_anchor=(1.02, 0.5), loc="center left")
+        g_split.map_dataframe(
+            sns.stripplot,
+            x="name", y="pred_value", hue="pred_type",
+            order=feature_order, # Match order
+            hue_order=df_long_indiv['pred_type'].unique(),
+            dodge=True, jitter=0.1, palette=['black', 'dimgray'],
+            marker='.', size=3, alpha=0.4
+        )
     except Exception as e:
-        print(f"Could not adjust legend: {e}")
+        print(f"Warning: Could not overlay feature stripplot on plot 3: {e}")
+
+    # Add legend manually
+    g_split.add_legend(title="Pred Type", loc='center right', bbox_to_anchor=(1.05, 0.5))
 
 
-    # 2) Overlay the base/original distribution per model (RAW values, not MC means)
-    #    at the far right of each facet
-    #    and relabel xticks to split on '_' and append 'base'
-    all_names = sorted(list(df_indiv["name"].unique()))
+    # Overlay the original distribution per model at the far right
+    all_names = feature_order
     short_names = [n.split("_")[-1] for n in all_names]
+    base_pos = len(all_names) # Position for original distribution
 
-    for i, ax in enumerate(g_split.axes.flatten()):
-        # extract model like "M0" or "M1"
-        title = ax.get_title()
-        if "Model" in title:
-             model_it = title.split("Model")[-1].strip()
+    for ax in g_split.axes.flatten():
+        try:
+            title = ax.get_title()
+            model_it = title.split("Model")[-1].split("(")[0].strip() # Careful extraction
 
-             # raw base predictions for this model
-             vals = orig_df.loc[orig_df["model_it"] == model_it, "prediction"]
-             if not vals.empty:
-                 # Plot base violin at a position beyond the last feature name
-                 base_pos = len(all_names)
-                 sns.violinplot(
-                     x=[base_pos] * len(vals),
-                     y=vals,
-                     ax=ax,
-                     color="lightgray",
-                     inner="quartile",
-                     width=0.6
-                 )
+            # raw base predictions for this model
+            orig_vals = orig_df.loc[orig_df["model_it"] == model_it, "prediction"]
+            if not orig_vals.empty:
+                # Plot base violin
+                sns.violinplot(
+                    x=np.full(len(orig_vals), base_pos), y=orig_vals, ax=ax,
+                    color="lightgray", inner="quartile", width=0.6
+                )
+                # Plot base points
+                sns.stripplot(
+                    x=np.full(len(orig_vals), base_pos), y=orig_vals, ax=ax,
+                    jitter=0.1, color='dimgray', marker='.', size=3, alpha=0.4
+                )
 
-             # rebuild xticks: original names + 'base'
-             ticks = list(range(len(all_names) + 1))
-             labels = short_names + ["base"]
-             ax.set_xticks(ticks)
-             ax.set_xticklabels(labels, rotation=90, fontsize=8)
-        else:
-            print(f"Warning: Could not parse model from title for overlay: {title}")
+            # rebuild xticks: feature names + 'original'
+            ticks = list(range(len(all_names) + 1))
+            labels = short_names + ["original"] # Use short names + original
+            ax.set_xticks(ticks)
+            ax.set_xticklabels(labels, rotation=90, fontsize=8)
+
+        except Exception as e:
+            print(f"Warning: Could not overlay original distribution on plot 3 axis {ax.get_title()}: {e}")
 
 
-    plt.tight_layout(rect=[0, 0, 0.85, 1])
-    plot3_path = os.path.join(FIG_DIR, "clipping_split_violins_with_base_all.png")
+    # Tidy up axis labels & titles
+    g_split.set_axis_labels("Clipping Feature / Original", "Prediction value") # Updated label
+    g_split.set_titles("Model {col_name} (Positive Direction)")
+
+    plt.tight_layout(rect=[0, 0, 0.95, 1]) # Adjust rect for legend if needed
+    plot3_path = os.path.join(FIG_DIR, "steering_split_violins_points_orig_pos_only.png") # Updated filename
     plt.savefig(plot3_path)
     print(f"Saved plot 3 to {plot3_path}")
 
+
     # --- Plotting Average Predictions per Feature ---
 
-    # 1) compute per‐index average (using df_indiv from clipping data)
+    # 1) compute per‐index average for clipping data
     df_indiv["pred_avg"] = (df_indiv["prediction1"] + df_indiv["prediction2"]) / 2
-    print("\nDataFrame with Average Prediction for Plot 4:")
-    print(df_indiv.head())
 
-    # 2) MC sample‐means for base distro (as before, but structured for concat)
-    mc_frames_avg = []
-    # Filter models if needed (e.g., exclude M0, M5 as in original code)
-    models_to_plot = [m for m in orig_df["model_it"].unique() if m not in ["M5"]]
-    for model in models_to_plot:
-        vals = orig_df.loc[orig_df["model_it"] == model, "prediction"].values
-        if len(vals) < SAMPLE_SIZE:
-             print(f"Warning: Not enough original data points for model {model} to sample {SAMPLE_SIZE} for avg plot. Skipping MC.")
-             continue
-        for _ in range(SAMPLE_N):
-            draw = np.random.choice(vals, size=SAMPLE_SIZE, replace=False)
-            # Replicate for both pos/neg facets if faceting by dir_it
-            mc_frames_avg.append({
-                "model_it": model,
-                "dir_it":   "pos",
-                "name":     "base",
-                "pred_avg": draw.mean()
-            })
-            mc_frames_avg.append({
-                "model_it": model,
-                "dir_it":   "neg",
-                "name":     "base",
-                "pred_avg": draw.mean()
-            })
-    mc_df_avg = pd.DataFrame(mc_frames_avg)
-    print("\nMC Sample Means DataFrame for Plot 4:")
-    print(mc_df_avg)
+    # 2) Prepare original data for concatenation
+    #    Assign 'pred_avg' (using 'prediction' column), 'name' as 'original', and match 'dir_it'
+    orig_plot_df = orig_df.rename(columns={'prediction': 'pred_avg'})
+    orig_plot_df['name'] = 'original'
+    orig_plot_df['dir_it'] = 'pos' # Match the 'dir_it' of the main data for faceting consistency
 
-    # 3) concat clipping averages + base MC means
+    print("\nOriginal DataFrame prepared for Plot 4:")
+    print(orig_plot_df.head())
+
+
+    # 3) concat clipping averages + formatted original data
     plot_df = pd.concat([
         df_indiv[["model_it","dir_it","name","pred_avg"]],
-        mc_df_avg
+        orig_plot_df[["model_it","dir_it","name","pred_avg"]] # Ensure columns match
     ], ignore_index=True)
     print("\nCombined DataFrame for Plot 4:")
     print(plot_df.head())
 
 
-    # 4) determine ordering (full names!) including 'base'
-    feature_names = sorted(n for n in plot_df["name"].unique() if n != "base")
-    order     = ["base"] + feature_names
+    # 4) determine ordering including 'original'
+    feature_names = sorted(n for n in plot_df["name"].unique() if n != "original")
+    order = ["original"] + feature_names # Put original first
 
-    # 5) build palette list: first for 'base', then one color per feature
+    # 5) build palette list: first for 'original', then one color per feature
     pal = ["lightgray"] + list(sns.color_palette("Set2", len(feature_names)))
 
     # 6) draw the violin grid with explicit order & hue_order
@@ -407,29 +420,49 @@ if __name__ == "__main__":
         data=plot_df,
         x="name", y="pred_avg",
         hue="name",
-        col="model_it", row="dir_it",
+        col="model_it",
+        # row="dir_it", # Removed row facet
         kind="violin",
         order=order,
         hue_order=order,
         palette=pal,
         inner="quartile",
-        height=3, aspect=1.5,
+        height=4, aspect=1.5, # Adjusted aspect
         sharey=False,
-        legend=False
+        legend=False # Disable legend
     )
 
-    # 7) relabel xticks to only show the last token after '_' (or keep full names)
+    # 7) Overlay individual points using map_dataframe
+    #    We need to handle colors carefully: gray for 'original', black for features
+    point_palette = {name: ('dimgray' if name == 'original' else 'black') for name in order}
+
+    try:
+        g_avg.map_dataframe(
+            sns.stripplot,
+            x="name", y="pred_avg", hue="name", # Use hue to get correct positions
+            order=order, hue_order=order, # Match order
+            palette=point_palette, # Use custom point colors
+            jitter=0.1, marker='.', size=3, alpha=0.4,
+            legend=False # Do not add points to legend
+        )
+    except Exception as e:
+        print(f"Warning: Could not overlay stripplot on plot 4: {e}")
+
+
+    # 8) relabel xticks and titles
     for ax in g_avg.axes.flatten():
         ax.set_xticks(range(len(order)))
-        labels = order
+        # Use short names for features if desired
+        labels = ["original"] + [n.split("_")[-1] for n in feature_names]
+        # labels = order # Use full names if preferred
         ax.set_xticklabels(labels, rotation=90, fontsize=8)
-        ax.set_xlabel("")
+        ax.set_xlabel("") # Keep x label empty or set explicitly
         ax.set_ylabel("Avg. Prediction")
 
-    g_avg.set_titles(row_template="{row_name}", col_template="Model {col_name}")
+    g_avg.set_titles("Model {col_name} (Positive Direction)")
     plt.tight_layout()
-    plot4_path = os.path.join(FIG_DIR, "clipping_avg_with_mc_base_fixed_all.png")
+    plot4_path = os.path.join(FIG_DIR, "steering_avg_points_orig_fixed_pos_only.png") # Updated filename
     plt.savefig(plot4_path, dpi=150)
     print(f"Saved plot 4 to {plot4_path}")
 
-    print("\nScript finished.")
+    print("\nScript finished (displaying only 'pos' direction + original, with data points).")
