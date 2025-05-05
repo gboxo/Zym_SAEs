@@ -20,7 +20,7 @@ seqs_path = path["seqs_path"]
 
 
 
-fasta_files = [os.path.join(seqs_path, elem) for elem in os.listdir(seqs_path) if elem.endswith(".txt")]
+fasta_files = [os.path.join(seqs_path, elem) for elem in os.listdir(seqs_path) if elem.endswith(".fasta")]
 all_dfs = []
 for fasta_file in fasta_files:
     with open(fasta_file, "r") as f:
