@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader
 
 
 
-
 def read_sequence_from_file(path):
     """
     Reads **all** sequences in a .txt (multiple FASTA‐style entries).
@@ -18,10 +17,11 @@ def read_sequence_from_file(path):
       >ID,… <sep> <start> A B C … <end>
 
     Returns:
-      A **list** of sequence strings (with spaces removed), one per <start>…<end> block.
+      A dictionary mapping sequence IDs to sequence strings (with spaces removed)
     """
-    seqs = []
+    seqs = {}
     curr = ""
+    curr_id = None
     with open(path, "r") as f:
         for line in f:
             line = line.strip()
@@ -30,9 +30,11 @@ def read_sequence_from_file(path):
 
             if line.startswith(">"):
                 # If we were collecting a sequence, save it before starting a new one
-                if curr:
-                    seqs.append(curr)
+                if curr and curr_id:
+                    seqs[curr_id] = curr
                     curr = ""
+                # Get the ID from the header line
+                curr_id = line[1:].split(",")[0]
                 # If this header has the entire seq on the same line:
                 if "<start>" in line and "<end>" in line:
                     block = line.split("<start>", 1)[1].split("<end>", 1)[0]
@@ -43,10 +45,12 @@ def read_sequence_from_file(path):
             curr += line.replace(" ", "")
 
     # At EOF, flush last sequence
-    if curr:
-        seqs.append(curr)
+    if curr and curr_id:
+        seqs[curr_id] = curr
 
     return seqs
+
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -67,18 +71,41 @@ def main():
 
     # ========== 1) Read all sequences (flatten multiple entries per file) ==========
     records = []
-    for fn in sorted(os.listdir(config["paths"]["seqs_path"])):
-        #if not fn.endswith(".txt"):
-        #    continue
-        full = os.path.join(config["paths"]["seqs_path"], fn)
+    if True:
+
+        for fn in sorted(os.listdir(config["paths"]["seqs_path"])):
+            if not fn.endswith(".txt"):
+                continue
+            full = os.path.join(config["paths"]["seqs_path"], fn)
+
+            seqs = read_sequence_from_file(full)
+            print(seqs)
+            keys = list(seqs.keys())
+            seqs = list(seqs.values())
+            base = os.path.splitext(fn)[0]
+
+            # each <start>…<end> becomes its own record
+            for idx_seq, seq_str in enumerate(seqs):
+                records.append({
+                    "name":      base,
+                    "index":     keys[idx_seq],   # per‐file sequence index
+                    "sequence":  seq_str
+                })
+    else:
+        full = config["paths"]["seqs_path"]
+
         seqs = read_sequence_from_file(full)
+        print(seqs)
+        keys = list(seqs.keys())
+        seqs = list(seqs.values())
+        fn = full.split("/")[-1]
         base = os.path.splitext(fn)[0]
 
         # each <start>…<end> becomes its own record
         for idx_seq, seq_str in enumerate(seqs):
             records.append({
                 "name":      base,
-                "index":     idx_seq,   # per‐file sequence index
+                "index":     keys[idx_seq],   # per‐file sequence index
                 "sequence":  seq_str
             })
 
@@ -109,20 +136,21 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # ========== 3) Run Oracle #1 ==========
-    _, model1 = load_model(
-        oracle1_ckpt, oracle1_weights, num_labels=1
-    )
-    model1.to(device).eval()
-    preds1 = []
-    with torch.no_grad():
-        for batch in tqdm(loader, desc="Oracle1"):
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
-            logits = model1(input_ids=input_ids, attention_mask=attention_mask).logits
-            preds1 += logits.squeeze(-1).tolist()
-    # free GPU
-    del model1
-    torch.cuda.empty_cache()
+    if False:
+        _, model1 = load_model(
+            oracle1_ckpt, oracle1_weights, num_labels=1
+        )
+        model1.to(device).eval()
+        preds1 = []
+        with torch.no_grad():
+            for batch in tqdm(loader, desc="Oracle1"):
+                input_ids = batch["input_ids"].to(device)
+                attention_mask = batch["attention_mask"].to(device)
+                logits = model1(input_ids=input_ids, attention_mask=attention_mask).logits
+                preds1 += logits.squeeze(-1).tolist()
+        # free GPU
+        del model1
+        torch.cuda.empty_cache()
 
     # ========== 4) Run Oracle #2 ==========
     oracle2_ckpt = config["paths"]["oracle_path2"]
@@ -143,7 +171,7 @@ def main():
     df = pd.DataFrame({
         "name":        [r["name"]       for r in records],
         "index":       [r["index"]      for r in records],
-        "prediction1": preds1,
+        #"prediction1": preds1,
         "prediction2": preds2
     })
 

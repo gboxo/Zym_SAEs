@@ -48,50 +48,59 @@ def generate_with_clipping(model: HookedSAETransformer, sae: SAE, prompt: str, c
                           clipping_value: float = 5.0, max_new_tokens=256, n_samples=10, generation_idx=None):
     global mask_activations
     
-    # Initialize dictionary to store mask activations for this generation
-    if generation_idx is not None:
-        mask_activations[generation_idx] = {}
-    
     input_ids = model.to_tokens(prompt, prepend_bos=sae.cfg.prepend_bos)
     input_ids_batch = input_ids.repeat(n_samples, 1)
     
-    clipping_hook = partial(
-        clipping,
-        clipping_feature=clipping_feature,
-        clipping_value=clipping_value,
-        generation_idx=generation_idx
-    )
-    
-    # Use hooks for generation
-    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_post', clipping_hook)]):
-        output = model.generate(
-            input_ids_batch, 
-            top_k=9,
-            max_new_tokens=max_new_tokens,
-            eos_token_id=1,
-            do_sample=True,
-            verbose=False,
-        )
-    
-    # Decode outputs
-    all_outputs = model.tokenizer.batch_decode(output)
-    all_outputs = [o.replace("<|endoftext|>", "") for o in all_outputs]
-    
-    # Process the mask activation records to match output sequence lengths
-    if generation_idx is not None:
-        prompt_length = input_ids.shape[1]
-        for i in range(n_samples):
-            sample_key = f"sample_{i}"
-            if sample_key in mask_activations[generation_idx]:
-                # Get actual sequence length (excluding padding)
-                seq_length = (output[i] != model.tokenizer.pad_token_id).sum().item()
-                # Only keep mask activations for actual generated tokens (excluding prompt)
-                generated_length = seq_length - prompt_length
-                if generated_length > 0:  # Ensure we generated at least one token
-                    # Keep only the first 'generated_length' elements
-                    mask_activations[generation_idx][sample_key] = mask_activations[generation_idx][sample_key][:generated_length]
+    all_outputs_batches = []
+    batch_idx = 0
 
-    return all_outputs
+    for _ in tqdm(range(20)):  # Generate 20 batches
+        new_generation_idx = generation_idx + "_" + str(batch_idx)
+        
+        # Initialize dictionary to store mask activations for this generation
+        if new_generation_idx is not None:
+            mask_activations[new_generation_idx] = {}
+        
+        clipping_hook = partial(
+            clipping,
+            clipping_feature=clipping_feature,
+            clipping_value=clipping_value,
+            generation_idx=new_generation_idx
+        )
+        
+        # Use hooks for generation
+        with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_post', clipping_hook)]):
+            output = model.generate(
+                input_ids_batch, 
+                top_k=9,
+                max_new_tokens=max_new_tokens,
+                eos_token_id=1,
+                do_sample=True,
+                verbose=False,
+            )
+        
+        # Decode outputs
+        all_outputs = model.tokenizer.batch_decode(output)
+        all_outputs = [o.replace("<|endoftext|>", "") for o in all_outputs]
+        
+        # Process the mask activation records to match output sequence lengths
+        if new_generation_idx is not None:
+            prompt_length = input_ids.shape[1]
+            for i in range(n_samples):
+                sample_key = f"sample_{i}"
+                if sample_key in mask_activations[new_generation_idx]:
+                    # Get actual sequence length (excluding padding)
+                    seq_length = (output[i] != model.tokenizer.pad_token_id).sum().item()
+                    # Only keep mask activations for actual generated tokens (excluding prompt)
+                    generated_length = seq_length - prompt_length
+                    if generated_length > 0:  # Ensure we generated at least one token
+                        # Keep only the first 'generated_length' elements
+                        mask_activations[new_generation_idx][sample_key] = mask_activations[new_generation_idx][sample_key][:generated_length]
+        
+        all_outputs_batches.append(all_outputs)
+        batch_idx += 1
+
+    return all_outputs_batches
 
 
 cfg = SAEConfig(
@@ -160,6 +169,9 @@ if __name__ == "__main__":
     prompt = "3.2.1.1<sep><start>"
     os.makedirs(out_dir, exist_ok=True)
 
+    # Dictionary to store all mask activation data
+    all_mask_data = {}
+
     for i, clipping_feature in enumerate(tqdm(feature_indices)):
         # Use index as generation_idx to track mask activations for this feature
         generation_idx = f"feature_{clipping_feature}"
@@ -169,15 +181,18 @@ if __name__ == "__main__":
         
         # Save generated sequences
         with open(f"{out_dir}/clipping_feature_{clipping_feature}.txt", "w") as f:
-            for j, o in enumerate(out):
-                f.write(f">3.2.1.1_{j},"+o+"\n")
+            for batch_idx, batch_outputs in enumerate(out):
+                for j, o in enumerate(batch_outputs):
+                    f.write(f">3.2.1.1_batch{batch_idx}_{j},"+o+"\n")
         
-        # Save mask activation data for this feature
-        with open(f"{mask_dir}/mask_activations_feature_{clipping_feature}.pkl", "wb") as f:
-            pkl.dump(mask_activations[generation_idx], f)
+        # Save mask activation data for this feature and add to all_mask_data
+        for key in mask_activations.keys():
+            if key.startswith(generation_idx):
+                all_mask_data[key] = mask_activations[key]
+                with open(f"{mask_dir}/mask_activations_feature_{clipping_feature}.pkl", "wb") as f:
+                    pkl.dump(mask_activations[key], f)
         
-        # Clear mask_activations entry to save memory
-        del mask_activations[generation_idx]
+            # Clear mask_activations entry to save memory
 
     # Generate with all features
     generation_idx = "feature_all"
@@ -187,12 +202,20 @@ if __name__ == "__main__":
     
     # Save generated sequences
     with open(f"{out_dir}/clipping_feature_all.txt", "w") as f:
-        for i, o in enumerate(out):
-            f.write(f">3.2.1.1_{i},"+o+"\n")
+        for batch_idx, batch_outputs in enumerate(out):
+            for i, o in enumerate(batch_outputs):
+                f.write(f">3.2.1.1_batch{batch_idx}_{i},"+o+"\n")
     
     # Save mask activation data for all features
-    with open(f"{mask_dir}/mask_activations_feature_all.pkl", "wb") as f:
-        pkl.dump(mask_activations[generation_idx], f)
+    for key in mask_activations.keys():
+        if key.startswith(generation_idx):
+            all_mask_data[key] = mask_activations[key]
+            with open(f"{mask_dir}/mask_activations_feature_all.pkl", "wb") as f:
+                pkl.dump(mask_activations[key], f)
+    
+    # Save the complete mask activations dictionary with data from all features
+    with open(f"{mask_dir}/all_mask_activations.pkl", "wb") as f:
+        pkl.dump(all_mask_data, f)
 
 # Clean up
 del model, sae 

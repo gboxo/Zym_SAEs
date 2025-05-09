@@ -1,9 +1,9 @@
 paths:
-  model_path: "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-  df_path: "/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/dms_df.csv"
-  sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/
+  model_path: "/home/woody/b114cb/b114cb23/ZF_FT_alphaamylase_gerard/FT_3.2.1.1/"
+  df_path: "/home/woody/b114cb/b114cb23/boxo/oracle_eval/activity_predictions2.csv"
+  sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/strong_steering/diffing/
   top_features_path: ""
-  out_dir: "/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/steering/steering/M1_D1_pos_new"
+  out_dir: "/home/woody/b114cb/b114cb23/boxo/strong_steering/steering/M1_D1_pos_O2"
 
 label: 3.2.1.1
 model_iteration: 0 # 0

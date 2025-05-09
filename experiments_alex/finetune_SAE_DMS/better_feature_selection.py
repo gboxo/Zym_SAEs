@@ -12,7 +12,7 @@ from sklearn.model_selection import KFold
 from collections import defaultdict
 
 
-path = "/users/nferruz/gboxo/finetune_SAE_DMS/latent_scoring/latent_scoring_0_new/features/"
+path = "/home/woody/b114cb/b114cb23/boxo/finetune_SAE_DMS/latent_scoring/latent_scoring_0_new/features/"
 
 with open(os.path.join(path, "features_M0_D0.pkl"), "rb") as f:
     features = pkl.load(f)

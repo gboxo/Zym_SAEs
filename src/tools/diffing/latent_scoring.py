@@ -211,7 +211,6 @@ if __name__ == "__main__":
     model_iteration = config["model_iteration"]
     data_iteration = config["data_iteration"]
     ec_label = config["label"]
-    cs_path = config["paths"]["cs_path"]
     df_path = config["paths"]["df_path"].format(iteration_num=iteration_num)
     output_dir = config["paths"]["out_dir"]
     model_path = config["paths"]["model_path"]

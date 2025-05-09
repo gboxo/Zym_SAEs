@@ -50,47 +50,58 @@ def generate_with_ablation(model: HookedSAETransformer, sae: SAE, prompt: str, a
     global ablation_activations
     
     # Initialize dictionary to store ablation activations for this generation
-    if generation_idx is not None:
-        ablation_activations[generation_idx] = {}
     
     input_ids = model.to_tokens(prompt, prepend_bos=sae.cfg.prepend_bos)
     input_ids_batch = input_ids.repeat(n_samples, 1)
     
-    ablation_hook = partial(
-        ablation,
-        ablation_feature=ablation_feature,
-        generation_idx=generation_idx
-    )
-    
-    # standard transformerlens syntax for a hook context for generation
-    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_post', ablation_hook)]):
-        output = model.generate(
-            input_ids_batch, 
-            top_k=9, #tbd
-            max_new_tokens=max_new_tokens,
-            eos_token_id=1,
-            do_sample=True,
-            verbose=False,
+
+    all_outputs_batches = []
+    batch_idx = 0
+
+    for _ in tqdm(range(10)):
+
+        new_generation_idx = generation_idx + "_" + str(batch_idx)
+        ablation_hook = partial(
+            ablation,
+            ablation_feature=ablation_feature,
+            generation_idx=new_generation_idx
         )
+
+        if generation_idx is not None:
+            ablation_activations[new_generation_idx] = {}
+        batch_idx += 1
+
+
     
-    all_outputs = model.tokenizer.batch_decode(output)
-    all_outputs = [o.replace("<|endoftext|>", "") for o in all_outputs]
+        # standard transformerlens syntax for a hook context for generation
+        with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre.hook_sae_acts_post', ablation_hook)]):
+            output = model.generate(
+                input_ids_batch, 
+                top_k=9, #tbd
+                max_new_tokens=max_new_tokens,
+                eos_token_id=1,
+                do_sample=True,
+                verbose=False,
+            )
+        
+        all_outputs = model.tokenizer.batch_decode(output)
+        all_outputs = [o.replace("<|endoftext|>", "") for o in all_outputs]
 
-    # Process the activation records to match output sequence lengths
-    if generation_idx is not None:
-        prompt_length = input_ids.shape[1]
-        for i in range(n_samples):
-            sample_key = f"sample_{i}"
-            if sample_key in ablation_activations[generation_idx]:
-                # Get actual sequence length (excluding padding)
-                seq_length = (output[i] != model.tokenizer.pad_token_id).sum().item()
-                # Only keep activations for actual generated tokens (excluding prompt)
-                generated_length = seq_length - prompt_length
-                if generated_length > 0:  # Ensure we generated at least one token
-                    # Keep only the first 'generated_length' elements
-                    ablation_activations[generation_idx][sample_key] = ablation_activations[generation_idx][sample_key][:generated_length]
-
-    return all_outputs
+        # Process the activation records to match output sequence lengths
+        if generation_idx is not None:
+            prompt_length = input_ids.shape[1]
+            for i in range(n_samples):
+                sample_key = f"sample_{i}"
+                if sample_key in ablation_activations[new_generation_idx]:
+                    # Get actual sequence length (excluding padding)
+                    seq_length = (output[i] != model.tokenizer.pad_token_id).sum().item()
+                    # Only keep activations for actual generated tokens (excluding prompt)
+                    generated_length = seq_length - prompt_length
+                    if generated_length > 0:  # Ensure we generated at least one token
+                        # Keep only the first 'generated_length' elements
+                        ablation_activations[new_generation_idx][sample_key] = ablation_activations[new_generation_idx][sample_key][:generated_length]
+        all_outputs_batches.append(all_outputs)
+    return all_outputs_batches
 
 
 cfg = SAEConfig(
@@ -115,25 +126,30 @@ cfg = SAEConfig(
 )
 
 if __name__ == "__main__":
+    print("Hello, this is the start")
     parser = ArgumentParser()
     parser.add_argument("--cfg_path", type=str)
     args = parser.parse_args()
+
+    
+
     cfg_path = args.cfg_path
     config = load_config(cfg_path)
 
     model_iteration = config["model_iteration"]
     data_iteration = config["data_iteration"]
-    if model_iteration == 0 and data_iteration == 0:
-        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-    else:
-        model_path = config["paths"]["model_path"]
+    model_path = "/home/woody/b114cb/b114cb23/ZF_FT_alphaamylase_gerard/FT_3.2.1.1/"
 
     sae_path = config["paths"]["sae_path"]
     top_features_path = config["paths"]["top_features_path"]
     out_dir = config["paths"]["out_dir"]
+
+    
     
     # Directory for ablation activations data
+
     ablation_dir = os.path.join(out_dir, "ablation_activations")
+    print(ablation_dir)
     os.makedirs(ablation_dir, exist_ok=True)
 
     cfg_sae, sae = load_sae(sae_path)
@@ -151,10 +167,18 @@ if __name__ == "__main__":
     model = get_sl_model(model, model.config, tokenizer).to("cuda")
     model.add_sae(sae)
 
+    print("All file for ablation")
+    
+
+
     with open(top_features_path, "rb") as f:
         important_features = pkl.load(f)
-    x = important_features["coefs"][0]
+    x = important_features["coefs"]
     feature_indices = important_features["unique_coefs"]
+    print(feature_indices)
+    if len(feature_indices) == 0:
+        print("No features to ablate")
+        exit()
         
     prompt = "3.2.1.1<sep><start>"
     os.makedirs(out_dir, exist_ok=True)
@@ -165,38 +189,44 @@ if __name__ == "__main__":
     for i, ablation_feature in enumerate(tqdm(feature_indices)):
         # Use index as generation_idx to track ablation activations for this feature
         generation_idx = f"feature_{ablation_feature}"
-        out = generate_with_ablation(model, sae, prompt, ablation_feature, 
-                                   max_new_tokens=1014, n_samples=20, 
-                                   generation_idx=generation_idx)
+        out = generate_with_ablation(model, sae, prompt, 
+                                ablation_feature, 
+                                max_new_tokens=1014, n_samples=20, 
+                                generation_idx=generation_idx)
         
-        # Save generated sequences
+        # Save generated sequences with batch indexing
         with open(f"{out_dir}/ablation_feature_{ablation_feature}.txt", "w") as f:
-            for j, o in enumerate(out):
-                f.write(f">3.2.1.1_{j},"+o+"\n")
+            for batch_idx, batch_outputs in enumerate(out):
+                for j, o in enumerate(batch_outputs):
+                    f.write(f">3.2.1.1_batch{batch_idx}_{j},"+o+"\n")
         
         # Save ablation activation data for this feature and add to all_ablation_data
-        all_ablation_data[generation_idx] = ablation_activations[generation_idx]
-        with open(f"{ablation_dir}/ablation_activations_feature_{ablation_feature}.pkl", "wb") as f:
-            pkl.dump(ablation_activations[generation_idx], f)
+        for key in ablation_activations.keys():
+            if key.startswith(generation_idx):
+                all_ablation_data[key] = ablation_activations[key]
+                with open(f"{ablation_dir}/ablation_activations_feature_{ablation_feature}.pkl", "wb") as f:
+                    pkl.dump(ablation_activations[key], f)
         
-        # Clear ablation_activations entry to save memory
-        del ablation_activations[generation_idx]
+        
 
     # Generate with all features
     generation_idx = "feature_all"
     out = generate_with_ablation(model, sae, prompt, feature_indices, 
-                               max_new_tokens=1014, n_samples=20, 
-                               generation_idx=generation_idx)
+                            max_new_tokens=1014, n_samples=20, 
+                            generation_idx=generation_idx)
     
-    # Save generated sequences
+    # Save generated sequences with batch indexing
     with open(f"{out_dir}/ablation_feature_all.txt", "w") as f:
-        for i, o in enumerate(out):
-            f.write(f">3.2.1.1_{i},"+o+"\n")
+        for batch_idx, batch_outputs in enumerate(out):
+            for i, o in enumerate(batch_outputs):
+                f.write(f">3.2.1.1_batch{batch_idx}_{i},"+o+"\n")
     
     # Save ablation activation data for all features
-    all_ablation_data[generation_idx] = ablation_activations[generation_idx]
-    with open(f"{ablation_dir}/ablation_activations_feature_all.pkl", "wb") as f:
-        pkl.dump(ablation_activations[generation_idx], f)
+    for key in ablation_activations.keys():
+        if key.startswith(generation_idx):
+            all_ablation_data[key] = ablation_activations[key]
+            with open(f"{ablation_dir}/ablation_activations_feature_all.pkl", "wb") as f:
+                pkl.dump(ablation_activations[key], f)
     
     # Save the complete ablation activations dictionary with data from all features
     with open(f"{ablation_dir}/all_ablation_activations.pkl", "wb") as f:

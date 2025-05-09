@@ -6,17 +6,17 @@
 
 
 **Training**
-- We will be using the Finetuned ZymCTRL found in `ZF_FT_alphaamylase_gerard`.
-- We will finetune the SAE on the DMS dataset.
+- [x] We will be using the Finetuned ZymCTRL found in `ZF_FT_alphaamylase_gerard`.
+- [x] We will finetune the SAE on the DMS dataset.
 
 
 **Data Generation**
 
-- We will generate 1000 sequences with FT_ZymCTRL .
-- We will compute the expected activity of the generated sequences.
-- We will compute the secondary structure of the generated sequences.
-- We will fold the sequences with ESMFold.
-- We will compute summary statistics of the generated sequences.
+-  [x] We will generate 1000 sequences with FT_ZymCTRL .
+- [x] We will compute the expected activity of the generated sequences.
+- [ ] We will compute the secondary structure of the generated sequences.
+- [ ] We will fold the sequences with ESMFold.
+- [ ] We will compute summary statistics of the generated sequences.
 
 
 **Data Processing**

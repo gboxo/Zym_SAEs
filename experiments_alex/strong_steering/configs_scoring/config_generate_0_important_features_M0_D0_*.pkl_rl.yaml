@@ -1,0 +1,8 @@
+    paths:
+      model_path: /home/woody/b114cb/b114cb23/ZF_FT_alphaamylase_gerard/FT_3.2.1.1/
+      sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/strong_steering/diffing/
+      top_features_path: /home/woody/b114cb/b114cb23/boxo/strong_steering/latent_scoring_dms/latent_scoring_FT/important_features/important_features_M0_D0_*.pkl
+      out_dir: /home/woody/b114cb/b114cb23/boxo/strong_steering/latent_scoring_dms/latent_scoring_FT/ablation_with_all/M0_D0_important_features_M0_D0_*.pkl
+    label: 3.2.1.1
+    model_iteration: 0
+    data_iteration: 0

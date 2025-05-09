@@ -114,7 +114,6 @@ def fit_lr_probe(X_train, y_train, X_test, y_test):
         lr_model.fit(X_train, y_train)
         coefs = lr_model.coef_
         active_features = np.where(coefs != 0)[1]
-        print(active_features)
         probes.append(lr_model)
         y_pred = lr_model.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred)
@@ -139,6 +138,7 @@ def get_important_features(X, pred, thresholds, directions='upper'):
         thresholds: dict with keys 'pred' containing threshold values
         directions: str or dict, either 'upper' or 'lower' for all metrics, or dict with keys for each metric
     """
+
     # Standardize directions if string
     if isinstance(directions, str):
         directions = {k: directions for k in ['pred']}
@@ -152,7 +152,6 @@ def get_important_features(X, pred, thresholds, directions='upper'):
         """
         assert len(np.unique(y_train)) > 1, "y_train must have more than one class"
         assert len(np.unique(y_test)) > 1, "y_test must have more than one class"
-
     def process_lr_probe(X, pred, thresholds, directions):
         """
         Process the LR probe
@@ -178,6 +177,65 @@ def get_important_features(X, pred, thresholds, directions='upper'):
 
 
 
+def get_features_greater_than_min_activity(X_train, y_train, min_activity=2, min_rest_fraction=0.01):
+
+    """
+    Get the features that don't fire for sequences with activty higher than min_activity,
+    but do fire on at least min_rest_fraction of the remaining sequences.
+    
+    Args:
+        min_activity: Minimum activity value for sequences to be considered
+        min_rest_fraction: Minimum fraction of remaining sequences that must have the feature (default 0.1)
+    
+    Returns:
+        Array of indices for features that meet the criteria
+    """
+
+
+    def get_mask(values, threshold):
+        return values > threshold
+
+    def get_assert(y_train):
+        """
+        Assert that y_train is have more than one class
+        """
+        assert len(np.unique(y_train)) > 1, "y_train must have more than one class"
+
+    def process_features(pred, thresholds):
+        """
+        Process the LR probe
+        """
+        y_train = get_mask(pred, thresholds)
+        get_assert(y_train)
+        return y_train
+
+    top_mask = process_features(activity, min_activity)
+    # Split into top x% and rest
+    rest_mask = ~top_mask
+    
+
+    # Get features for each group
+    top_features = X_train[top_mask]
+    rest_features = X_train[rest_mask]
+    
+    # Find features that don't fire in top x%
+    top_zero = np.all(top_features == 0, axis=0)
+    
+    # Find features that fire in at least min_rest_fraction of rest
+    rest_firing = np.sum(rest_features > 0, axis=0) / rest_features.shape[0]
+    rest_sufficient = rest_firing >= min_rest_fraction
+    
+    # Return indices where both conditions are met
+    unique_coefs = np.where(top_zero & rest_sufficient)[0]
+
+    importance_features = {
+        'unique_coefs': unique_coefs,
+        'coefs': None,
+    }
+
+    return importance_features
+    
+    
 
 
 
@@ -214,6 +272,9 @@ if __name__ == "__main__":
     model_path = config["paths"]["model_path"]
     sae_path = config["paths"]["sae_path"]
 
+    DMS = False
+
+
 
 
 
@@ -230,19 +291,30 @@ if __name__ == "__main__":
 
 
     
+    if DMS:
     
-    assert os.path.exists(df_path), "Dataframe does not exist"
-    df = pd.read_csv(df_path)
-    sequences = df["mutated_sequence"].tolist()
-    activity = df["activity_dp7"].tolist()
-    mutant = df["mutant"].tolist()
-    
-    activity = np.array(activity)
-    activity_is_nan = np.isnan(activity)
-    activity = activity[~activity_is_nan]
-    mutant = np.array(mutant)
-    mutant = [mutant[i] for i in range(len(mutant)) if not activity_is_nan[i]]
-    sequences = [sequences[i] for i in range(len(sequences)) if not activity_is_nan[i]]
+        assert os.path.exists(df_path), "Dataframe does not exist"
+        df = pd.read_csv(df_path)
+        sequences = df["mutated_sequence"].tolist()
+        activity = df["activity_dp7"].tolist()
+        mutant = df["mutant"].tolist()
+        
+        activity = np.array(activity)
+        activity_is_nan = np.isnan(activity)
+        activity = activity[~activity_is_nan]
+        mutant = np.array(mutant)
+        mutant = [mutant[i] for i in range(len(mutant)) if not activity_is_nan[i]]
+        sequences = [sequences[i] for i in range(len(sequences)) if not activity_is_nan[i]]
+    else:
+        df = pd.read_csv(df_path)
+        #df["average_activity"] = df[["prediction1","prediction2"]].mean(axis=1)
+        df["average_activity"] = df["prediction2"]
+        sequences = df["mutated_sequence"].tolist()
+        mutant = df["mutant"].tolist()
+        mutant = np.array(mutant)
+        
+
+        
 
 
 
@@ -262,32 +334,32 @@ if __name__ == "__main__":
         obtain_features(sequences, mutant, output_dir)
 
     dict_features = load_features(f"{output_dir}/features/features_M{model_iteration}_D{data_iteration}.pkl")
-    activity = [df[df["mutant"] == key]["activity_dp7"].values[0] for key in dict_features.keys()]
-    activity = np.array(activity)
-    print(activity.shape)
+    print(len(dict_features))
+
+    if DMS:
+        activity = [df[df["mutant"] == key]["activity_dp7"].values[0] for key in dict_features.keys()]
+    else:
+        activity = [df[df["name"] == key]["average_activity"].values[0] for key in dict_features.keys()]
+        activity = np.array(activity)
+
     features = list(dict_features.values())
-    print(len(features))
 
 
     f_rates = firing_rates(features, output_dir)
 
-    # Plot the histogram of the firing rates
-    plt.hist(f_rates,bins=20)
-    plt.savefig(f"{output_dir}/figures/firing_rates_histogram_M{model_iteration}_D{data_iteration}.png", dpi=300)
-    plt.close()
 
-
+    # DEFINE THE PERCENTILE TO USE
 
     mean_features = get_mean_features(features)[:,0]
 
     
 
 
-    def get_empirical_thresholds(activity):
+    def get_empirical_thresholds(activity,pth):
         """
         For each value compute the 0.25 and 0.75 percentile and use it as the lower and upper threshold
         """
-        activity_quantiles = np.percentile(activity, 95)
+        activity_quantiles = np.percentile(activity, pth)
         thresholds_pos = {
             "pred": activity_quantiles,
         }
@@ -297,15 +369,27 @@ if __name__ == "__main__":
 
     
     # Get the empirical thresholds
-    thresholds_pos = get_empirical_thresholds(activity)
-    print(thresholds_pos)
 
+    for pth in [94,96,98]:
+        thresholds_pos = get_empirical_thresholds(activity,pth)
+        print("Threshold")
+        print(thresholds_pos)
 
+        # Get the features that are greater than the threshold
+        for min_rest_fraction in [0.02,0.03 ]:
+            print("Min rest fraction")
+            features_greater_than_threshold = get_features_greater_than_min_activity(mean_features, activity, min_activity=thresholds_pos["pred"], min_rest_fraction=min_rest_fraction)
+            print(features_greater_than_threshold) 
+            if len(features_greater_than_threshold["unique_coefs"]) == 0:
+                print("No features to ablate")
+                continue
 
-    importance_features_pos = analyze_important_features(mean_features, activity, thresholds_pos, "upper")
+            with open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}_{pth}_{min_rest_fraction}_ablation.pkl", "wb") as f:
+                pkl.dump(features_greater_than_threshold, f)
 
+        #importance_features_pos = analyze_important_features(mean_features, activity, thresholds_pos, "upper")
+        #os.makedirs(f"{output_dir}/important_features", exist_ok=True)
+        
+        #with open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}_{pth}.pkl", "wb") as f:
+        #    pkl.dump(importance_features_pos, f)
 
-
-    os.makedirs(f"{output_dir}/important_features", exist_ok=True)
-    with open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}.pkl", "wb") as f:
-        pkl.dump(importance_features_pos, f)

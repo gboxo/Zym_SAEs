@@ -20,23 +20,27 @@ def ablation(activations:torch.Tensor, hook, steering_vector:torch.Tensor, stren
 
 
 
-def generate_with_steering(model: HookedTransformer, prompt: str, steering_vector: torch.Tensor, strength:int, max_new_tokens=256, n_samples=10):
+def generate_with_steering(model: HookedTransformer, prompt: str, steering_vector: dict, strength:int, max_new_tokens=256, n_samples=10):
     input_ids = model.to_tokens(prompt, prepend_bos=False)
     input_ids_batch = input_ids.repeat(n_samples, 1)
     
 
     all_outputs = []
 
-    ablation_hook = partial(
+
+    all_hooks = [
+        (f"blocks.{layer}.hook_resid_pre", partial(
         ablation,
-        steering_vector=steering_vector,
+        steering_vector=steering_vector[layer],
         strength=strength,
-    )
+        )
+        )
+        for layer in range(5,30,5)
+    ]
     
-    #for i in range(n_samples):
 
     # standard transformerlens syntax for a hook context for generation
-    with model.hooks(fwd_hooks=[('blocks.25.hook_resid_pre', ablation_hook)]):
+    with model.hooks(fwd_hooks=all_hooks):
         output = model.generate(
             input_ids_batch, 
             top_k=9, #tbd
@@ -52,18 +56,6 @@ def generate_with_steering(model: HookedTransformer, prompt: str, steering_vecto
 
     return all_outputs
 
-def get_empirical_thresholds(activity):
-    """
-    For each value compute the 0.25 and 0.75 percentile and use it as the lower and upper threshold
-    """
-    activity_quantiles = np.percentile(activity, [90, 90])
-    thresholds_pos = {
-        "pred": activity_quantiles[0],
-    }
-    thresholds_neg = {
-        "pred": activity_quantiles[1],
-    }
-    return thresholds_pos, thresholds_neg
 
 
 
@@ -73,43 +65,56 @@ def get_empirical_thresholds(activity):
 
 def get_steering_vector(model: HookedTransformer, prompt: str, df:pd.DataFrame):
     # Get the empirical thresholds
-    activity = df["prediction"].values
-    sequences = df["sequence"].values
+    activity = df["prediction2"].values
+    sequences = df["mutated_sequence"].values
 
 
-    thresholds_pos, thresholds_neg = get_empirical_thresholds(activity)
 
 
     # Get top 10 sequences
 
-    sequences_top_10 = sequences[activity > thresholds_pos["pred"]]
+    sequences_top_10 = sequences[activity > 4]
     tokenized_top_10 = [model.to_tokens(prompt + s) for s in sequences_top_10]
     # Get bottom 90 sequences
-    sequences_bottom_90 = sequences[activity < thresholds_neg["pred"]]
+    sequences_bottom_90 = sequences[activity < 1]
     random_sequences_bottom_90 = sequences_bottom_90[np.random.randint(0, len(sequences_bottom_90), size=len(sequences_top_10))]
     tokenized_bottom_90 = [model.to_tokens(prompt + s) for s in random_sequences_bottom_90]
 
 
-    names_filter = lambda x: "blocks.25.hook_resid_pre" in x
+    names_filter = lambda x: "hook_resid_pre" in x
 
-    all_pos = []
-    all_neg = []
+    all_pos = {}
+    all_neg = {}
 
     with torch.no_grad():
         for i in range(len(tokenized_top_10)):
             logits,cache_pos = model.run_with_cache(tokenized_top_10[i], names_filter=names_filter)
-            acts_pos = cache_pos["blocks.25.hook_resid_pre"][0]
-            all_pos.append(acts_pos.mean(dim=0))
+            for layer in range(5,30,5):
+                acts_pos = cache_pos[f"blocks.{layer}.hook_resid_pre"][:,-1]
+                if layer not in all_pos.keys():
+                    all_pos[layer] = acts_pos.mean(dim=0)
+                else:
+                    all_pos[layer] += acts_pos.mean(dim=0)
         for i in range(len(tokenized_bottom_90)):
             logits,cache_neg = model.run_with_cache(tokenized_bottom_90[i], names_filter=names_filter)
-            acts_neg = cache_neg["blocks.25.hook_resid_pre"][0]
-            all_neg.append(acts_neg.mean(dim=0))
+            for layer in range(5,30,5):
+                acts_neg = cache_neg[f"blocks.{layer}.hook_resid_pre"][:,-1]
+                if layer not in all_neg.keys():
+                    all_neg[layer] = acts_neg.mean(dim=0)
+                else:
+                    all_neg[layer] += acts_neg.mean(dim=0)
+        for key,val in all_pos.items():
+            all_pos[key] = val / len(tokenized_top_10)
+        for key,val in all_neg.items():
+            all_neg[key] = val / len(tokenized_bottom_90)
+            
 
-    # Get the mean of the activations
-    mean_pos = torch.stack(all_pos).mean(dim=0)
-    print("Mean pos: ",mean_pos.shape)
-    mean_neg = torch.stack(all_neg).mean(dim=0)
-    steering_vector = mean_pos - mean_neg
+
+    steering_vector = {}
+    for key,val in all_pos.items():
+        steering_vector[key] = all_pos[key] - all_neg[key]
+    print(steering_vector.keys())
+    print(steering_vector[5].shape)
     return steering_vector
 
 
@@ -133,7 +138,7 @@ if __name__ == "__main__":
     model_iteration = config["model_iteration"]
     data_iteration = config["data_iteration"]
     if model_iteration == 0 and data_iteration == 0:
-        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
+        model_path = "/home/woody/b114cb/b114cb23/ZF_FT_alphaamylase_gerard/FT_3.2.1.1/"
     else:
         model_path = config["paths"]["model_path"]
 
@@ -152,13 +157,14 @@ if __name__ == "__main__":
     prompt = "3.2.1.1<sep><start>"
     os.makedirs(out_dir, exist_ok=True)
     steering_vector = get_steering_vector(model, prompt, df)
-    torch.save(steering_vector, f"{out_dir}/steering_vector.pt")
+    for key,val in steering_vector.items():
+        torch.save(val, f"{out_dir}/steering_vector_layer_{key}.pt")
 
 
 
 
     os.makedirs(out_dir, exist_ok=True)
-    for steering_strength in range(-10,10,2):
+    for steering_strength in range(-10,10,1):
         out = generate_with_steering(model, prompt, steering_vector, strength=steering_strength,max_new_tokens=1014, n_samples=20)
         with open(f"{out_dir}/steering_vector_{steering_strength}.txt", "w") as f:
             for i, o in enumerate(out):

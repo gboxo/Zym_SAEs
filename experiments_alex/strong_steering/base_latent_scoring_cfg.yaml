@@ -1,0 +1,23 @@
+paths: 
+  df_path: "/home/woody/b114cb/b114cb23/boxo/strong_steering/seq_gen/activity_predictions.csv"
+  out_dir: "/home/woody/b114cb/b114cb23/boxo/strong_steering/latent_scoring_base/"
+  model_path: "/home/woody/b114cb/b114cb23/ZF_FT_alphaamylase_gerard/FT_3.2.1.1/"
+  sae_path: "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/strong_steering/diffing/"
+
+iteration_num: 0
+label: 3.2.1.1
+model_iteration: 0
+data_iteration: 0
+thresholds:
+  pred1: 
+    upper: 3
+    lower: 1.5
+  pred2: 
+    upper: 1.5
+    lower: 0
+  plddt: 
+    upper: 0.7
+    lower: 0
+  tm_score: 
+    upper: 0.8
+    lower: 0
