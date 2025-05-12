@@ -1,0 +1,8 @@
+paths:
+  seqs_path: "/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/seq_gen/seq_gen_3.2.1.1_ZC_FT.fasta"
+  output_path: "/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/activity_predictions_lr_mlp.csv"
+
+  oracle_path1: "/home/woody/b114cb/b114cb23/models/esm1v_t33_650M_UR90S_1"
+  checkpoint_path1: "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRA_esm1v/Esm1v_GB1_finetuned.pth"
+
+label: 3.2.1.1

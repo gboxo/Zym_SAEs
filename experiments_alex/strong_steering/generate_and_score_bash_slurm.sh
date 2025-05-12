@@ -91,17 +91,14 @@ for top_features_path in /home/woody/b114cb/b114cb23/boxo/strong_steering/latent
   cat <<EOL > "$score_cfg"
 paths:
   seqs_path: $out_dir
-  output_path: $out_dir/activity_predictions.csv
+  output_path: $out_dir/activity_predictions_lr.csv
   oracle_path1: "/home/woody/b114cb/b114cb23/models/esm2_t33_650M_UR50D"
-  checkpoint_path1: "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRa_esm2_3B/esm_GB1_finetuned.pth"
-  oracle_path2: "/home/woody/b114cb/b114cb23/models/esm1v_t33_650M_UR90S_1"
-  checkpoint_path2: "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRA_esm1v/Esm1v_GB1_finetuned.pth"
 label: 3.2.1.1
 EOL
   echo "→ Generated scoring‐config: $score_cfg"
 
   # 5c) Call the activity predictor
-  python3 -m experiments_alex.strong_steering.activity_prediction \
+  python3 -m experiments_alex.strong_steering.activity_prediction_lr \
     --cfg_path "$score_cfg" \
     --batch_size 16
 
