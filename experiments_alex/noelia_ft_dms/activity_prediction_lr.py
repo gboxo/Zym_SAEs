@@ -101,7 +101,7 @@ def main():
 
     # ========== 1) Read all sequences (flatten multiple entries per file) ==========
     records = []
-    if False:
+    if True:
 
         for fn in sorted(os.listdir(config["paths"]["seqs_path"])):
             if not fn.endswith(".txt"):

@@ -72,7 +72,7 @@ def main():
 
     # ========== 1) Read all sequences (flatten multiple entries per file) ==========
     records = []
-    if False:
+    if True:
 
         for fn in sorted(os.listdir(config["paths"]["seqs_path"])):
             if not fn.endswith(".txt"):
@@ -80,7 +80,6 @@ def main():
             full = os.path.join(config["paths"]["seqs_path"], fn)
 
             seqs = read_sequence_from_file(full)
-            print(seqs)
             keys = list(seqs.keys())
             seqs = list(seqs.values())
             base = os.path.splitext(fn)[0]

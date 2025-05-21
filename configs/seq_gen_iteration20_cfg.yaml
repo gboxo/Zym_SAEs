@@ -1,0 +1,5 @@
+paths:
+  model_path: "/home/woody/b114cb/b114cb23/DPO_amylase_run_SAPI_FT_v2/output_iteration20/"
+  out_dir: "/home/woody/b114cb/b114cb23/boxo/dpo_noelia/generated_seqs_by_model/model_20"
+
+label: 3.2.1.1

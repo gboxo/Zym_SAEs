@@ -5,7 +5,7 @@ from tqdm import tqdm
 import math
 import argparse
 from argparse import ArgumentParser
-from generate_utils import load_config
+from src.tools.generate.generate_utils import load_config
 
 
 
@@ -44,9 +44,12 @@ def main(label, model,special_tokens,device,tokenizer):
     new_outputs = [ output for output in outputs if output[-1] == 0]
     if not new_outputs:
         print("not enough sequences with short lengths!!")
+    
 
     # Compute perplexity for every generated sequence in the batch
     ppls = [(tokenizer.decode(output), calculatePerplexity(output, model, tokenizer)) for output in new_outputs ]
+
+
 
     # Sort the batch by perplexity, the lower the better
     ppls.sort(key=lambda i:i[1]) # duplicated sequences?
@@ -68,15 +71,15 @@ if __name__=='__main__':
     ec_label = config["label"]
     out_dir = config["paths"]["out_dir"].format(iteration_num)
 
-    device = torch.device("cuda") # Replace with 'cpu' if you don't have a GPU - but it will be slow
+    device = torch.device("cuda") # Replace with 'cpu' if you don't have a GPU - but it will be slow
     print('Reading pretrained model and tokenizer')
     
     
-    if iteration_num == 0:
-      model_name = '/home/woody/b114cb/b114cb23/models/ZymCTRL/'
-    else:
-      model_path = config["paths"]["model_path"].format(iteration_num)
-    
+    #if iteration_num == 0:
+    #  model_name = '/home/woody/b114cb/b114cb23/models/ZymCTRL/'
+    #else:
+    model_name = config["paths"]["model_path"]    
+
     tokenizer = AutoTokenizer.from_pretrained(model_name) # change to ZymCTRL location
     model = GPT2LMHeadModel.from_pretrained(model_name).to(device) # change to ZymCTRL location
     special_tokens = ['<start>', '<end>', '<|endoftext|>','<pad>',' ', '<sep>']
@@ -87,26 +90,35 @@ if __name__=='__main__':
     print("Starting sequence generation")
     
     all_sequences = []
-    for i in tqdm(range(50)):
+    # Track unique sequences using a set of sequence strings
+    unique_sequences = set()
+    
+    for i in tqdm(range(100)):
         sequences = main(label, model, special_tokens, device, tokenizer)
         for key, value in sequences.items():
             for index, val in enumerate(value):
-                if all(char in canonical_amino_acids for char in val[0]):
+                sequence = val[0]
+                if all(char in canonical_amino_acids for char in sequence) and sequence not in unique_sequences:
+                    # Add to unique sequences set
+                    unique_sequences.add(sequence)
                     sequence_info = {
                         'label': label,
                         'batch': i,
                         'index': index,
                         'pepr': float(val[1]),
-                        'fasta': f">{label}_{i}_{index}_iteration{iteration_num}\t{val[1]}\n{val[0]}\n"
+                        'fasta': f">{label}_{i}_{index}_iteration{iteration_num}\t{val[1]}\n{sequence}\n"
                     }
                     all_sequences.append(sequence_info)
+        print(f"Iteration {i+1}: {len(unique_sequences)} unique sequences found so far")
+                
+    
     fasta_content = ''.join(seq['fasta'] for seq in all_sequences)
 
     os.makedirs(out_dir, exist_ok=True)
     output_filename = f"{out_dir}/seq_gen_{label}_iteration{iteration_num}.fasta"
-    print(fasta_content)
     with open(output_filename, "w") as fn:
             fn.write(fasta_content)
-        
+    
+    print(f"Final result: {len(unique_sequences)} unique sequences saved to {output_filename}")
     fn.close()
         
