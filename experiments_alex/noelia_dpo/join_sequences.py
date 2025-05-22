@@ -39,15 +39,12 @@ def read_fasta(fasta_path):
         sequences = f.read()
     data = sequences.split(">")
     sequences = []
-    hashes = []
     for d in data:
         if len(d) > 0:
             d = d.split("\n")
             sequence = d[1].strip()
-            hash = hashlib.sha256(sequence.encode()).hexdigest()
-            hashes.append(hash)
             sequences.append(sequence)
-    return sequences
+    return list(set(sequences))
 
 
 
@@ -71,7 +68,6 @@ def get_df_and_join_datasets(sequences_path, out_path, tokenizer):
     all_sequences = dict(sorted(all_sequences.items(), key=lambda x: int(x[0].split("_")[1])))
     for key, sequences in all_sequences.items():
         print(key, len(set(sequences)))
-    exit()
     
 
 
