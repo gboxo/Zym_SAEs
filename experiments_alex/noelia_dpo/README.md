@@ -89,7 +89,7 @@ We need to prepare the data that will be used in the interpretability experiment
 
 There's some amount of collapse in the models, many repeated sequences and sampling difficulty.
 
-**However, the model at iteration3 is eassy to sample and has high enough activity to be itneresting.**
+**However, the model at iteration3 is eassy to sample and has high enough activity to be interesting.**
 
 
 We will apply the diffing procedure between the base model an the iteration3
@@ -135,8 +135,6 @@ We want to see a handful of features changing (we can try several schemes to get
 So the differences are there, but are not very big.
 
 
-Things to try:
-1) Use more data
 
 
 **Diffing**
@@ -160,11 +158,10 @@ If the trend is noisy we can make some sensible checks.
 **POTTS**
 
 
-
 The importance of this will likely depend on the success of the SAEs.
 If there's enough time to explore this idea, it would be really cool to try to understand the distribution shift of the model trough the lensses of POTTS model trained on sequences of different iterations.
 
-
+It's difficult to get enough diverse data.
 
 
 
