@@ -19,6 +19,27 @@ Position,Count,Avg KL,Same Token %,Top Transitions
 """
 
 
+
+
+
+
+"""
+Position,Top Transitions
+285,"['449 (S) → 442 (L) (103 times)']
+293,"['440 (I) → 442 (L) (103 times)' ]
+107,"['440 (I) → 437 (F) (112 times)']
+102,"['440 (I) → 442 (L) (67 times)']
+138,"['449 (S) → 439 (H) (76 times)']
+"""
+
+
+
+
+
+
+
+
+
 kl_path = "/home/woody/b114cb/b114cb23/boxo/dpo_noelia/kl_divergence/M3_kl_divergence.pkl"
 
 dataset = load_from_disk("/home/woody/b114cb/b114cb23/boxo/dpo_noelia/joined_datasets/dataset_model_3/eval/")

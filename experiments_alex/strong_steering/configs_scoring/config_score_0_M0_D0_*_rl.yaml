@@ -1,0 +1,5 @@
+paths:
+  seqs_path: /home/woody/b114cb/b114cb23/boxo/strong_steering/latent_scoring_base_o2/ablation_with_all2/M0_D0_*/
+  output_path: /home/woody/b114cb/b114cb23/boxo/strong_steering/latent_scoring_base_o2/ablation_with_all2/M0_D0_*//activity_predictions_lr.csv
+  oracle_path1: "/home/woody/b114cb/b114cb23/models/esm2_t33_650M_UR50D"
+label: 3.2.1.1

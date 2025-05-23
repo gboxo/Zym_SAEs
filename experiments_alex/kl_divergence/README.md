@@ -75,3 +75,79 @@ Position Statistics:
 
 
 **We can maybe try to understand the circuit in the model that shifts the probability distribution at pos 99**
+
+
+
+## Top features for each type of important residue transition
+
+
+**Pos 285 (with prompt)**
+
+Reported positions with prompt
+
+pos: 8, feat: 13549, value: 1251.579833984375
+pos: 112, feat: 9611, value: 638.9197998046875
+pos: 9, feat: 9755, value: 633.9202270507812
+pos: 112, feat: 7127, value: 577.1336059570312
+pos: 15, feat: 3394, value: 534.1064453125
+pos: 12, feat: 13263, value: 531.7164916992188
+pos: 123, feat: 7127, value: 496.07855224609375
+pos: 106, feat: 2174, value: 491.7792053222656
+pos: 12, feat: 14080, value: 467.4736328125
+pos: 118, feat: 12002, value: 448.002197265625
+
+**Position 293**
+
+pos: 8, feat: 13549, value: 1128.91455078125
+pos: 9, feat: 9755, value: 747.29638671875
+pos: 106, feat: 2174, value: 729.7738037109375
+pos: 18, feat: 14080, value: 705.2520751953125
+pos: 18, feat: 9611, value: 704.0300903320312
+pos: 18, feat: 6288, value: 614.9053344726562
+pos: 83, feat: 1712, value: 585.9773559570312
+pos: 15, feat: 15011, value: 569.6403198242188
+pos: 190, feat: 4482, value: 553.1652221679688
+pos: 9, feat: 5692, value: 544.3516235351562
+
+**Position 107**
+
+
+pos: 18, feat: 14080, value: 1896.08056640625
+pos: 106, feat: 2174, value: 1363.6248779296875
+pos: 24, feat: 4192, value: 1361.1268310546875
+pos: 18, feat: 9611, value: 1293.00732421875
+pos: 15, feat: 14080, value: 1137.3916015625
+pos: 48, feat: 6396, value: 885.578369140625
+pos: 70, feat: 14230, value: 747.0350952148438
+pos: 13, feat: 10127, value: 744.1044921875
+pos: 10, feat: 9225, value: 681.0491943359375
+pos: 8, feat: 13549, value: 671.733642578125
+
+**Position 102**
+
+pos: 18, feat: 14080, value: 1255.2135009765625
+pos: 8, feat: 13549, value: 1204.3590087890625
+pos: 18, feat: 9611, value: 781.585693359375
+pos: 15, feat: 14080, value: 618.0743408203125
+pos: 18, feat: 5152, value: 530.7056884765625
+pos: 18, feat: 12243, value: 455.3218078613281
+pos: 13, feat: 10127, value: 446.6474609375
+pos: 31, feat: 14080, value: 445.3908996582031
+pos: 22, feat: 14080, value: 409.1334228515625
+pos: 77, feat: 14080, value: 408.858642578125
+
+**Position 138**
+
+pos: 8, feat: 6094, value: 2447.462890625
+pos: 12, feat: 14080, value: 1649.7188720703125
+pos: 12, feat: 13263, value: 1586.8541259765625
+pos: 114, feat: 12002, value: 1289.701416015625
+pos: 128, feat: 3101, value: 1139.06640625
+pos: 128, feat: 12002, value: 1033.858154296875
+pos: 129, feat: 12002, value: 985.0537109375
+pos: 12, feat: 11406, value: 980.8464965820312
+pos: 73, feat: 5316, value: 882.7243041992188
+pos: 128, feat: 7914, value: 835.18359375
+
+
+all_features = [13549, 9611, 9755, 7127, 3394, 13263, 7127, 2174, 14080, 12002, 13549, 9755, 2174, 14080, 9611, 6288, 1712, 15011, 4482, 5692, 14080, 2174, 4192, 9611, 14080, 6396, 14230, 10127, 9225, 13549, 6094, 14080, 13263, 12002, 3101, 12002, 12002, 11406, 5316, 7914]

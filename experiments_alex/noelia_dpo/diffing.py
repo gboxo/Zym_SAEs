@@ -7,14 +7,50 @@ from tqdm import tqdm
 
 
 
-base_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M0_D0_rl/diffing/checkpoint_latest.pt"
+base_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/checkpoint_latest.pt"
+#base_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M0_D0_rl/diffing/checkpoint_latest.pt"
 rl_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M3_D3_rl2/diffing/checkpoint_latest.pt"
 #rl_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M3_D3_rl/diffing/checkpoint_latest.pt"
 
-base_threshold = torch.load("/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M0_D0_rl/diffing/thresholds.pt")
+
+#base_threshold = torch.load("/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M0_D0_rl/diffing/thresholds.pt")
+base_threshold = torch.load("/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/thresholds.pt")
 rl_threshold = torch.load("/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M3_D3_rl2/diffing/thresholds.pt")
 base_active = torch.where(base_threshold > 0, 1, 0)
 rl_active = torch.where(rl_threshold > 0, 1, 0)
+
+
+
+
+features_to_remark = [
+    14080,
+    4482,
+    9225,
+    9611,
+    11406,
+    10127,
+    6288,
+    14230,
+    9755,
+    3101,
+    15011,
+    1712,
+    5692,
+    3394,
+    5316,
+    6094,
+    13263,
+    7127,
+    4192,
+    12002,
+    7914,
+    13549,
+    6396,
+    2174
+]
+
+
+
 
 
 
@@ -67,6 +103,10 @@ ax.hist(dec_cs.cpu().numpy(), color='skyblue')
 ax.set_title("Cosine Similarity in Decoder (base - RL)")
 ax.set_xlabel("Decoder Dimension")
 ax.set_ylabel("Cosine Similarity")
+# Highlight features_to_remark in red
+for idx in features_to_remark:
+    if idx < len(dec_cs):
+        ax.axvline(dec_cs[idx].cpu().numpy(), color='red', linestyle='--', alpha=0.7)
 plt.tight_layout()
 plt.savefig("cosine_similarity_decoder.png")
 
@@ -76,6 +116,10 @@ fig, ax = plt.subplots(1, 1, figsize=(16, 6))
 # Barplot for encoder norm differences
 abs_threshold_differ = torch.abs(base_threshold - rl_threshold)
 ax.bar(range(len(abs_threshold_differ)), abs_threshold_differ.cpu().numpy(), color='skyblue')
+# Highlight features_to_remark in red
+for idx in features_to_remark:
+    if idx < len(abs_threshold_differ):
+        ax.bar(idx, abs_threshold_differ[idx].cpu().numpy(), color='red', alpha=0.7, width=0.5)
 ax.set_title("Difference in Encoder thresholds (|base - RL|)")
 ax.set_xlabel("Encoder Dimension")
 ax.set_ylabel("Threshold Difference")
@@ -92,12 +136,20 @@ fig, axs = plt.subplots(1, 2, figsize=(16, 6))
 
 # Barplot for encoder norm differences
 axs[0].bar(range(len(diff_enc_norm)), diff_enc_norm.cpu().numpy(), color='skyblue')
+# Highlight features_to_remark in red for encoder
+for idx in features_to_remark:
+    if idx < len(diff_enc_norm):
+        axs[0].bar(idx, diff_enc_norm[idx].cpu().numpy(), color='red')
 axs[0].set_title("Difference in Encoder Norms (|base - RL|)")
 axs[0].set_xlabel("Encoder Dimension")
 axs[0].set_ylabel("Norm Difference")
 
 # Barplot for decoder norm differences
 axs[1].bar(range(len(diff_dec_norm)), diff_dec_norm.cpu().numpy(), color='salmon')
+# Highlight features_to_remark in red for decoder
+for idx in features_to_remark:
+    if idx < len(diff_dec_norm):
+        axs[1].bar(idx, diff_dec_norm[idx].cpu().numpy(), color='red')
 axs[1].set_title("Difference in Decoder Norms (|base - RL|)")
 axs[1].set_xlabel("Decoder Dimension")
 axs[1].set_ylabel("Norm Difference")
@@ -112,12 +164,20 @@ fig, axs = plt.subplots(1, 2, figsize=(16, 6))
 
 # Barplot for encoder norm differences
 axs[0].bar(range(len(dec_cs)), 1-dec_cs.cpu().numpy(), color='skyblue')
+# Highlight features_to_remark in red for decoder
+for idx in features_to_remark:
+    if idx < len(dec_cs):
+        axs[0].bar(idx, 1-dec_cs[idx].cpu().numpy(), color='red')
 axs[0].set_title("Cosine Similarity in Decoder (base - RL)")
 axs[0].set_xlabel("Decoder Dimension")
 axs[0].set_ylabel("Cosine Similarity")
 
 # Barplot for decoder norm differences
 axs[1].bar(range(len(enc_cs)), 1-enc_cs.cpu().numpy(), color='salmon')
+# Highlight features_to_remark in red for encoder
+for idx in features_to_remark:
+    if idx < len(enc_cs):
+        axs[1].bar(idx, 1-enc_cs[idx].cpu().numpy(), color='red')
 axs[1].set_title("Cosine Similarity in Encoder (base - RL)")
 axs[1].set_xlabel("Encoder Dimension")
 axs[1].set_ylabel("Cosine Similarity")
@@ -125,24 +185,6 @@ axs[1].set_ylabel("Cosine Similarity")
 fig.suptitle("Cosine Similarity Between Base and RL Models for Encoder and Decoder", fontsize=16)
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 plt.savefig("cosine_similarity.png")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -177,6 +219,11 @@ metrics_df.to_csv("decoder_metrics.csv", index=False)
 plt.figure(figsize=(12, 8))
 plt.scatter(metrics_df['cosine_dissimilarity'], metrics_df['norm_difference'], 
            c=metrics_df['threshold_difference'], cmap='viridis', alpha=0.7)
+# Highlight features_to_remark in red
+for idx in features_to_remark:
+    if idx < len(metrics_df):
+        row = metrics_df.iloc[idx]
+        plt.scatter(row['cosine_dissimilarity'], row['norm_difference'], color='red', s=100, edgecolor='black', label='Remarked' if idx == features_to_remark[0] else "")
 plt.colorbar(label='Threshold Difference')
 plt.xlabel('Cosine Dissimilarity')
 plt.ylabel('Norm Difference')
@@ -198,23 +245,4 @@ plt.savefig("decoder_metrics_scatter.png")
 
 print("\nTop 5 by Combined Ranking:")
 print(top_combined[['index', 'cosine_dissimilarity', 'norm_difference', 'threshold_difference']].to_string(index=False))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

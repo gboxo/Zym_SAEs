@@ -60,12 +60,33 @@ if __name__ == "__main__":
     with open(feat_pkl, "rb") as f:
         features = pkl.load(f)
     feat_indices = [
-        14, 464, 1056, 1134, 2952, 3037, 3646, 3768, 3847,
-        6389, 6834, 7127, 7291, 7355, 8161, 8456, 9233, 9322,
-        9677, 9878, 10734, 11405, 11509, 11634, 11925, 12037,
-        12052, 12725, 12921, 13051, 13469, 13658, 14265, 14302,
-        14547
+        14080,
+        4482,
+        9225,
+        9611,
+        11406,
+        10127,
+        6288,
+        14230,
+        9755,
+        3101,
+        15011,
+        1712,
+        5692,
+        3394,
+        5316,
+        6094,
+        13263,
+        7127,
+        4192,
+        12002,
+        7914,
+        13549,
+        6396,
+        2174
     ]
+
+
 
     # 2) Load original sequences (we assume the same dataset used to produce features)
     ds_path = "/home/woody/b114cb/b114cb23/boxo/dpo_noelia/joined_datasets/dataset_model_3/eval/"

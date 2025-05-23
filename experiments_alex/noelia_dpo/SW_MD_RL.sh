@@ -32,23 +32,26 @@ cp experiments_alex/old_experiments/diffing_sapi_multi_iterations_clean/configs/
 
 
 # Iterate over each identifier to create a configuration file
-output_file="$output_dir/config_3_rl.yaml"
 resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/"
 model_path="/home/woody/b114cb/b114cb23/DPO_amylase_run_SAPI_FT_v2/output_iteration3"
 #model_path="/home/woody/b114cb/b114cb23/models/model-3.2.1.1/"
 dataset_path="/home/woody/b114cb/b114cb23/boxo/dpo_noelia/joined_datasets/dataset_model_3"
 
-  cat <<EOL > $output_file
+
+for layer in 10 15 20; do
+output_file="$output_dir/config_3_rl_layer_${layer}.yaml"
+
+    cat <<EOL > $output_file
 base_config: base_config_alex_new.yaml
 
 base:
   model_path: ${model_path}
 sae:
-  layer: 25
+  layer: ${layer}
 
 training:
   dataset_path: ${dataset_path}
-  name: "Diffing_SAPI_M3_D3"
+  name: "Diffing_SAPI_M3_D3_layer_${layer}"
   perf_log_freq: 1
   threshold_compute_freq: 1
   aux_penalty: 0
@@ -59,11 +62,11 @@ training:
   lr: 0.0003
 resuming:
   resume_from: ${resume_from}
-  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M3_D3_rl2/
+  checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M3_D3_rl2_layer_${layer}/
   resuming: true
   model_diffing: true
 EOL
-  python model_diffing.py --config $output_file
+    python model_diffing.py --config $output_file
 
-  echo "YAML file '$output_file' generated successfully."
-done
+    echo "YAML file '$output_file' generated successfully."
+  done

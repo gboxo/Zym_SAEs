@@ -20,4 +20,4 @@ cd $TMPDIR
 source venv/bin/activate
 cd /home/hpc/b114cb/b114cb23/SAETraining/crg_boxo/
 # Define the base directory for output files
-python model_diffing.py --config experiments_alex/noelia_ft_dms/configs/config_bm.yaml
+python model_diffing.py --config experiments_alex/noelia_ft_dms/configs/config_bm_20.yaml
