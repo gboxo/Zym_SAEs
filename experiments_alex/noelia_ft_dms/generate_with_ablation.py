@@ -187,7 +187,6 @@ if __name__ == "__main__":
     all_ablation_data = {}
 
     for i, ablation_feature in enumerate(tqdm(feature_indices)):
-        # Use index as generation_idx to track ablation activations for this feature
         generation_idx = f"feature_{ablation_feature}"
         out = generate_with_ablation(model, sae, prompt, 
                                 ablation_feature, 
@@ -201,11 +200,13 @@ if __name__ == "__main__":
                     f.write(f">3.2.1.1_batch{batch_idx}_{j},"+o+"\n")
         
         # Save ablation activation data for this feature and add to all_ablation_data
+        feature_activations_batches = []
         for key in ablation_activations.keys():
             if key.startswith(generation_idx):
-                all_ablation_data[key] = ablation_activations[key]
-                with open(f"{ablation_dir}/ablation_activations_feature_{ablation_feature}.pkl", "wb") as f:
-                    pkl.dump(ablation_activations[key], f)
+                feature_activations_batches.append(ablation_activations[key])
+        all_ablation_data[generation_idx] = feature_activations_batches
+        with open(f"{ablation_dir}/ablation_activations_feature_{ablation_feature}.pkl", "wb") as f:
+            pkl.dump(feature_activations_batches, f)
         
         
 
@@ -222,11 +223,13 @@ if __name__ == "__main__":
                 f.write(f">3.2.1.1_batch{batch_idx}_{i},"+o+"\n")
     
     # Save ablation activation data for all features
+    feature_activations_batches = []
     for key in ablation_activations.keys():
         if key.startswith(generation_idx):
-            all_ablation_data[key] = ablation_activations[key]
-            with open(f"{ablation_dir}/ablation_activations_feature_all.pkl", "wb") as f:
-                pkl.dump(ablation_activations[key], f)
+            feature_activations_batches.append(ablation_activations[key])
+    all_ablation_data[generation_idx] = feature_activations_batches
+    with open(f"{ablation_dir}/ablation_activations_feature_all.pkl", "wb") as f:
+        pkl.dump(feature_activations_batches, f)
     
     # Save the complete ablation activations dictionary with data from all features
     with open(f"{ablation_dir}/all_ablation_activations.pkl", "wb") as f:

@@ -43,7 +43,7 @@ for top_features_path in /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_s
 
 
   sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/noelia_ft_dms/diffing/"
-  out_dir="/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/ablation_with_all/M0_D0_${name}"
+  out_dir="/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/ablation_with_all2/M0_D0_${name}"
 
 
 

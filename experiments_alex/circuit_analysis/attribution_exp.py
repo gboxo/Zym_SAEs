@@ -154,7 +154,7 @@ if __name__ == "__main__":
         log_probs = log_softmax(logits, dim=-1)
         
         # Calculate logit difference between original and transition token
-        logit_diff = log_probs[..., orig_token_id] - log_probs[..., trans_token_id]
+        logit_diff = log_probs[..., -1, trans_token_id] - log_probs[..., -1, orig_token_id]
         
         return logit_diff
 

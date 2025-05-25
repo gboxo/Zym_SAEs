@@ -17,7 +17,7 @@ training:
   num_batches_in_buffer: 5 
   lr: 0.0003
 resuming:
-  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/
+  resume_from: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/noelia_ft_dms/sae_20/diffing/
   checkpoint_dir_to: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M3_D3_rl2_layer_20/
   resuming: true
   model_diffing: true

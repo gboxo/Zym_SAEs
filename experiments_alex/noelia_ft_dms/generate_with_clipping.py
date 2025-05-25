@@ -54,7 +54,7 @@ def generate_with_clipping(model: HookedSAETransformer, sae: SAE, prompt: str, c
     all_outputs_batches = []
     batch_idx = 0
 
-    for _ in tqdm(range(10)):  # Generate 20 batches
+    for _ in tqdm(range(3)):  # Generate 20 batches
         new_generation_idx = generation_idx + "_" + str(batch_idx)
         
         # Initialize dictionary to store mask activations for this generation
@@ -164,6 +164,10 @@ if __name__ == "__main__":
     x = important_features["coefs"][0]
     feature_indices = important_features["unique_coefs"]
 
+    print("The features are:")
+
+    print(feature_indices)
+
 
 
     with open(max_activations_path, "rb") as f:
@@ -176,7 +180,7 @@ if __name__ == "__main__":
     prompt = "3.2.1.1<sep><start>"
     os.makedirs(out_dir, exist_ok=True)
 
-    # Dictionary to store all mask activation data
+    # Dictionary to store all mask activation data (feature -> list of batch activations)
     all_mask_data = {}
 
     for i, clipping_feature in enumerate(tqdm(feature_indices)):
@@ -194,14 +198,16 @@ if __name__ == "__main__":
                 for j, o in enumerate(batch_outputs):
                     f.write(f">3.2.1.1_batch{batch_idx}_{j},"+o+"\n")
         
-        # Save mask activation data for this feature and add to all_mask_data
+        # Collect all batch activations for this feature
+        feature_activations_batches = []
         for key in mask_activations.keys():
             if key.startswith(generation_idx):
-                all_mask_data[key] = mask_activations[key]
-                with open(f"{mask_dir}/mask_activations_feature_{clipping_feature}.pkl", "wb") as f:
-                    pkl.dump(mask_activations[key], f)
+                feature_activations_batches.append(mask_activations[key])
+        all_mask_data[generation_idx] = feature_activations_batches
+        with open(f"{mask_dir}/mask_activations_feature_{clipping_feature}.pkl", "wb") as f:
+            pkl.dump(feature_activations_batches, f)
         
-            # Clear mask_activations entry to save memory
+        # Optionally clear mask_activations entries here to save memory
 
     # Generate with all features
     if False:
@@ -216,16 +222,22 @@ if __name__ == "__main__":
                 for i, o in enumerate(batch_outputs):
                     f.write(f">3.2.1.1_batch{batch_idx}_{i},"+o+"\n")
         
-        # Save mask activation data for all features
+        # Collect all batch activations for "all features"
+        feature_activations_batches = []
         for key in mask_activations.keys():
             if key.startswith(generation_idx):
-                all_mask_data[key] = mask_activations[key]
-                with open(f"{mask_dir}/mask_activations_feature_all.pkl", "wb") as f:
-                    pkl.dump(mask_activations[key], f)
+                feature_activations_batches.append(mask_activations[key])
+        all_mask_data[generation_idx] = feature_activations_batches
+        with open(f"{mask_dir}/mask_activations_feature_all.pkl", "wb") as f:
+            pkl.dump(feature_activations_batches, f)
         
-        # Save the complete mask activations dictionary with data from all features
+        # Save the complete mask activations dictionary with data from all features and all batches
         with open(f"{mask_dir}/all_mask_activations.pkl", "wb") as f:
             pkl.dump(all_mask_data, f)
+
+    # Save the complete mask activations dictionary with data from all features and all batches
+    with open(f"{mask_dir}/all_mask_activations.pkl", "wb") as f:
+        pkl.dump(all_mask_data, f)
 
 # Clean up
 del model, sae 

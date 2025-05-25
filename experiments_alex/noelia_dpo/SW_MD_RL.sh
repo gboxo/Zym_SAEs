@@ -32,13 +32,15 @@ cp experiments_alex/old_experiments/diffing_sapi_multi_iterations_clean/configs/
 
 
 # Iterate over each identifier to create a configuration file
-resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/"
 model_path="/home/woody/b114cb/b114cb23/DPO_amylase_run_SAPI_FT_v2/output_iteration3"
 #model_path="/home/woody/b114cb/b114cb23/models/model-3.2.1.1/"
 dataset_path="/home/woody/b114cb/b114cb23/boxo/dpo_noelia/joined_datasets/dataset_model_3"
 
 
 for layer in 10 15 20; do
+
+
+resume_from="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/noelia_ft_dms/sae_${layer}/diffing/"
 output_file="$output_dir/config_3_rl_layer_${layer}.yaml"
 
     cat <<EOL > $output_file

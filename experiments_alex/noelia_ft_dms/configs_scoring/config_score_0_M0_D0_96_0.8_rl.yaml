@@ -1,6 +1,6 @@
 paths:
-  seqs_path: /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/ablation_with_all2/M0_D0_95_0.9/
-  output_path: /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/ablation_with_all2/M0_D0_95_0.9//activity_predictions.csv
+  seqs_path: /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/ablation_with_all2/M0_D0_96_0.8/
+  output_path: /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/ablation_with_all2/M0_D0_96_0.8//activity_predictions.csv
   oracle_path1: "/home/woody/b114cb/b114cb23/models/esm2_t33_650M_UR50D"
   checkpoint_path1: "/home/woody/b114cb/b114cb23/Filippo/alpha_amylase_activity_predictor/LoRa_esm2_3B/esm_GB1_finetuned.pth"
   oracle_path2: "/home/woody/b114cb/b114cb23/models/esm1v_t33_650M_UR90S_1"

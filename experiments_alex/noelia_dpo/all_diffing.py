@@ -11,13 +11,17 @@ from tqdm import tqdm
 
 
 for layer in [10, 15, 20, 25]:
-    base_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/checkpoint_latest.pt"
+    base_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/noelia_ft_dms/sae_{layer}/diffing/checkpoint_latest.pt"
     rl_path = f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M3_D3_rl2_layer_{layer}/diffing/checkpoint_latest.pt"
 
-    base_threshold = torch.load(f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/finetune_SAE_DMS/diffing/thresholds.pt")
+    base_threshold = torch.load(f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/noelia_ft_dms/sae_{layer}/diffing/thresholds.pt")
     rl_threshold = torch.load(f"/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/dpo_noelia/M3_D3_rl2_layer_{layer}/diffing/thresholds.pt")
     base_active = torch.where(base_threshold > 0, 1, 0)
     rl_active = torch.where(rl_threshold > 0, 1, 0)
+
+    
+
+
 
     out_dir = f"/home/woody/b114cb/b114cb23/boxo/dpo_noelia/diffing_layer_{layer}"
     os.makedirs(out_dir, exist_ok=True)
@@ -51,6 +55,12 @@ for layer in [10, 15, 20, 25]:
 
         diff_enc_norm = torch.abs(enc_norm_base - enc_norm_rl)
         diff_dec_norm = torch.abs(dec_norm_base - dec_norm_rl)
+
+
+        #diff_enc_norm = diff_enc_norm[rl_active == 1]
+        #diff_dec_norm = diff_dec_norm[rl_active == 1]
+        #dec_cs = dec_cs[rl_active == 1]
+        #enc_cs = enc_cs[rl_active == 1]
 
         # Plot 1: Cosine Similarity in Decoder (histogram)
         fig, ax = plt.subplots(1, 1, figsize=(16, 6))
@@ -94,12 +104,12 @@ for layer in [10, 15, 20, 25]:
         # Plot 4: Cosine Similarity (Encoder and Decoder)
         fig, axs = plt.subplots(1, 2, figsize=(16, 6))
 
-        axs[0].bar(range(len(dec_cs)), 1-dec_cs.cpu().numpy(), color='skyblue')
+        axs[0].bar(range(len(dec_cs)), 1-dec_cs.cpu().numpy(), color='skyblue', alpha=1.0)
         axs[0].set_title("Cosine Similarity in Decoder (base - RL)")
         axs[0].set_xlabel("Decoder Dimension")
         axs[0].set_ylabel("Cosine Similarity")
 
-        axs[1].bar(range(len(enc_cs)), 1-enc_cs.cpu().numpy(), color='salmon')
+        axs[1].bar(range(len(enc_cs)), 1-enc_cs.cpu().numpy(), color='salmon', alpha=1.0)
         axs[1].set_title("Cosine Similarity in Encoder (base - RL)")
         axs[1].set_xlabel("Encoder Dimension")
         axs[1].set_ylabel("Cosine Similarity")
@@ -110,11 +120,13 @@ for layer in [10, 15, 20, 25]:
         plt.close(fig)
 
         # Create a DataFrame to store the metrics for each decoder direction
+        has_changed = torch.isnan(base_threshold) & (rl_threshold > 0)
         metrics_df = pd.DataFrame({
             'index': range(len(dec_cs)),
             'cosine_dissimilarity': (1 - dec_cs.cpu().numpy()),
             'norm_difference': diff_dec_norm.cpu().numpy(),
-            'threshold_difference': torch.abs(base_threshold - rl_threshold).cpu().numpy()
+            'threshold_difference': torch.abs(base_threshold - rl_threshold).cpu().numpy(),
+            'has_changed': has_changed.cpu().numpy()
         })
 
         # Get top 10 indices by each metric
@@ -139,7 +151,7 @@ for layer in [10, 15, 20, 25]:
         # Plot 5: Combined scatter plot
         fig = plt.figure(figsize=(12, 8))
         plt.scatter(metrics_df['cosine_dissimilarity'], metrics_df['norm_difference'], 
-                c=metrics_df['threshold_difference'], cmap='viridis', alpha=0.7)
+                c=metrics_df['threshold_difference'], cmap='viridis', alpha=0.9)
         plt.colorbar(label='Threshold Difference')
         plt.xlabel('Cosine Dissimilarity')
         plt.ylabel('Norm Difference')

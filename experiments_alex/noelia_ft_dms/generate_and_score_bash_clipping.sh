@@ -27,7 +27,7 @@ for top_features_path in /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_s
 
   sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/noelia_ft_dms/diffing/"
   max_activations_path="/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/important_features/max_features_M0_D0.pkl"
-  out_dir="/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/clipping_with_all/M0_D0_${name}"
+  out_dir="/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/clipping_with_all2/M0_D0_${name}"
 
   # 4b) Generate config for the clipping‐sequence generator
   gen_cfg="$output_dir/config_generate_0_${name}_rl.yaml"
@@ -45,11 +45,11 @@ EOL
   echo "→ Generated generation‐config: $gen_cfg"
 
   # 4c) Call the generator
-  #python3 -m experiments_alex.noelia_ft_dms.generate_with_clipping \
-  #  --cfg_path "$gen_cfg"
+  python3 -m experiments_alex.noelia_ft_dms.generate_with_clipping \
+    --cfg_path "$gen_cfg"
   done
 
-for top_features_path in /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/clipping_with_all/M0_D0_*; do
+for top_features_path in /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/clipping_with_all2/M0_D0_*; do
 
   echo "Top features path: $top_features_path"
 
@@ -64,7 +64,7 @@ for top_features_path in /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_s
 
 
   sae_path="/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/noelia_ft_dms/diffing/"
-  out_dir="/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/clipping_with_all/${name}/"
+  out_dir="/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/clipping_with_all2/${name}/"
 
 
   # 5) Now score those ablated sequences

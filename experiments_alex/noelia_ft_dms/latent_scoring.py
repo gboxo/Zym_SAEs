@@ -109,7 +109,7 @@ def fit_lr_probe(X_train, y_train, X_test, y_test):
     """
     results = []
     probes =[]
-    for sparsity in tqdm(np.logspace(-4.5, -3, 10)):
+    for sparsity in tqdm(np.logspace(-3.5, -2, 10)):
         lr_model = LogisticRegressionCV(cv=5, penalty="l1", solver="liblinear", class_weight="balanced", Cs=[sparsity], n_jobs=-1, max_iter=10000)
         lr_model.fit(X_train, y_train)
         coefs = lr_model.coef_
@@ -139,6 +139,8 @@ def get_important_features(X, pred, thresholds, directions='upper'):
         directions: str or dict, either 'upper' or 'lower' for all metrics, or dict with keys for each metric
     """
 
+    print(X.shape)
+
     # Standardize directions if string
     if isinstance(directions, str):
         directions = {k: directions for k in ['pred']}
@@ -167,9 +169,18 @@ def get_important_features(X, pred, thresholds, directions='upper'):
     results_pred, probes_pred = process_lr_probe(X, pred, thresholds['pred'], directions['pred'])
 
 
-    coefs_pred = torch.tensor(probes_pred[-1].coef_)[0]
+    # Add up the coefficients of all the probes and mask all but the top 10 coefficients
+    coefs_pred_full = torch.stack([torch.tensor(probe.coef_).squeeze() for probe in probes_pred]).sum(dim=0)
+    print(torch.where(coefs_pred_full!=0))
+    print(torch.where(coefs_pred_full>0))
+    topk = torch.topk(coefs_pred_full.abs(), 10)
+    mask = torch.zeros_like(coefs_pred_full, dtype=torch.bool)
+    mask[topk.indices] = True
+    coefs_pred = coefs_pred_full * mask
+    
 
-    unique_coefs = torch.unique(torch.cat([torch.where(coefs_pred>0)[0]]))
+
+    unique_coefs = torch.unique(torch.cat([torch.where(coefs_pred!=0)[0]]))
     coefs = torch.stack([coefs_pred])
     coefs = coefs[:,unique_coefs]
 
@@ -272,11 +283,7 @@ if __name__ == "__main__":
     model_path = config["paths"]["model_path"]
     sae_path = config["paths"]["sae_path"]
 
-    DMS = True
-
-
-
-
+    DMS = False
 
 
     
@@ -309,16 +316,17 @@ if __name__ == "__main__":
         df = pd.read_csv(df_path)
         #df["average_activity"] = df[["prediction1","prediction2"]].mean(axis=1)
         df["average_activity"] = df["prediction2"]
-        sequences = df["mutated_sequence"].tolist()
-        mutant = df["mutant"].tolist()
+        sequences = df["sequence"].tolist()
+        mutant = df["index"].tolist()
         mutant = np.array(mutant)
+        print(len(mutant))
         
 
         
 
 
 
-    if True:
+    if False:
         cfg, sae = load_sae(sae_path)
         thresholds = torch.load(sae_path+"/percentiles/feature_percentile_50.pt")
         thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
@@ -334,15 +342,19 @@ if __name__ == "__main__":
         obtain_features(sequences, mutant, output_dir)
 
     dict_features = load_features(f"{output_dir}/features/features_M{model_iteration}_D{data_iteration}.pkl")
-    print(len(dict_features))
+
+
+
+
 
     if DMS:
         activity = [df[df["mutant"] == key]["activity_dp7"].values[0] for key in dict_features.keys()]
     else:
-        activity = [df[df["name"] == key]["average_activity"].values[0] for key in dict_features.keys()]
+        activity = [df[df["index"] == key]["average_activity"].values[0] for key in dict_features.keys()]
         activity = np.array(activity)
 
     features = list(dict_features.values())
+
 
 
     f_rates = firing_rates(features, output_dir)
@@ -376,20 +388,22 @@ if __name__ == "__main__":
         print(thresholds_pos)
 
         # Get the features that are greater than the threshold
-        for min_rest_fraction in [0.02,0.03 ]:
-            print("Min rest fraction")
-            features_greater_than_threshold = get_features_greater_than_min_activity(mean_features, activity, min_activity=thresholds_pos["pred"], min_rest_fraction=min_rest_fraction)
-            print(features_greater_than_threshold) 
-            if len(features_greater_than_threshold["unique_coefs"]) == 0:
-                print("No features to ablate")
-                continue
+        if False:
+            for min_rest_fraction in [0.02,0.03 ]:
+                print("Min rest fraction")
+                features_greater_than_threshold = get_features_greater_than_min_activity(mean_features, activity, min_activity=thresholds_pos["pred"], min_rest_fraction=min_rest_fraction)
+                print(features_greater_than_threshold) 
+                if len(features_greater_than_threshold["unique_coefs"]) == 0:
+                    print("No features to ablate")
+                    continue
 
-            with open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}_{pth}_{min_rest_fraction}_ablation.pkl", "wb") as f:
-                pkl.dump(features_greater_than_threshold, f)
+                with open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}_{pth}_{min_rest_fraction}_ablation.pkl", "wb") as f:
+                    pkl.dump(features_greater_than_threshold, f)
 
-        #importance_features_pos = analyze_important_features(mean_features, activity, thresholds_pos, "upper")
-        #os.makedirs(f"{output_dir}/important_features", exist_ok=True)
-        
-        #with open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}_{pth}.pkl", "wb") as f:
-        #    pkl.dump(importance_features_pos, f)
+        if True:
+            importance_features_pos = analyze_important_features(mean_features, activity, thresholds_pos, "upper")
+            os.makedirs(f"{output_dir}/important_features", exist_ok=True)
+            
+            with open(f"{output_dir}/important_features/important_features_pos_M{model_iteration}_D{data_iteration}_{pth}.pkl", "wb") as f:
+                pkl.dump(importance_features_pos, f)
 
