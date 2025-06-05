@@ -25,7 +25,6 @@ from src.inference.inference_batch_topk import convert_to_jumprelu
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from prettytable import PrettyTable
-from src.utils import get_paths
 from datasets import load_from_disk
 import seaborn as sns   
 import matplotlib.pyplot as plt

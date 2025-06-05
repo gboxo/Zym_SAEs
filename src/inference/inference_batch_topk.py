@@ -19,18 +19,3 @@ def convert_to_jumprelu(sae: BatchTopKSAE, thresholds: torch.tensor) -> JumpReLU
 
 
 
-
-if __name__ == "__main__":
-
-    sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_RAW_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_90000"
-    cfg, sae, thresholds = load_sae(sae_path, load_thresholds=True)
-
-    jump_relu = convert_to_jumprelu(sae, thresholds)
-
-
-
-
-
-
-
-

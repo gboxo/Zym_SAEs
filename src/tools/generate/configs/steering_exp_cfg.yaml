@@ -1,0 +1,25 @@
+model_path: "/path/to/model"
+sae_path: "/path/to/sae"
+output_root: "/experiment/outputs"
+batch_size: 20
+n_batches: 3
+max_new_tokens: 500
+interventions:
+  - type: ablation
+    layer: 25
+    features: [45, 67]
+    generation_idx: "ablation_1"
+    ablation_mode: "zero"
+
+  - type: clipping
+    layer: 25
+    features: [89]
+    clipping_value: 5.0
+    generation_idx: "clipping_1"
+
+  - type: steering_vector
+    layer: 10
+    features: 0:50  # Slice syntax
+    strength: 0.8
+    generation_idx: "steering_1"
+    activity_data: "/path/to/activity.csv"

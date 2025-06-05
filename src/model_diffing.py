@@ -1,9 +1,9 @@
 import argparse
-from src.training.training import resume_training
-from src.training.logs import init_wandb
-from src.utils import get_ht_model
-from src.utils import load_model
-from src.config.load_config import load_experiment_config, convert_to_sae_config
+from training.training import resume_training
+from training.logs import init_wandb
+from utils import get_ht_model
+from utils import load_model
+from config.load_config import load_experiment_config, convert_to_sae_config
 import torch
 from types import SimpleNamespace
 

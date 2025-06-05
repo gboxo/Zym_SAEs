@@ -1,6 +1,6 @@
 # %%
 import yaml
-from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Config
+from transformers import AutoModelForCausalLM, GPT2Config
 from sae_lens import HookedSAETransformer
 from .training.config import get_default_cfg, update_cfg
 from .training.sae import BatchTopKSAE
@@ -10,46 +10,25 @@ import torch
 import json
 from transformer_lens.HookedTransformerConfig import HookedTransformerConfig
 from transformer_lens import HookedTransformer
-import socket
-from types import SimpleNamespace
 import os
 
 
-def get_paths():
-    """Get paths for model, SAE, and mini_brenda based on host environment.
+
+def load_config(cfg_path):
+   """
+    Load configuration from a YAML file.
     
+    Args:
+        cfg_path (str): Path to the configuration file.
+        
     Returns:
-        SimpleNamespace: Object with attributes:
-            - model_path: Path to model directory
-            - sae_path: Path to SAE checkpoints
-            - mini_brenda: Path to mini_brenda.txt file
+        dict: Configuration parameters.
     """
+    with open(cfg_path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
 
-    if not "Workstation" in socket.gethostname():
 
-        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL"
-        sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-        mini_brenda = "/home/woody/b114cb/b114cb23/boxo/mini_brenda.txt"
-        d = {
-                "model_path": model_path,
-                "sae_path": sae_path,
-                "mini_brenda": mini_brenda
-                }
-        d_namespace = SimpleNamespace(**d)
-        return d_namespace
-
-    else:
-        model_path = "AI4PD/ZymCTRL"
-        sae_path = "/users/nferruz/gboxo/ZymCTRL/checkpoints/ZymCTRL_25_02_25_h100_blocks.26.hook_resid_pre_10240_batchtopk_100_0.0003_200000/"
-        mini_brenda = "/users/nferruz/gboxo/Downloads/mini_brenda.txt"
-
-        d = {
-                "model_path": model_path,
-                "sae_path": sae_path,
-                "mini_brenda": mini_brenda
-                }
-        d_namespace = SimpleNamespace(**d)
-        return d_namespace
 
 def load_model(model_name):
     """Load a pretrained model and tokenizer.
@@ -271,7 +250,8 @@ def get_ht_model(gpt:AutoModelForCausalLM,cfg: GPT2Config, tokenizer=None) -> Ho
         "tokenizer_prepends_bos": True,
         "default_prepend_bos": False,
         "use_normalization_before_and_after": False,
-        "attention_dir": "causal"
+        "attention_dir": "causal",
+        "use_hook_tokens": True
 
 
     }

@@ -1,0 +1,34 @@
+paths:
+  model_path: "/home/woody/b114cb/b114cb23/models/model-3.2.1.1/"
+  sae_path: "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/noelia_ft_dms/diffing/"
+  top_features_path: "/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/important_features/important_features_pos_M0_D0_1_0.5_ablation.pkl"
+  max_activations_path: "/path/to/max_activations.pkl"  # For clipping experiments
+  df_path: "/path/to/activity_data.csv"  # For steering experiments
+  out_dir: "/home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/unified_experiments/"
+
+label: "3.2.1.1"
+model_iteration: 0
+data_iteration: 0
+
+# Generation parameters
+generation:
+  max_new_tokens: 1014
+  n_samples: 20
+  n_batches: 3
+  prompt: "3.2.1.1<sep><start>"
+
+# Experiment-specific parameters
+ablation:
+  save_activations: true
+  individual_features: true
+  all_features: true
+
+clipping:
+  save_masks: true
+  individual_features: true
+  # all_features: false  # Set to true to enable
+
+steering:
+  layers: [5, 10, 25]
+  strengths: [-1.0, -0.5, 0.5, 1.0]
+  activity_threshold: 3.0 

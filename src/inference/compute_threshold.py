@@ -1,17 +1,12 @@
 import os
 import torch
 from src.training.activation_store import ActivationsStore
-from src.utils import get_ht_model, load_config, load_sae, load_model
+from src.utils import get_ht_model, load_sae, load_model
 from tqdm import tqdm
-from src.utils import get_paths
-from src.config.load_config import load_experiment_config, convert_to_sae_config
-import pandas as pd
-
-
 
 
 # %%
-def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
+def compute_threshold(model, sparse_autoencoder, config, path, num_batches=12):
     """
     Computes a threshold for each feature based on the minimum positive activations across batches.
 
@@ -65,14 +60,13 @@ def compute_threshold(model, sparse_autoencoder, config, num_batches=12):
 
 
 def main(path, model_path, n_batches, cfg):
-    print(path)
     _,sae = load_sae(path)
     sae.eval()
 
     # Load the configuration file
     cfg["ctx_len"] = 512
     cfg["model_batch_size"] = 64 
-    cfg["datset_path"] = "/home/woody/b114cb/b114cb23/boxo/new_dataset_eval/"
+    cfg["datset_path"] = path
 
     print(cfg)
 
@@ -90,40 +84,6 @@ def main(path, model_path, n_batches, cfg):
     # Compute the threshold and save it in the same directory as the SAE
     threshold = compute_threshold(model, sae, cfg, num_batches=n_batches)
     return threshold
-
-
-
-
-if __name__ == "__main__":
-
-    model_iteration = 3
-    data_iteration = 3
-    config = f"configs/sae_training_2b_100/config_sae_2b_iter_1.yaml"
-    config = load_experiment_config(config)
-    sae_cfg = convert_to_sae_config(config)
-
-    print("Configurations loaded")
-
-
-
-    if True:
-
-        #path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
-        n_batches = 100 
-
-        #model_path = f"/users/nferruz/gboxo/Alpha Amylase/output_iteration{model_iteration}" 
-        #sae_path = f"/users/nferruz/gboxo/Diffing Alpha Amylase/M{model_iteration}_D{data_iteration}/diffing/"
-        path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
-        model_path = "/home/woody/b114cb/b114cb23/models/ZymCTRL/"
-
-        sae_path = "/home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/New_SAE/sae_training_iter_0_32/final/"
-        test_set_path = "/home/woody/b114cb/b114cb23/boxo/new_dataset_eval/"
-
-
-        
-
-        threshold = main(path, model_path=model_path, n_batches = n_batches, cfg=sae_cfg)
-        torch.save(threshold, f"{path}/thresholds.pt")
 
 
 
