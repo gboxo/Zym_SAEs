@@ -17,7 +17,7 @@ The organic workflow for this repository is to use the `AI4PD/ZymCTRL` and the r
 6) Perform generation-time interventions using those latents
 7) Score the generated variants
 
-```{mermaid}
+```mermaid
 flowchart LR
     A["📥 Download Deep<br/>Mutational Scan (DMS)"] --> B["🎯 Create Oracle<br/>seq → activity mapping"]
     
@@ -31,7 +31,7 @@ flowchart LR
     style D fill:#fff3e0,stroke:#e65100,stroke-width:2px
 ```
 
-```{mermaid}
+```mermaid
 flowchart LR
     E["🔍 Identify Predictive<br/>SAE Latents<br/>(high vs low activity)"] --> F["⚡ Generation-time<br/>Interventions<br/>(ablation/clamping/steering)"]
     
