@@ -51,6 +51,7 @@ def run_predictions(config: ActivityPredictionConfig):
     df = pd.DataFrame({
         "name": [r["name"] for r in records],
         "index": [r["index"] for r in records],
+        "sequence": [r["sequence"] for r in records],
         "prediction1": preds1,
         "prediction2": preds2,
         "mean_prediction": [np.mean([p1, p2]) for p1, p2 in zip(preds1, preds2)]

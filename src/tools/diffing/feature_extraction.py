@@ -55,6 +55,18 @@ def obtain_features(sequences, mutant, output_dir, label, hook_point):
     features_dict = dict(zip(mutant, features))
     os.makedirs(f"{output_dir}/features", exist_ok=True)
     pkl.dump(features_dict, open(f"{output_dir}/features/features_{model_name}.pkl", "wb"))
+
+    # Compute max activations
+    key = list(features_dict.keys())[0]
+    eg = np.array(features_dict[key].todense())
+
+    max_activations = np.zeros(eg.shape[1])
+    for key in features_dict.keys():
+        max_activations = np.maximum(max_activations, np.array(features_dict[key].todense()).max(axis=0))
+
+    pkl.dump(max_activations, open(f"{output_dir}/features/max_activations.pkl", "wb"))
+
+
     del features
     torch.cuda.empty_cache()
 
@@ -109,6 +121,10 @@ if __name__ == "__main__":
     DMS = config["is_DMS"]
     hook_point = config["hook_point"]
 
+    prefix_tokens = config["prefix_tokens"]
+    percentiles = config["percentiles"]
+    min_rest_fraction = config["min_rest_fraction"]
+
     latent_scoring_config = LatentScoringConfig(
             hook_point=hook_point,
             model_name=model_name,
@@ -120,7 +136,10 @@ if __name__ == "__main__":
             out_dir=output_dir,
             seq_col_id=seq_col_id,
             pred_col_id=pred_col_id,
-            col_id=col_id
+            col_id=col_id,
+            prefix_tokens=prefix_tokens,
+            percentiles=percentiles,
+            min_rest_fraction=min_rest_fraction
             )
 
     

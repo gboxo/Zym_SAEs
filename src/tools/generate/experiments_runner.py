@@ -18,10 +18,17 @@ from src.tools.generate.steering_hooks import dense_steering_hook
 from src.utils import load_model, get_sl_model, load_sae, get_ht_model, load_config
 from sae_lens import SAE, SAEConfig
 from functools import partial
+from typing import Optional, Tuple
 
+def setup_model_and_sae(model_path: str, sae_path: Optional[str] = None) -> Tuple[object, SAE]:
 
-def setup_model_and_sae(model_path: str, sae_path: str) -> Tuple[object, SAE]:
     """Common setup for model and SAE across experiments"""
+
+    tokenizer, model = load_model(model_path)
+    model = get_sl_model(model, model.config, tokenizer).to("cuda")
+
+
+
     cfg_sae, sae = load_sae(sae_path)
     thresholds = torch.load(sae_path + "/percentiles/feature_percentile_50.pt")
     thresholds = torch.where(thresholds > 0, thresholds, torch.inf)
@@ -54,8 +61,6 @@ def setup_model_and_sae(model_path: str, sae_path: str) -> Tuple[object, SAE]:
     sae.load_state_dict(state_dict)
     sae.use_error_term = True
 
-    tokenizer, model = load_model(model_path)
-    model = get_sl_model(model, model.config, tokenizer).to("cuda")
     model.add_sae(sae)
     
     return model, sae
@@ -113,7 +118,7 @@ def run_feature_intervention_experiment(config: Dict[str, Any], intervention_typ
                 generation_idx=generation_idx, n_batches=3
             )
         else:  # clampping
-            clampping_value = [max_activation_dict.get(feature_idx, 5.0)]  # Single value in list
+            clampping_value = [max_activation_dict.get(feature_idx, 5)]  # Single value in list
             outputs, batch_context = generate_with_clampping(
                 model, sae, prompt, [feature_idx], clampping_value,
                 max_new_tokens=1014, n_samples=20,
@@ -160,14 +165,6 @@ def run_feature_intervention_experiment(config: Dict[str, Any], intervention_typ
     print(f"{intervention_type.capitalize()} experiment completed. Results saved to {out_dir}")
 
 
-def run_ablation_experiment(config: Dict[str, Any]):
-    """Run ablation experiment"""
-    run_feature_intervention_experiment(config, "ablation")
-
-
-def run_clampping_experiment(config: Dict[str, Any]):
-    """Run clampping experiment"""
-    run_feature_intervention_experiment(config, "clampping")
 
 
 def run_steering_experiment(config: Dict[str, Any]):
@@ -187,7 +184,7 @@ def run_steering_experiment(config: Dict[str, Any]):
     prompt = f"{label}<sep><start>"
     
     # Calculate steering vectors
-    steering_vectors = calculate_steering_vectors(model, prompt, df)
+    steering_vectors = calculate_steering_vectors(model, prompt, df, hook_name=config["hook_point"])
     
     # Save steering vectors
     os.makedirs(out_dir, exist_ok=True)
@@ -250,8 +247,10 @@ def calculate_steering_vectors(model, prompt: str, df: pd.DataFrame, hook_name: 
     
     tokenized_top_10 = [model.to_tokens(prompt + s) for s in sequences_top_10]
     tokenized_bottom_90 = [model.to_tokens(prompt + s) for s in random_sequences_bottom_90]
+
+    print(hook_name)
     
-    names_filter = lambda x: hook_name in x
+    names_filter = lambda x:  x.endswith(hook_name)
     all_pos = {}
     all_neg = {}
     
@@ -259,6 +258,7 @@ def calculate_steering_vectors(model, prompt: str, df: pd.DataFrame, hook_name: 
         for tokens in tokenized_top_10:
             logits, cache_pos = model.run_with_cache(tokens, names_filter=names_filter)
             for layer in layers:
+                print(hook_name)
                 acts_pos = cache_pos[f"blocks.{layer}.{hook_name}"][:, -1]
                 if layer not in all_pos:
                     all_pos[layer] = acts_pos.mean(dim=0)
@@ -294,9 +294,9 @@ def main():
     config = load_config(args.cfg_path)
     
     if args.experiment_type == "ablation":
-        run_ablation_experiment(config)
+        run_feature_intervention_experiment(config, "ablation")
     elif args.experiment_type == "clampping":
-        run_clampping_experiment(config)
+        run_feature_intervention_experiment(config, "clampping")
     elif args.experiment_type == "steering":
         run_steering_experiment(config)
 

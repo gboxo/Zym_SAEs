@@ -182,5 +182,3 @@ def generate_with_clampping(
 
 
 # Backwards compatibility aliases
-generate_with_ablation_v2 = generate_with_ablation
-generate_with_clampping_v2 = generate_with_clampping 

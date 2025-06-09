@@ -91,7 +91,8 @@ def get_important_features(X, pred, thresholds, directions='upper'):
     def process_lr_probe(X, pred, thresholds, directions):
         """
         Process the LR probe
-        """ X_train, X_test, y_train, y_test = train_test_split(
+        """
+        X_train, X_test, y_train, y_test = train_test_split(
             X, get_mask(pred, thresholds, directions))
         get_assert(y_train, y_test)
         results, probes = fit_lr_probe(X_train, y_train, X_test, y_test)
@@ -224,7 +225,7 @@ if __name__ == "__main__":
     
     prefix_tokens = config.get("prefix_tokens", 9)  # Default to 10 if not specified
     percentiles = config.get("percentiles", [94, 96, 98])  # Default to [94, 96, 98] if not specified
-    min_rest_fraction = config.get("min_rest_fraction", [0.05,0.1])  # Default to 0.01 if not specified
+    min_rest_fractions = config.get("min_rest_fraction", [0.05,0.1])  # Default to 0.01 if not specified
 
     latent_scoring_config = LatentScoringConfig(
             hook_point=hook_point,
@@ -240,12 +241,15 @@ if __name__ == "__main__":
             col_id=col_id,
             prefix_tokens=prefix_tokens,
             percentiles=percentiles,
-            min_rest_fraction=min_rest_fraction
+            min_rest_fraction=min_rest_fractions
             )
 
     
 
     df = pd.read_csv(df_path)
+
+    print(df.head())
+    print(df.columns)
 
     sequences = df[seq_col_id].tolist()
     activity = df[pred_col_id].tolist()
@@ -290,7 +294,7 @@ if __name__ == "__main__":
         thresholds_pos = get_empirical_thresholds(activity,pth)
 
         # Get the features that are greater than the threshold
-        for min_rest_fraction in min_rest_fraction:
+        for min_rest_fraction in min_rest_fractions:
             features_greater_than_threshold = get_features_greater_than_min_activity(mean_features, activity, min_activity=thresholds_pos["pred"], min_rest_fraction=min_rest_fraction)
             if len(features_greater_than_threshold["unique_coefs"]) == 0:
                 continue

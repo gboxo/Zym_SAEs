@@ -125,9 +125,7 @@ def dense_steering_hook(
     Returns:
         Modified activations with steering vector applied
     """
-    # Only apply during generation (single token)
-    if activations.shape[1] == 1:
-        activations = activations + steering_vector * strength
+    activations = activations + steering_vector * strength
     
     return activations
 

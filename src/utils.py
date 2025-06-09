@@ -15,12 +15,12 @@ import os
 
 
 def load_config(cfg_path):
-   """
+    """
     Load configuration from a YAML file.
     
     Args:
         cfg_path (str): Path to the configuration file.
-        
+
     Returns:
         dict: Configuration parameters.
     """
@@ -98,27 +98,6 @@ def load_sae(sae_path, load_thresholds=False, checkpoint_name="checkpoint_latest
         return cfg,sae,thresholds
     else: 
         return cfg,sae
-
-def load_config(config_path):
-    """Load and process configuration from YAML file.
-    
-    Args:
-        config_path (str): Path to YAML config file
-        
-    Returns:
-        dict: Configuration dictionary with defaults merged
-    """
-    cfg = get_default_cfg()
-    cfg["model_name"] = None
-    cfg["hook_point"] = None
-
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-    
-    cfg = update_cfg(cfg, **config)
-    cfg = post_init_cfg(cfg)
-
-    return cfg
 
 
 

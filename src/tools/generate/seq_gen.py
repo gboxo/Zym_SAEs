@@ -44,7 +44,7 @@ def generate_without_intervention(model, tokenizer, prompt: str, max_new_tokens=
     all_outputs = [o.replace("<|endoftext|>", "") for o in all_outputs]
     return all_outputs
 
-def main(label, model,special_tokens,device,tokenizer):
+def main(label, model,special_tokens,device,tokenizer, n_samples):
 
     
     # Generating sequences
@@ -57,7 +57,7 @@ def main(label, model,special_tokens,device,tokenizer):
         eos_token_id=1,
         pad_token_id=0,
         do_sample=True,
-        num_return_sequences=20) # Depending non your GPU, you'll be able to generate fewer or more sequences. This runs in an A40.
+        num_return_sequences=n_samples) # Depending non your GPU, you'll be able to generate fewer or more sequences. This runs in an A40.
     
     # Check sequence sanity, ensure sequences are not-truncated.
     # The model will truncate sequences longer than the specified max_length (1024 above). We want to avoid those sequences.
@@ -83,77 +83,59 @@ def main(label, model,special_tokens,device,tokenizer):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg_path", type=str)
-    parser.add_argument("--iteration_num", type=int)
-    parser.add_argument("--baseline", action="store_true", help="Run baseline generation without interventions")
     args = parser.parse_args()
     
     device = torch.device("cuda")
     
-    if args.baseline:
-        # Run baseline generation (consolidated from generate_without_penalty.py)
-        print('Reading pretrained model and tokenizer for baseline generation')
-        model_path = "/home/woody/b114cb/b114cb23/models/model-3.2.1.1/"
-        
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
-        model = GPT2LMHeadModel.from_pretrained(model_path).to(device)
-        
-        prompt = "3.2.1.1<sep><start>"
-        out_dir = "/home/woody/b114cb/b114cb23/boxo/unified_experiments/baseline/"
-        os.makedirs(out_dir, exist_ok=True)
-        
-        sequences = generate_without_intervention(model, tokenizer, prompt, max_new_tokens=1024, n_samples=20)
-        
-        with open(f"{out_dir}/baseline_sequences.txt", "w") as f:
-            for i, seq in enumerate(sequences):
-                f.write(f">3.2.1.1_{i},{seq}\n")
-        
-        print(f"Baseline generation completed. Results saved to {out_dir}")
-    else:
-        # Standard sequence generation with perplexity scoring
-        cfg_path = args.cfg_path
-        config = load_config(cfg_path)
-        iteration_num = args.iteration_num
-        ec_label = config["label"]
-        out_dir = config["paths"]["out_dir"].format(iteration_num)
+    # Standard sequence generation with perplexity scoring
+    cfg_path = args.cfg_path
+    config = load_config(cfg_path)
+    model_name = config["model_name"]
+    ec_label = config["label"]
+    out_dir = config["paths"]["out_dir"]
 
-        print('Reading pretrained model and tokenizer')
-        model_name = config["paths"]["model_path"]    
+    print('Reading pretrained model and tokenizer')
+    model_path = config["paths"]["model_path"]    
 
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = GPT2LMHeadModel.from_pretrained(model_name).to(device)
-        special_tokens = ['<start>', '<end>', '<|endoftext|>', '<pad>', ' ', '<sep>']
 
-        label = ec_label
-        canonical_amino_acids = set("ACDEFGHIKLMNPQRSTVWY")
-        print("Starting sequence generation")
-        
-        all_sequences = []
-        unique_sequences = set()
-        
-        for i in tqdm(range(100)):
-            sequences = main(label, model, special_tokens, device, tokenizer)
-            for key, value in sequences.items():
-                for index, val in enumerate(value):
-                    sequence = val[0]
-                    if all(char in canonical_amino_acids for char in sequence) and sequence not in unique_sequences:
-                        unique_sequences.add(sequence)
-                        sequence_info = {
-                            'label': label,
-                            'batch': i,
-                            'index': index,
-                            'pepr': float(val[1]),
-                            'fasta': f">{label}_{i}_{index}_iteration{iteration_num}\t{val[1]}\n{sequence}\n"
-                        }
-                        all_sequences.append(sequence_info)
-            print(f"Iteration {i+1}: {len(unique_sequences)} unique sequences found so far")
-                    
-        fasta_content = ''.join(seq['fasta'] for seq in all_sequences)
+    n_samples = config["n_samples"]
+    n_batches = config["n_batches"]
 
-        os.makedirs(out_dir, exist_ok=True)
-        output_filename = f"{out_dir}/seq_gen_{label}_iteration{iteration_num}.fasta"
-        with open(output_filename, "w") as fn:
-            fn.write(fasta_content)
-        
-        print(f"Final result: {len(unique_sequences)} unique sequences saved to {output_filename}")
-        fn.close()
-        
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    model = GPT2LMHeadModel.from_pretrained(model_path).to(device)
+    special_tokens = ['<start>', '<end>', '<|endoftext|>', '<pad>', ' ', '<sep>']
+
+    label = ec_label
+    canonical_amino_acids = set("ACDEFGHIKLMNPQRSTVWY")
+    print("Starting sequence generation")
+    
+    all_sequences = []
+    unique_sequences = set()
+    
+    for i in tqdm(range(n_batches)):
+        sequences = main(label, model, special_tokens, device, tokenizer, n_samples)
+        for key, value in sequences.items():
+            for index, val in enumerate(value):
+                sequence = val[0]
+                if all(char in canonical_amino_acids for char in sequence) and sequence not in unique_sequences:
+                    unique_sequences.add(sequence)
+                    sequence_info = {
+                        'label': label,
+                        'batch': i,
+                        'index': index,
+                        'pepr': float(val[1]),
+                        'fasta': f">{label}_{i}_{index}_{model_name}\t{val[1]}\n{sequence}\n"
+                    }
+                    all_sequences.append(sequence_info)
+        print(f"Iteration {i+1}: {len(unique_sequences)} unique sequences found so far")
+                
+    fasta_content = ''.join(seq['fasta'] for seq in all_sequences)
+
+    os.makedirs(out_dir, exist_ok=True)
+    output_filename = f"{out_dir}/seq_gen_{label}_{model_name}.fasta"
+    with open(output_filename, "w") as fn:
+        fn.write(fasta_content)
+    
+    print(f"Final result: {len(unique_sequences)} unique sequences saved to {output_filename}")
+    fn.close()
+    
