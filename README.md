@@ -61,8 +61,8 @@ flowchart LR
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd crg_boxo
+git clone https://github.com/gboxo/Zym_SAEs.git 
+cd Zym_SAEs
 
 # Install dependencies
 pip install -r requirements.txt
@@ -71,38 +71,150 @@ pip install -r requirements.txt
 
 ### 1. Setup
 
-- Downlaod ZymCTRL
-- Downlaod the SAE
-- Downlaod the oracle
-- Download the DMS data
+#### Download Required Models and Data
+
+```bash
+# Download ZymCTRL protein language model
+# This should be available from HuggingFace: AI4PD/ZymCTRL
+huggingface-cli download AI4PD/ZymCTRL --local-dir models/ZymCTRL
+
+# Download pre-trained SAEs
+# Available from HuggingFace: AI4PD/ZymCTRL-SAEs
+huggingface-cli download AI4PD/ZymCTRL-SAEs --local-dir models/ZymCTRL-SAEs
+
+# Download DMS (Deep Mutational Scanning) datasets
+# Example: Alpha-amylase activity data
+wget [DMS_DATASET_URL] -O data/dms_dataset.csv
+
+# Download base ESM models from HuggingFace
+huggingface-cli download facebook/esm2_t33_650M_UR50D --local-dir models/esm2_t33_650M_UR50D
+huggingface-cli download facebook/esm1v_t33_650M_UR90S_1 --local-dir models/esm1v_t33_650M_UR90S_1
+
+# Download fine-tuned oracle models from Dropbox
+# Note: Replace [DROPBOX_LINK] with the actual Dropbox sharing link
+wget [DROPBOX_LINK]/esm_GB1_finetuned.pth -O models/oracles/esm_GB1_finetuned.pth
+wget [DROPBOX_LINK]/Esm1v_GB1_finetuned.pth -O models/oracles/Esm1v_GB1_finetuned.pth
+```
+
+#### Update Configuration Paths
+
+After downloading, update the paths in your configuration files to match your local setup:
+
+- `config/experiment_config.yaml`: Main experiment paths
+- `configs/config_*.yaml`: Task-specific configurations
 
 
 
-### 2. Analyse the featuers
+### 2. Feature Analysis
 
-[Instructions for extracting and analyzing features]
+#### Extract SAE Features
 
+Extract and analyze features from protein sequences using the trained SAEs:
 
-**Scripts**
+```bash
+# Run feature extraction
+./experiments_release/get_features_bash.sh
+```
 
-- `experiments_release/get_features_bash.sh`
-- `experiments_release/latent_scoring_bash.sh`
+This script:
+1. Configures paths for model, SAE, and data
+2. Extracts features at specified hook points (e.g., `blocks.25.hook_resid_pre`)
+3. Analyzes feature activations across protein sequences
+4. Generates feature importance scores
+
+#### Score Latent Features
+
+Identify features most predictive of protein activity:
+
+```bash
+# Run latent scoring
+./experiments_release/latent_scoring_bash.sh
+```
+
+This analysis:
+- Computes correlations between SAE features and activity scores
+- Identifies top features using percentile-based thresholds (50%, 75%, 90%)
+- Generates importance rankings for downstream interventions
+
+**Key Parameters:**
+- `hook_point`: Layer for feature extraction (default: `blocks.25.hook_resid_pre`)
+- `percentiles`: Thresholds for feature selection `[50, 75, 90]`
+- `min_rest_fraction`: Minimum fraction for feature filtering `[0.05, 0.1]`
 
 
 ### 3. Activity Prediction
 
-[Instructions for running activity prediction]
+Predict protein activity using fine-tuned ESM-based oracles:
 
-**Scripts**
+```bash
+# Run activity prediction
+./experiments_release/activity_prediction_bash.sh
+```
 
-- `experiments_release/activity_prediction_bash.sh`
+#### Oracle Models
 
-### 4. Sequence Generation
+The pipeline uses two pre-trained activity prediction models:
 
-[Instructions for generating sequences with interventions]
+1. **ESM2-based Oracle**: Fine-tuned ESM2 (650M parameters) with LoRA adaptation
+2. **ESM1v-based Oracle**: Fine-tuned ESM1v (650M parameters) with LoRA adaptation
 
-- `experiments_release/generate_with_ablation_bash.sh`
-- `experiments_release/generate_with_clammping_bash.sh`
+#### Input/Output
+
+- **Input**: FASTA file with protein sequences
+- **Output**: CSV file with activity predictions
+
+#### Configuration
+
+Update `configs/config_activity_prediction.yaml` with your paths:
+
+```yaml
+paths:
+  seqs_path: /path/to/sequences.fasta
+  output_path: /path/to/predictions.csv
+  oracle_path1: /path/to/esm2_model
+  checkpoint_path1: /path/to/esm2_finetuned.pth
+  oracle_path2: /path/to/esm1v_model
+  checkpoint_path2: /path/to/esm1v_finetuned.pth
+```
+
+### 4. Sequence Generation with Interventions
+
+Generate protein sequences with targeted SAE feature interventions:
+
+#### Ablation Experiments
+
+Generate sequences with important features ablated (set to zero):
+
+```bash
+# Run ablation generation
+./experiments_release/generate_with_ablation_bash.sh
+```
+
+#### Clamping Experiments
+
+Generate sequences with features clamped to maximum observed values:
+
+```bash
+# Run clamping generation
+./experiments_release/generate_with_clamping_bash.sh
+```
+
+#### Steering Experiments
+
+Generate sequences with directional feature steering:
+
+```bash
+# Run steering generation
+./experiments_release/generate_with_steering_bash.sh
+```
+
+#### Intervention Parameters
+
+- **Ablation**: Sets selected features to zero during generation
+- **Clamping**: Forces features to maximum activation values
+- **Steering**: Applies directional pressure with configurable strengths `[-1.0, -0.5, 0.5, 1.0]`
+- **Target Layers**: Interventions applied at layers `[5, 10, 25]`
+- **Generation Settings**: `max_new_tokens: 1014`, batch processing supported
 
 ## Configuration
 
@@ -126,24 +238,185 @@ The `experiments_release/` directory contains ready-to-run experiment scripts:
 
 ### Running Experiments
 
-[Instructions for running experiments]
+#### Quick Start
+
+1. **Setup your environment**:
+   ```bash
+   # Update configuration files with your local paths
+   cp config/experiment_config.yaml config/experiment_config_local.yaml
+   # Edit paths in experiment_config_local.yaml
+   ```
+
+2. **Run the full pipeline**:
+   ```bash
+   # Extract features
+   ./experiments_release/get_features_bash.sh
+   
+   # Score features for importance
+   ./experiments_release/latent_scoring_bash.sh
+   
+   # Generate sequences with interventions
+   ./experiments_release/generate_with_ablation_bash.sh
+   
+   # Predict activity of generated sequences
+   ./experiments_release/activity_prediction_bash.sh
+   ```
+
+#### Experiment Configuration
+
+Key parameters in `config/experiment_config.yaml`:
+
+```yaml
+generation:
+  max_new_tokens: 1014    # Sequence length
+  n_samples: 20           # Sequences per batch
+  n_batches: 3            # Number of batches
+  prompt: "3.2.1.1<sep><start>"  # EC class prompt
+
+steering:
+  layers: [5, 10, 25]     # Target layers
+  strengths: [-1.0, -0.5, 0.5, 1.0]  # Steering strengths
+  activity_threshold: 3.0  # Activity cutoff
+```
 
 
 ## Data Format
 
-[Description of expected data formats]
+### Input Formats
+
+#### Protein Sequences
+```
+# FASTA format
+>sequence_1
+METKLVVLGADGVGKSALTIQLIQNHF...
+>sequence_2
+METKLVVLGADGVGKSALTIQLIQNHF...
+```
+
+#### Activity Data (DMS)
+```csv
+# CSV format with required columns
+sequence,activity,index
+METKLVVLGADG...,3.2,0
+METKLVVLGADE...,2.8,1
+```
+
+### Output Formats
+
+#### Activity Predictions
+```csv
+index,sequence,prediction1,prediction2
+0,METKL...,3.1,2.9
+1,METKV...,2.7,2.6
+```
+
+#### Feature Importance
+```python
+# Pickle format containing:
+{
+    'important_features': [123, 456, 789],  # Feature indices
+    'scores': [0.85, 0.72, 0.68],          # Importance scores
+    'percentile': 75,                       # Selection threshold
+    'metadata': {...}
+}
+```
+
+### Configuration Requirements
+
+- `seq_col_id`: Column name for protein sequences (default: "sequence")
+- `pred_col_id`: Column name for activity predictions (default: "prediction2")
+- `col_id`: Column name for sequence index (default: "index")
 
 
 ## Advanced Use
 
+### Using a Different Protein Language Model
 
-### I want to use a different pLM
+1. **Update model paths** in configuration files:
+   ```yaml
+   paths:
+     model_path: "/path/to/your/custom/plm"
+   ```
 
-### I want to train a custom SAE from scratch
+2. **Ensure compatibility** with TransformerLens:
+   - Model must be supported by transformer-lens library
+   - Verify hook point names (e.g., `blocks.{layer}.hook_resid_pre`)
 
-### I want to finetune a SAE on custom data 
+3. **Adjust generation parameters**:
+   - Update `max_new_tokens` based on your model's context length
+   - Modify prompts to match your model's training format
 
-### I want to use a different datasource 
+### Training a Custom SAE from Scratch
+
+1. **Prepare activation data**:
+   ```python
+   # Use the activation store to collect activations
+   from src.training.activation_store import ActivationStore
+   store = ActivationStore(model, dataset, hook_point="blocks.25.hook_resid_pre")
+   ```
+
+2. **Configure SAE training**:
+   ```python
+   # Update src/training/config.py with your parameters
+   config = SAEConfig(
+       d_in=model.cfg.d_model,
+       d_sae=16384,  # Expansion factor
+       k=64,         # Top-k sparsity
+       ...           # Other hyperparameters
+   )
+   ```
+
+3. **Run training**:
+   ```python
+   from src.training.training import train_sae
+   sae = train_sae(config, activation_store)
+   ```
+
+### Fine-tuning an SAE on Custom Data
+
+1. **Load pre-trained SAE**:
+   ```python
+   from src.training.sae import SAE
+   sae = SAE.load("path/to/pretrained/sae")
+   ```
+
+2. **Prepare your dataset**:
+   - Format sequences according to your domain
+   - Ensure proper tokenization for your protein families
+
+3. **Configure fine-tuning**:
+   ```python
+   # Lower learning rate for fine-tuning
+   config.lr = 1e-5
+   config.num_epochs = 10
+   ```
+
+### Using a Different Data Source
+
+1. **Data preprocessing**:
+   ```python
+   # Create your custom dataset following the expected format
+   import pandas as pd
+   df = pd.DataFrame({
+       'sequence': your_sequences,
+       'activity': your_activities,
+       'index': range(len(your_sequences))
+   })
+   df.to_csv('custom_dataset.csv', index=False)
+   ```
+
+2. **Update configuration paths**:
+   ```yaml
+   paths:
+     df_path: "/path/to/custom_dataset.csv"
+   df:
+     seq_col_id: "your_sequence_column"
+     pred_col_id: "your_activity_column"
+   ```
+
+3. **Adapt oracle models**:
+   - Fine-tune ESM models on your specific activity prediction task
+   - Update oracle paths in activity prediction configs 
 
 
 
@@ -151,16 +424,32 @@ The `experiments_release/` directory contains ready-to-run experiment scripts:
 
 ## Citation
 
-[Citation information]
+If you use this code in your research, please cite:
+
+```bibtex
+@article{Zym_SAEs_2025,
+  title={Sparse Autoencoders in Protein Engineering Campaigns: Steering and Model Diffing},
+  author={[Gerard Boxó Corominas, Filippo Stocco, Noelia Ferruz]},
+  journal={},
+  year={2025},
+  url={https://github.com/gboxo/Zym_SAEs}
+}
+```
 
 ## License
 
-[License information]
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## Contributing
-
-[Contributing guidelines]
 
 ## Contact
 
-[Contact information]
+For questions, issues, or collaborations:
+
+- **GitHub Issues**: [Report bugs or request features](https://github.com/gboxo/Zym_SAEs/issues)
+
+## Acknowledgments
+
+- ZymCTRL protein language model: [AI4PD/ZymCTRL](https://huggingface.co/AI4PD/ZymCTRL)
+- Pre-trained SAEs: [AI4PD/ZymCTRL-SAEs](https://huggingface.co/AI4PD/ZymCTRL-SAEs)
+- ESM protein models: [Facebook Research](https://github.com/facebookresearch/esm)
+- TransformerLens: [Neel Nanda et al.](https://github.com/neelnanda-io/TransformerLens)
