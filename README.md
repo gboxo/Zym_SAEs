@@ -20,10 +20,10 @@ The organic workflow for this repository is to use the `AI4PD/ZymCTRL` and the r
 
 
 
-<img src="mermaid_part1.svg" alt="Workflow Part 1" width="100%" />
+<img src="docs/images/mermaid_part1.svg" alt="Workflow Part 1" width="100%" />
 
 
-<img src="mermaid_part2.svg" alt="Workflow Part 2" width="100%" />
+<img src="docs/images/mermaid_part2.svg" alt="Workflow Part 2" width="100%" />
 
 
 
