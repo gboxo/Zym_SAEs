@@ -16,6 +16,7 @@ pSAE/
 *.csv
 *.err
 *.out 
+*.cursorignore
 
 
 # Byte-compiled / optimized / DLL files

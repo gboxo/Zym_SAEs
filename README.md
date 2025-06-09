@@ -71,7 +71,6 @@ huggingface-cli download facebook/esm2_t33_650M_UR50D --local-dir models/esm2_t3
 huggingface-cli download facebook/esm1v_t33_650M_UR90S_1 --local-dir models/esm1v_t33_650M_UR90S_1
 
 # Download fine-tuned oracle models from Dropbox
-# Note: Replace [DROPBOX_LINK] with the actual Dropbox sharing link
 wget [DROPBOX_LINK]/esm_GB1_finetuned.pth -O models/oracles/esm_GB1_finetuned.pth
 wget [DROPBOX_LINK]/Esm1v_GB1_finetuned.pth -O models/oracles/Esm1v_GB1_finetuned.pth
 ```
