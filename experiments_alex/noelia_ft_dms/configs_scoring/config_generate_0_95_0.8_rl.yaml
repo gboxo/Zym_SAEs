@@ -1,8 +1,0 @@
-    paths:
-      model_path: /home/woody/b114cb/b114cb23/models/model-3.2.1.1/
-      sae_path: /home/woody/b114cb/b114cb23/ZymCTRLSAEs/checkpoints/noelia_ft_dms/diffing/
-      top_features_path: /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/important_features/important_features_pos_M0_D0_95_0.8_ablation.pkl
-      out_dir: /home/woody/b114cb/b114cb23/boxo/noelia_ft_dms/latent_scoring/latent_scoring_base/ablation_with_all2/M0_D0_95_0.8
-    label: 3.2.1.1
-    model_iteration: 0
-    data_iteration: 0
