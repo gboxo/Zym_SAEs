@@ -4,13 +4,50 @@
 
 This repository contains code for training and analyzing Sparse Autoencoders (SAEs) on protein language models, with a focus on understanding feature representations and their relationship to protein activity.
 
-## Features
+The organic workflow for this repository is to use the `AI4PD/ZymCTRL` and the released SAEs `AI4PD/ZymCTRL-SAEs` along with a DMS datasource. For rough guidelines on how to change the pLM, SAE, or datasource, see the [Advanced Use](#advanced-use) section.
 
-- **SAE Training**: Train sparse autoencoders on protein language model representations
-- **Feature Analysis**: Extract and analyze important features from trained SAEs
-- **Activity Prediction**: Predict protein activity using oracle models
-- **Sequence Generation**: Generate protein sequences with various intervention techniques
-- **Interpretability**: Tools for understanding SAE feature representations
+
+### Workflow
+
+1) Downlaod the Deep Mutational Scan of choice.
+2) Use the DMS to create an oracle that maps from seq-to-activity
+3) Use a protein Language Model to sample enzymes of a given family (this could include approaches like fine-tuning, RL Alignment or prompting)
+4) Score the samples with the oracle
+5) Recover the SAE latents that are more predictive of high-low activity
+6) Perform generation-time interventions using those latents
+7) Score the generated variants
+
+```{mermaid}
+flowchart LR
+    A["📥 Download Deep<br/>Mutational Scan (DMS)"] --> B["🎯 Create Oracle<br/>seq → activity mapping"]
+    
+    B --> C["🧬 Sample Protein Sequences<br/>using Language Model<br/>(Fine-tuning/RL/Prompting)"]
+    
+    C --> D["📊 Score Samples<br/>with Oracle"]
+    
+    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style B fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    style C fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    style D fill:#fff3e0,stroke:#e65100,stroke-width:2px
+```
+
+```{mermaid}
+flowchart LR
+    E["🔍 Identify Predictive<br/>SAE Latents<br/>(high vs low activity)"] --> F["⚡ Generation-time<br/>Interventions<br/>(ablation/clamping/steering)"]
+    
+    F --> G["✅ Score Generated<br/>Variants"]
+    
+    G --> H["🎉 Optimized Protein<br/>Variants"]
+    
+    style E fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    style F fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+    style G fill:#fff8e1,stroke:#ff6f00,stroke-width:2px
+    style H fill:#e0f2f1,stroke:#00695c,stroke-width:3px
+```
+
+
+
+
 
 ## Installation
 
@@ -31,41 +68,41 @@ cd crg_boxo
 pip install -r requirements.txt
 ```
 
-## Project Structure
 
-```
-├── src/
-│   ├── training/           # SAE training components
-│   ├── inference/          # Model inference and evaluation
-│   ├── tools/              # Analysis and utility tools
-│   │   ├── data_utils/     # Data processing utilities
-│   │   ├── diffing/        # Feature extraction and analysis
-│   │   ├── generate/       # Sequence generation tools
-│   │   ├── oracles/        # Activity prediction models
-│   │   └── kl_divergence/  # KL divergence analysis
-│   └── config/             # Configuration loading
-├── configs/                # Configuration files
-├── experiments_release/    # Experiment scripts
-└── config/                 # Main experiment configuration
-```
+### 1. Setup
 
-## Quick Start
+- Downlaod ZymCTRL
+- Downlaod the SAE
+- Downlaod the oracle
+- Download the DMS data
 
-### 1. Training SAEs
 
-[Instructions for training sparse autoencoders]
 
-### 2. Feature Analysis
+### 2. Analyse the featuers
 
 [Instructions for extracting and analyzing features]
+
+
+**Scripts**
+
+- `experiments_release/get_features_bash.sh`
+- `experiments_release/latent_scoring_bash.sh`
+
 
 ### 3. Activity Prediction
 
 [Instructions for running activity prediction]
 
+**Scripts**
+
+- `experiments_release/activity_prediction_bash.sh`
+
 ### 4. Sequence Generation
 
 [Instructions for generating sequences with interventions]
+
+- `experiments_release/generate_with_ablation_bash.sh`
+- `experiments_release/generate_with_clammping_bash.sh`
 
 ## Configuration
 
@@ -91,41 +128,13 @@ The `experiments_release/` directory contains ready-to-run experiment scripts:
 
 [Instructions for running experiments]
 
-## Key Components
-
-### SAE Training (`src/training/`)
-
-- **`sae.py`**: Core SAE implementation
-- **`training.py`**: Training loop and optimization
-- **`activation_store.py`**: Activation data management
-- **`config.py`**: Training configuration
-
-### Inference (`src/inference/`)
-
-- **`sae_eval.py`**: SAE evaluation metrics
-- **`inference_batch_topk.py`**: Batch inference with top-k features
-
-### Analysis Tools (`src/tools/`)
-
-#### Feature Analysis (`diffing/`)
-- Feature extraction and importance scoring
-- Latent space analysis
-
-#### Sequence Generation (`generate/`)
-- Controlled sequence generation
-- Ablation and steering experiments
-
-#### Activity Prediction (`oracles/`)
-- Protein activity prediction using fine-tuned models
-- Support for multiple oracle architectures
 
 ## Data Format
 
 [Description of expected data formats]
 
-## Results
 
-[Information about expected outputs and results]
+## Advanced Use
 
 ## Citation
 
