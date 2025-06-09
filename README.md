@@ -136,6 +136,19 @@ The `experiments_release/` directory contains ready-to-run experiment scripts:
 
 ## Advanced Use
 
+
+### I want to use a different pLM
+
+### I want to train a custom SAE from scratch
+
+### I want to finetune a SAE on custom data 
+
+### I want to use a different datasource 
+
+
+
+
+
 ## Citation
 
 [Citation information]
